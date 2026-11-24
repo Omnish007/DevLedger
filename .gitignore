@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+release/
+storybook-static/
+coverage/
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo
+*.log
+*.sqlite*
+*.db
+.env
+.env.*
+!.env.example
+.DS_Store
