@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { parentPort, workerData } from 'node:worker_threads';
-import { claimNextBackgroundJob, completeCancellation, failBackgroundJob, finishBackgroundJob, heartbeatBackgroundJob, isBackgroundJobCancellationRequested, recoverStaleBackgroundJobs, reportBackgroundJobProgress, type BackgroundJobRow } from '../services/background-jobs.js';
+import { claimNextBackgroundJob, completeCancellation, failBackgroundJob, finishBackgroundJob, heartbeatBackgroundJob, isBackgroundJobCancellationRequested, recoverStaleBackgroundJobs, reportBackgroundJobProgress, type BackgroundJobRow } from '../services/background-job-store.js';
 import { extractDocument, type DocumentRow } from './document-extractors.js';
 
 const databasePath = String((workerData as { databasePath: string }).databasePath);

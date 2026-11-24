@@ -7,7 +7,7 @@ import { isAbsolute, relative, resolve, sep, join } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import unzipper from 'unzipper';
-import { columnIndex, decodeXml, xmlText } from './document-text.ts';
+import { columnIndex, decodeXml, xmlText } from './document-text.js';
 
 const execFileAsync = promisify(execFile);
 const MAX_EXTRACTED_BYTES = 20 * 1024 * 1024;
@@ -33,17 +33,18 @@ function hashFile(filePath: string): Promise<string> {
   return new Promise((resolveHash, reject) => {
     const hash = createHash('sha256');
     const stream = createReadStream(filePath);
-    stream.on('data', (chunk: Buffer) => hash.update(chunk));
+    stream.on('data', (chunk) => { hash.update(chunk); });
     stream.on('error', reject);
     stream.on('end', () => resolveHash(hash.digest('hex')));
   });
 }
-function validateArchive(archive: { files: Array<{ path: string; vars: { uncompressedSize?: number | string } }> }): void {
+function validateArchive(archive: { files: Array<{ path: string; uncompressedSize?: number | string; vars?: { uncompressedSize?: number | string } }> }): void {
   if (archive.files.length > 10_000) throw new Error('The document archive contains too many entries.');
   let total = 0;
   for (const entry of archive.files) {
     if (entry.path.startsWith('/') || entry.path.split('/').some((part) => part === '..')) throw new Error('The document archive contains an unsafe path.');
-    total += Number(entry.vars.uncompressedSize ?? 0);
+    const entrySize = entry.vars?.uncompressedSize ?? entry.uncompressedSize ?? 0;
+    total += Number(entrySize);
     if (!Number.isFinite(total) || total > 150 * 1024 * 1024) throw new Error('The expanded document archive exceeds 150 MB.');
   }
 }

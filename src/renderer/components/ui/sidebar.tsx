@@ -3,6 +3,7 @@ import { PanelLeft } from 'lucide-react';
 import { Slot } from 'radix-ui';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 type SidebarContextValue = { open: boolean; state: 'expanded' | 'collapsed'; setOpen: (open: boolean) => void; toggleSidebar: () => void };
 const SidebarContext = React.createContext<SidebarContextValue | null>(null);
@@ -58,5 +59,6 @@ function SidebarMenuSubButton({ className, asChild = false, isActive = false, si
 function SidebarMenuSkeleton({ className, showIcon = false, ...props }: React.ComponentProps<'div'> & { showIcon?: boolean }) {
   return <div data-slot="sidebar-menu-skeleton" className={cn('flex h-9 items-center gap-2 rounded-md px-2', className)} {...props}>{showIcon && <div className="size-4 shrink-0 animate-pulse rounded bg-sidebar-accent"/>}<div className="h-3 max-w-[var(--skeleton-width,70%)] flex-1 animate-pulse rounded bg-sidebar-accent"/></div>;
 }
+function SidebarSeparator({ className, ...props }: React.ComponentProps<typeof Separator>) { return <Separator data-slot="sidebar-separator" className={cn('mx-2 my-1 w-auto bg-sidebar-border', className)} {...props}/>; }
 function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) { return <main data-slot="sidebar-inset" className={cn('relative flex min-h-0 min-w-0 flex-1 flex-col bg-background', className)} {...props}/>; }
 export { SidebarProvider, Sidebar, SidebarTrigger, SidebarRail, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarGroupAction, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuAction, SidebarMenuBadge, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton, SidebarMenuSkeleton, SidebarSeparator, SidebarInset, useSidebar };
