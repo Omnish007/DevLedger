@@ -31,6 +31,8 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[index]}`;
 }
 
-export function friendlyError(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+export function friendlyError(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  const cleaned = raw.replace(/^(?:Error:\s*)?Error invoking remote method '[^']+':\s*(?:Error:\s*)?/i, '').trim();
+  return cleaned || fallback;
 }

@@ -5,7 +5,8 @@ import type { AiSummary, OllamaStatus, SearchResult } from '@shared/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
-import { formatRelative } from '@/lib/utils';
+import { formatRelative, friendlyError } from '@/lib/utils';
+import { stripHtmlToPlainText } from '@domain/html-text';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Switch } from '@/components/ui/switch';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
@@ -39,6 +40,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
   const [semanticError, setSemanticError] = useState('');
   const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
   const semanticRequestSequence = useRef(0);
+  const summaryRequestSequence = useRef(0);
 
   useEffect(() => {
     const ids = [...new Set(results.map((result) => result.projectId).filter((id): id is string => Boolean(id)))].slice(0, 200);
@@ -47,27 +49,34 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
     return () => { active = false; };
   }, [results]);
 
-  async function requestSummary() {
-    if (!query.trim()) return;
+  async function requestSummary(queryValue = query, scope = projectId) {
+    if (!queryValue.trim()) return;
+    const requestId = ++summaryRequestSequence.current;
     setAiBusy(true); setAiError(''); setAiSummary(null);
     try {
       const status = await onAiStatus();
       if (!status.available) throw new Error(status.error ?? 'Ollama is unavailable.');
-      setAiSummary(await onSummarize(query.trim(), projectId === 'all' ? null : projectId));
+      const summary = await onSummarize(queryValue.trim(), scope === 'all' ? null : scope);
+      if (requestId === summaryRequestSequence.current) setAiSummary(summary);
     } catch (caught) {
-      setAiError(caught instanceof Error ? caught.message : 'AI summary could not be generated.');
-    } finally { setAiBusy(false); }
+      if (requestId === summaryRequestSequence.current) setAiError(friendlyError(caught, 'AI summary could not be generated.'));
+    } finally {
+      if (requestId === summaryRequestSequence.current) setAiBusy(false);
+    }
   }
 
-  async function rerankSemantically(queryValue = query, scope = projectId) {
+  async function rerankSemantically(queryValue = query, scope = projectId, summarizeIfFound = false) {
     if (!queryValue.trim()) return;
     const requestId = ++semanticRequestSequence.current;
     setSemanticBusy(true); setSemanticError('');
     try {
       const ranked = await onHybridSearch(queryValue.trim(), scope === 'all' ? null : scope);
-      if (requestId === semanticRequestSequence.current) { setResults(ranked); setPage(1); }
+      if (requestId === semanticRequestSequence.current) {
+        setResults(ranked); setPage(1);
+        if (summarizeIfFound && ranked.length > 0) void requestSummary(queryValue, scope);
+      }
     } catch (caught) {
-      if (requestId === semanticRequestSequence.current) setSemanticError(caught instanceof Error ? caught.message : 'Semantic search is unavailable. FTS5 results remain available.');
+      if (requestId === semanticRequestSequence.current) setSemanticError(friendlyError(caught, 'Semantic search is unavailable. FTS5 results remain available.'));
     } finally {
       if (requestId === semanticRequestSequence.current) setSemanticBusy(false);
     }
@@ -77,32 +86,45 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
     event?.preventDefault();
     if (!query.trim()) return;
     semanticRequestSequence.current += 1;
-    setBusy(true); setError(''); setSearched(true); setAiSummary(null); setAiError('');
-    let summarizeAfterSearch = false;
+    summaryRequestSequence.current += 1;
+    setBusy(true); setAiBusy(false); setError(''); setSearched(true); setAiSummary(null); setAiError(''); setSemanticError('');
+    let lexicalCount = 0;
+    let succeeded = false;
     try {
       const lexicalResults = await onSearch(query.trim(), projectId === 'all' ? null : projectId);
       setResults(lexicalResults); setPage(1);
-      summarizeAfterSearch = aiEnabled;
-      if (semanticEnabled) void rerankSemantically(query.trim(), projectId);
+      lexicalCount = lexicalResults.length;
+      succeeded = true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Search failed.');
+      setError(friendlyError(caught, 'Search failed.'));
       setResults([]);
     } finally { setBusy(false); }
-    // Surface lexical results immediately; AI generation is a separate optional follow-up.
-    if (summarizeAfterSearch) void requestSummary();
+    if (!succeeded) return;
+    // Only invoke AI summary once at least one matching search result exists.
+    if (aiEnabled && lexicalCount > 0) void requestSummary(query, projectId);
+    if (semanticEnabled) void rerankSemantically(query.trim(), projectId, aiEnabled && lexicalCount === 0);
   }
 
   function toggleSemantic(enabled: boolean) {
     setSemanticEnabled(enabled); setSemanticError('');
     if (!enabled) { semanticRequestSequence.current += 1; setSemanticBusy(false); setPage(1); }
-    if (enabled && searched && results.length) void rerankSemantically(query, projectId);
+    if (enabled && searched && query.trim()) void rerankSemantically(query, projectId, aiEnabled && results.length === 0);
     if (!enabled && searched && query.trim()) void onSearch(query.trim(), projectId === 'all' ? null : projectId).then(setResults).catch(() => undefined);
   }
 
   function toggleAi(enabled: boolean) {
     setAiEnabled(enabled);
-    if (!enabled) { setAiSummary(null); setAiError(''); }
-    else if (searched && results.length) void requestSummary();
+    if (!enabled) { summaryRequestSequence.current += 1; setAiBusy(false); setAiSummary(null); setAiError(''); }
+    else if (searched && results.length) void requestSummary(query, projectId);
+  }
+
+  function renderExcerpt(rawExcerpt: string) {
+    const clean = stripHtmlToPlainText(rawExcerpt, { preserveMark: true });
+    return clean.split(/(<mark>[\s\S]*?<\/mark>)/g).map((part, index) => (
+      part.startsWith('<mark>') && part.endsWith('</mark>')
+        ? <mark key={index}>{part.slice(6, -7)}</mark>
+        : <span key={index}>{part}</span>
+    ));
   }
 
   return <div className="workspace-page page-search mx-auto space-y-6">
@@ -112,7 +134,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
     <div className="search-options">
       <section className="search-option" aria-label="Semantic search options">
         <label className="flex min-w-0 items-center gap-2 text-xs font-medium"><Switch checked={semanticEnabled} onCheckedChange={toggleSemantic} size="sm"/> <span>Include local semantic matches</span> <Badge variant="outline">Optional</Badge></label>
-        {semanticEnabled && <Badge variant="secondary">{semanticBusy ? 'Finding related concepts…' : 'Local embeddings'}</Badge>}
+        {semanticEnabled && <Badge variant={semanticError ? 'warning' : 'secondary'}>{semanticBusy ? 'Finding related concepts…' : semanticError ? 'Index required' : 'Local embeddings'}</Badge>}
         <p className="text-[11px] leading-relaxed text-muted-foreground">Semantic matching uses the local Ollama embedding model configured and indexed in Settings. Locked notes are excluded. FTS5 results appear first and remain usable when semantic search is off or unavailable.</p>
       </section>
       <section className="search-option" aria-label="AI summary options">
@@ -126,7 +148,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
     {aiError && <div role="alert" className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-xs"><AlertCircle className="mt-0.5 size-4 shrink-0 text-warning"/><span>{aiError}</span></div>}
     {aiEnabled && aiSummary && <section className="workspace-surface p-5"><div className="mb-2 flex items-center gap-2"><Sparkles className="size-4 text-muted-foreground"/><h3 className="text-sm font-semibold">Evidence summary</h3><Badge variant="secondary">{aiSummary.model}</Badge>{aiSummary.cached && <Badge variant="outline">Cached</Badge>}</div><p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">{aiSummary.summary}</p><div className="mt-4 border-t border-border pt-3"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Source records</p><div className="flex flex-wrap gap-2">{aiSummary.citations.map((source) => <button key={`${source.type}:${source.id}`} type="button" onClick={() => onOpenResult(source)} className="rounded-md border border-border px-2.5 py-1.5 text-[11px] hover:bg-surface-hover">{source.title}</button>)}</div></div></section>}
     {searched && <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">{busy ? 'Searching local indexes…' : semanticBusy ? 'Ranking local semantic matches…' : `${results.length} result${results.length === 1 ? '' : 's'}`}</p><Badge variant="outline">SQLite FTS5 · AI not required</Badge></div>}
-    <div className="workspace-surface search-results divide-y divide-border">{visibleResults.map((result) => { const Icon = icon[result.type]; return <article key={`${result.type}:${result.id}`} className="search-result flex gap-3 px-4 py-4"><div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-surface-subtle text-muted-foreground"><Icon className="size-4"/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => onOpenResult(result)} className="truncate text-left text-sm font-semibold hover:underline">{result.title}</button><Badge variant="secondary">{result.type}</Badge></div><p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{result.excerpt.replace(/<\/?mark>/g, '')}</p><p className="mt-2 text-xs text-muted-foreground">{projectNames[result.projectId ?? ''] ?? 'Workspace'} · {formatRelative(result.updatedAt)}</p></div></article>; })}
+    <div className="workspace-surface search-results divide-y divide-border">{visibleResults.map((result) => { const Icon = icon[result.type]; return <article key={`${result.type}:${result.id}`} className="search-result flex gap-3 px-4 py-4"><div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-surface-subtle text-muted-foreground"><Icon className="size-4"/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => onOpenResult(result)} className="truncate text-left text-sm font-semibold hover:underline">{result.title}</button><Badge variant="secondary">{result.type}</Badge></div><p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{renderExcerpt(result.excerpt)}</p><p className="mt-2 text-xs text-muted-foreground">{projectNames[result.projectId ?? ''] ?? 'Workspace'} · {formatRelative(result.updatedAt)}</p></div></article>; })}
       {searched && !busy && !results.length && !error && <div className="py-14 text-center"><SearchIcon className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">No matching results</p><p className="mt-1 text-xs text-muted-foreground">Try a shorter phrase, a code identifier or a different project scope.</p></div>}
       {!searched && <div className="py-14 text-center"><SearchIcon className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">Search your project memory</p><p className="mt-1 text-xs text-muted-foreground">Exact terms are useful for stack traces, identifiers, configuration names and decisions.</p></div>}
     </div>

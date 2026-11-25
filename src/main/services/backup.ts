@@ -1,6 +1,6 @@
-import { createDecipheriv, randomUUID } from 'node:crypto';
+import { createDecipheriv, randomUUID, type DecipherGCM } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { isSupportedBackupManifestFormat } from './archive-format-compatibility.ts';
+import { archiveEntryIsSymlink, archiveEntryUncompressedSize, isSupportedBackupManifestFormat } from './archive-format-compatibility.ts';
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { pipeline } from 'node:stream/promises';
@@ -49,7 +49,7 @@ export class BackupService {
       let payloadStart: number;
       const tag = Buffer.alloc(TAG_BYTES);
       const handle = await open(backupPath, 'r');
-      let decipher: ReturnType<typeof createDecipheriv>;
+      let decipher: DecipherGCM;
       try {
         const tagRead = await handle.read(tag, 0, TAG_BYTES, info.size - TAG_BYTES);
         if (tagRead.bytesRead !== TAG_BYTES) throw new Error('The selected backup file is truncated.');
@@ -111,11 +111,10 @@ export class BackupService {
       for (const entry of directory.files) {
         if (entry.type === 'Directory') continue;
         if (entry.type !== 'File' || !safeArchivePath(entry.path)) throw new Error('The backup contains an unsafe archive entry.');
-        const mode = Number(entry.vars.mode ?? 0);
-        if ((mode & 0o170000) === 0o120000) throw new Error('The backup contains a symbolic link.');
+        if (archiveEntryIsSymlink(entry)) throw new Error('The backup contains a symbolic link.');
         if (extracted.has(entry.path)) throw new Error('The backup contains duplicate file paths.');
         extracted.add(entry.path);
-        const size = Number(entry.vars.uncompressedSize ?? 0);
+        const size = archiveEntryUncompressedSize(entry);
         totalBytes += size;
         if (!Number.isSafeInteger(size) || size < 0 || totalBytes > MAX_BACKUP_UNCOMPRESSED_BYTES) throw new Error('The backup expands beyond the allowed restore limit.');
         const destination = resolve(extractRoot, entry.path);

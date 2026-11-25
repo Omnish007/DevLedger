@@ -132,3 +132,22 @@ test('AI summary rejects oversized model output before parsing it', async () => 
     db.close();
   }
 });
+
+test('semantic index strips HTML tags from note chunks and excerpts', async () => {
+  const db = createDatabase();
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ models: [{ name: 'embeddinggemma' }] }), { status: 200 })) as typeof fetch;
+  try {
+    db.prepare('UPDATE notes SET content = ? WHERE id = ?')
+      .run('<p>Payment</p><h1>provider gateway</h1><ul data-type="taskList"><li data-checked="false" data-type="taskItem">Verify settlement</li></ul>', 'n-1');
+    const ai = new OllamaService(db as never, new KeywordEmbeddingAdapter());
+    await ai.indexLocalKnowledge();
+    const chunk = db.prepare("SELECT content, excerpt FROM semantic_chunks WHERE source_type = 'note' AND source_id = 'n-1'").get() as { content: string; excerpt: string };
+    assert.doesNotMatch(chunk.content, /<p>|<h1>|<ul|<li/i);
+    assert.doesNotMatch(chunk.excerpt, /<p>|<h1>|<ul|<li/i);
+    assert.match(chunk.excerpt, /Payment provider gateway Verify settlement/);
+  } finally {
+    globalThis.fetch = previousFetch;
+    db.close();
+  }
+});

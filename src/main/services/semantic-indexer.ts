@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { SearchResult, SemanticIndexReport } from '../../shared/contracts.js';
+import { stripHtmlToPlainText } from '../../domain/html-text.ts';
 import { splitIntoChunks, vectorBandBuckets } from '../../domain/vector-search.ts';
 import type { EmbeddingAdapter } from './embeddings.ts';
 
@@ -107,7 +108,8 @@ export class SemanticIndexer {
       for (const raw of iterator) {
         signal?.throwIfAborted();
         const source: KnowledgeSourceRow = raw;
-        const body = String(source.body ?? '').slice(0, 500_000);
+        const rawBody = String(source.body ?? '').slice(0, 500_000);
+        const body = source.source_type === 'note' ? stripHtmlToPlainText(rawBody) : rawBody;
         const text = `${String(source.title).trim()}\n\n${body}`.trim();
         if (!text) continue;
         const chunks = splitIntoChunks(text, 400, 60);

@@ -1,4 +1,5 @@
 import type { SearchInput, SearchResult } from '../../../shared/contracts.js';
+import { stripHtmlToPlainText } from '../../../domain/html-text.ts';
 import { safeFtsQuery } from '../../../domain/validation.ts';
 import { parseSearchQuery } from '../../../domain/search-query.ts';
 import { WorkspaceDashboardService } from './dashboard.ts';
@@ -42,13 +43,19 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
         AND (? IS NULL OR n.updated_at >= ?) AND (? IS NULL OR n.updated_at < ?)`;
       const rows = match
         ? this.db.prepare(`SELECT n.id, n.project_id, n.title, n.updated_at, snippet(note_search, 3, '<mark>', '</mark>', ' … ', 18) AS excerpt,
+            substr(n.content, 1, 400) AS fallback_content,
             bm25(note_search, 0, 0, 6, 1) AS score FROM note_search JOIN notes n ON n.id = note_search.note_id
             WHERE note_search MATCH ? AND ${baseFilter} ORDER BY score LIMIT ?`)
           .all(match, projectParam, projectParam, tagName, tagName, after, after, before, before, limit)
-        : this.db.prepare(`SELECT n.id, n.project_id, n.title, n.updated_at, substr(n.content, 1, 180) AS excerpt, 0 AS score FROM notes n
+        : this.db.prepare(`SELECT n.id, n.project_id, n.title, n.updated_at, substr(n.content, 1, 400) AS excerpt,
+            substr(n.content, 1, 400) AS fallback_content, 0 AS score FROM notes n
             WHERE ${baseFilter} ORDER BY n.updated_at DESC LIMIT ?`)
           .all(projectParam, projectParam, tagName, tagName, after, after, before, before, limit);
-      results.push(...(rows as Array<Record<string, unknown>>).map((row) => ({ id: String(row.id), type: 'note' as const, title: String(row.title), excerpt: String(row.excerpt), projectId: row.project_id ? String(row.project_id) : null, updatedAt: String(row.updated_at) })));
+      results.push(...(rows as Array<Record<string, unknown>>).map((row) => {
+        const cleaned = stripHtmlToPlainText(String(row.excerpt ?? ''), { preserveMark: Boolean(match) });
+        const excerpt = (match ? cleaned : cleaned.slice(0, 180)) || stripHtmlToPlainText(String(row.fallback_content ?? '')).slice(0, 180);
+        return { id: String(row.id), type: 'note' as const, title: String(row.title), excerpt, projectId: row.project_id ? String(row.project_id) : null, updatedAt: String(row.updated_at) };
+      }));
     }
     if (types.has('task')) {
       const statusFilter = filters.status === 'blocked' ? "t.status = 'blocked'"

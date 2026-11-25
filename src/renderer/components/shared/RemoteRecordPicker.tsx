@@ -86,10 +86,11 @@ export function RemoteRecordPicker({ entityType, value, onValueChange, placehold
     setQuery('');
   }
 
+  const hasMaxOnly = /\bmax-w-\S+/.test(className ?? '') && !/\bw-\S+/.test(className ?? '');
   return (
     <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(''); }}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className={cn('w-full justify-between gap-2 font-normal', selected?.id !== value && !selectedLabel && 'text-muted-foreground', className)}>
+        <Button type="button" variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className={cn(hasMaxOnly ? 'w-auto' : 'w-full', 'justify-between gap-2 font-normal', selected?.id !== value && !selectedLabel && 'text-muted-foreground', className)}>
           <span className="min-w-0 truncate text-left">{(selected?.id === value ? selected.label : selectedLabel) ?? placeholder}</span>
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
         </Button>

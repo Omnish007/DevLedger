@@ -81,3 +81,23 @@ test('ambiguous exact project filters stop after enough matches to establish amb
     assert.throws(() => new WorkspaceService(db as never).search({ query: 'timeout p:"Retail POS"' }), /ambiguous/i);
   } finally { db.close(); }
 });
+
+test('note search excerpts strip TipTap HTML tags and truncated markup', () => {
+  const db = createDatabase();
+  try {
+    const now = new Date().toISOString();
+    db.prepare('INSERT INTO notes (id, project_id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run('n-html', 'p-1', 'Untitled note', '<p>Test</p><h1>test user</h1><ul data-type="taskList"><li data-checked="false" data-type="taskItem"><label><input type="checkbox"><span></span></label><div><p>Follow up</p></div></li></ul>', now, now);
+    const workspace = new WorkspaceService(db as never);
+    const matchResults = workspace.search({ query: 'Test', limit: 30 });
+    const noteHit = matchResults.find((item) => item.id === 'n-html');
+    assert.ok(noteHit);
+    assert.doesNotMatch(noteHit.excerpt, /<\/?(?:p|h1|ul|li|div|label|input|span)\b/i);
+    assert.match(noteHit.excerpt, /<mark>Test<\/mark>/);
+    const filterOnlyResults = workspace.search({ query: 'p:"Retail POS"', limit: 30 });
+    const filterHit = filterOnlyResults.find((item) => item.id === 'n-html');
+    assert.ok(filterHit);
+    assert.doesNotMatch(filterHit.excerpt, /<\/?(?:p|h1|ul|li|div|label|input|span)\b/i);
+    assert.match(filterHit.excerpt, /Test test user/);
+  } finally { db.close(); }
+});

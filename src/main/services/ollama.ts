@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { SearchResult, SemanticIndexReport } from '../../shared/contracts.js';
+import { stripControlChars, stripHtmlToPlainText } from '../../domain/html-text.ts';
 import { reciprocalRankFusion } from '../../domain/vector-search.ts';
 import { OllamaEmbeddingAdapter, type EmbeddingAdapter } from './embeddings.ts';
 import { WorkspaceService } from './workspace.ts';
@@ -14,7 +15,7 @@ export interface OllamaStatus { available: boolean; baseUrl: string; models: str
 export interface AiSummary { summary: string; model: string; citations: SearchResult[]; cached: boolean; }
 
 function cleanExcerpt(value: string): string {
-  return value.replace(/<\/?mark>/g, '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1_200);
+  return stripControlChars(stripHtmlToPlainText(value)).replace(/\s+/g, ' ').trim().slice(0, 1_200);
 }
 
 function asObject(value: unknown): Record<string, unknown> {

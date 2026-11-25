@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { asProjectImportRow, importText, isInside, readSafeJsonFile, safeArchivePath, sha256File } from './project-import-helpers.ts';
-import { isSupportedProjectExportFormat } from './archive-format-compatibility.ts';
+import { archiveEntryIsSymlink, archiveEntryUncompressedSize, isSupportedProjectExportFormat } from './archive-format-compatibility.ts';
 import { MAX_PROJECT_ARCHIVE_ENTRIES, MAX_PROJECT_COMPRESSED_BYTES, MAX_PROJECT_DATA_JSON_BYTES, MAX_PROJECT_MANIFEST_BYTES, MAX_PROJECT_UNCOMPRESSED_BYTES } from './project-archive-limits.ts';
 type Row = Record<string, unknown>;
 interface ManifestFile { path: string; size: number; sha256: string; }
@@ -31,11 +31,10 @@ export async function extractProjectArchive(
     signal?.throwIfAborted();
     if (entry.type === 'Directory') continue;
     if (entry.type !== 'File' || !safeArchivePath(entry.path)) throw new Error('The project archive contains an unsafe path or unsupported entry.');
-    const mode = Number(entry.vars.mode ?? 0);
-    if ((mode & 0o170000) === 0o120000) throw new Error('The project archive contains a symbolic link.');
+    if (archiveEntryIsSymlink(entry)) throw new Error('The project archive contains a symbolic link.');
     if (extracted.has(entry.path)) throw new Error('The project archive contains duplicate paths.');
     extracted.add(entry.path);
-    const declaredSize = Number(entry.vars.uncompressedSize ?? 0);
+    const declaredSize = archiveEntryUncompressedSize(entry);
     totalBytes += declaredSize;
     if (!Number.isSafeInteger(declaredSize) || declaredSize < 0 || totalBytes > MAX_PROJECT_UNCOMPRESSED_BYTES) throw new Error('The project archive exceeds the uncompressed size limit.');
     const destination = resolve(staging, entry.path);

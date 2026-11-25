@@ -41,3 +41,29 @@ test('major workspace routes share the same page-heading component', () => {
   const dashboard = source('src/renderer/features/dashboard/DashboardPage.tsx');
   assert.match(dashboard, /title="Overview"/);
 });
+
+test('global focus-visible outline lives in @layer base and NativeSelect shrink-wraps fixed widths', () => {
+  const globals = source('src/renderer/styles/globals.css');
+  assert.match(globals, /@layer base\s*\{[\s\S]*?:focus-visible\s*\{/);
+
+  const nativeSelect = source('src/renderer/components/ui/native-select.tsx');
+  assert.match(nativeSelect, /w-fit max-w-full shrink-0/);
+  assert.match(nativeSelect, /className,\s*'pr-9'/);
+
+  const searchPage = source('src/renderer/features/search/SearchPage.tsx');
+  assert.match(searchPage, /if \(aiEnabled && lexicalCount > 0\) void requestSummary/);
+  assert.match(searchPage, /stripHtmlToPlainText/);
+
+  const sidebar = source('src/renderer/components/ui/sidebar.tsx');
+  assert.match(sidebar, /overflow-y-auto overflow-x-hidden/);
+  assert.match(sidebar, /group-data-\[state=collapsed\]\/sidebar-provider:hidden/);
+
+  const shell = source('src/renderer/components/shared/AppShell.tsx');
+  assert.match(shell, /group-data-\[state=collapsed\]\/sidebar-provider:sr-only/);
+
+  const picker = source('src/renderer/components/shared/RemoteRecordPicker.tsx');
+  assert.match(picker, /hasMaxOnly \? 'w-auto' : 'w-full'/);
+
+  const pageControls = source('src/renderer/components/shared/PageControls.tsx');
+  assert.match(pageControls, /if \(total <= limit && offset === 0\) return null/);
+});

@@ -53,8 +53,8 @@ export function AppShell({ activeView, onNavigate, onQuickCapture, children, onR
         <SidebarMenuButton asChild isActive={activeView === item.id} tooltip={item.label}>
           <button type="button" onClick={() => onNavigate(item.id)} aria-current={activeView === item.id ? 'page' : undefined}>
             <Icon aria-hidden="true" strokeWidth={1.8} />
-            <span className="min-w-0 flex-1 truncate">{item.label}</span>
-            {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+            <span className="min-w-0 flex-1 truncate group-data-[state=collapsed]/sidebar-provider:sr-only">{item.label}</span>
+            {item.shortcut && <Kbd className="group-data-[state=collapsed]/sidebar-provider:hidden">{item.shortcut}</Kbd>}
           </button>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -65,7 +65,7 @@ export function AppShell({ activeView, onNavigate, onQuickCapture, children, onR
     <SidebarProvider open={sidebarOpen} onOpenChange={onSidebarOpenChange} className="h-full min-h-0 w-full min-w-0">
       <div className="flex h-full min-h-0 w-full min-w-0 bg-background">
         <Sidebar collapsible="icon" className="border-r border-sidebar-border [--sidebar-width:15.5rem] [--sidebar-width-icon:3.55rem]">
-          <SidebarHeader className="px-4 pb-5 pt-5">
+          <SidebarHeader className="px-4 pb-5 pt-5 group-data-[state=collapsed]/sidebar-provider:items-center group-data-[state=collapsed]/sidebar-provider:px-0">
             <div className="flex min-h-10 items-center gap-3">
               <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <BookOpen className="size-[18px]" strokeWidth={1.8} />
@@ -76,7 +76,7 @@ export function AppShell({ activeView, onNavigate, onQuickCapture, children, onR
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-5 px-3 py-1">
+          <SidebarContent className="gap-5 px-3 py-1 group-data-[state=collapsed]/sidebar-provider:px-2">
             <SidebarGroup className="p-0">
               <SidebarGroupLabel className="h-7 px-2">Workspace</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -92,11 +92,11 @@ export function AppShell({ activeView, onNavigate, onQuickCapture, children, onR
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter className="px-3 pb-3 pt-2">
-            <SidebarSeparator className="mb-3" />
-            <Button variant="outline" className="h-9 w-full justify-start gap-2 group-data-[state=collapsed]/sidebar-provider:justify-center group-data-[state=collapsed]/sidebar-provider:px-0" onClick={onQuickCapture}>
+          <SidebarFooter className="px-3 pb-3 pt-2 group-data-[state=collapsed]/sidebar-provider:px-2">
+            <SidebarSeparator className="mb-3 group-data-[state=collapsed]/sidebar-provider:mx-0" />
+            <Button variant="outline" title="Quick capture" className="h-9 w-full justify-start gap-2 group-data-[state=collapsed]/sidebar-provider:mx-auto group-data-[state=collapsed]/sidebar-provider:size-9 group-data-[state=collapsed]/sidebar-provider:justify-center group-data-[state=collapsed]/sidebar-provider:p-0" onClick={onQuickCapture}>
               <Plus className="size-4" />
-              <span className="flex-1 text-left group-data-[state=collapsed]/sidebar-provider:hidden">Quick capture</span>
+              <span className="flex-1 text-left group-data-[state=collapsed]/sidebar-provider:sr-only">Quick capture</span>
               <Kbd className="group-data-[state=collapsed]/sidebar-provider:hidden">Ctrl ⇧ Space</Kbd>
             </Button>
           </SidebarFooter>
