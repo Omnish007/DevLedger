@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowUpRight, FolderKanban, GitBranch, Pencil, Trash2 } from 'lucide-react';
+import {
+    ArrowRight,
+    ArrowUpRight,
+    CheckCircle2,
+    FolderKanban,
+    GitBranch,
+    Pencil,
+    ShieldCheck,
+    Trash2,
+} from 'lucide-react';
 import type {
     ActiveTimerRecord,
     PageResult,
+    RecordSummary,
     TaskBlockerRecord,
     TaskInput,
     TaskRecord,
@@ -32,8 +42,18 @@ interface TaskInspectorSheetProps {
     onStartTimer: (id: string) => Promise<void>;
     onStopTimer: (id: string) => Promise<number>;
     onNavigate: (target: WorkspaceNavigationTarget) => void;
+    onSelectTask?: ((id: string) => void) | undefined;
     onRefreshParent: () => Promise<void>;
 }
+
+const DEP_STATUS_DOT: Record<string, string> = {
+    completed: 'bg-success',
+    cancelled: 'bg-muted-foreground/40',
+    blocked: 'bg-warning',
+    waiting: 'bg-info',
+    in_progress: 'bg-primary',
+    not_started: 'bg-muted-foreground/50',
+};
 
 export function TaskInspectorSheet({
     task,
@@ -46,12 +66,13 @@ export function TaskInspectorSheet({
     onStartTimer,
     onStopTimer,
     onNavigate,
+    onSelectTask,
     onRefreshParent,
 }: TaskInspectorSheetProps) {
     const [blockers, setBlockers] = useState<TaskBlockerRecord[]>([]);
     const [dependsOn, setDependsOn] = useState<string[]>([]);
     const [blocks, setBlocks] = useState<string[]>([]);
-    const [taskTitles, setTaskTitles] = useState<Record<string, string>>({});
+    const [depSummaries, setDepSummaries] = useState<Record<string, RecordSummary>>({});
     const [prereqId, setPrereqId] = useState('');
     const [timePage, setTimePage] = useState<PageResult<TimeEntryRecord>>({
         items: [],
@@ -88,8 +109,14 @@ export function TaskInspectorSheet({
             setBlocks(depRes.blocks.items);
             setTimePage(timeRes);
             const ids = [...new Set([...depRes.dependsOn.items, ...depRes.blocks.items])];
-            if (ids.length) setTaskTitles(await window.devLedger.tasks.getTitles(ids));
-            else setTaskTitles({});
+            if (ids.length) {
+                const resolved = await window.devLedger.operations.resolveRecordSummaries(
+                    ids.map((id) => ({ type: 'task', id })),
+                );
+                setDepSummaries(resolved);
+            } else {
+                setDepSummaries({});
+            }
             setError('');
         } catch (caught) {
             setError(friendlyError(caught, 'Task details could not be loaded.'));
@@ -107,6 +134,20 @@ export function TaskInspectorSheet({
 
     async function refreshBoth() {
         await Promise.all([loadDetails(), onRefreshParent()]);
+    }
+
+    const openPrereqCount = dependsOn.filter((id) => {
+        const st = depSummaries[`task:${id}`]?.status;
+        return st !== 'completed' && st !== 'cancelled';
+    }).length;
+    const openBlocker = blockers.find((b) => !b.resolvedAt);
+
+    function openLinkedTask(id: string) {
+        if (onSelectTask) {
+            onSelectTask(id);
+            return;
+        }
+        if (task) onNavigate({ view: 'tasks', recordId: id, projectId: task.projectId });
     }
 
     return (
@@ -139,6 +180,35 @@ export function TaskInspectorSheet({
                                 {task.description || 'Task inspector details'}
                             </SheetDescription>
                         </SheetHeader>
+
+                        <div
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                                openBlocker || task.status === 'blocked'
+                                    ? 'border-warning/40 bg-warning/5 text-warning'
+                                    : openPrereqCount > 0
+                                      ? 'border-border bg-surface-subtle text-muted-foreground'
+                                      : 'border-success/30 bg-success/5 text-success'
+                            }`}
+                        >
+                            {openBlocker || task.status === 'blocked' ? (
+                                <span>
+                                    Blocked: {openBlocker?.reason ?? 'Resolve active blocker before shipping'}
+                                </span>
+                            ) : openPrereqCount > 0 ? (
+                                <span>
+                                    Waiting on {openPrereqCount}{' '}
+                                    {openPrereqCount === 1 ? 'prerequisite' : 'prerequisites'} before starting
+                                </span>
+                            ) : (
+                                <>
+                                    <ShieldCheck className="size-3.5 shrink-0" />
+                                    <span>
+                                        Ready to build
+                                        {blocks.length > 0 ? ` · Unlocks ${blocks.length} downstream` : ''}
+                                    </span>
+                                </>
+                            )}
+                        </div>
 
                         {error && (
                             <p
@@ -234,13 +304,17 @@ export function TaskInspectorSheet({
                             blockers={blockers}
                             onUpdated={refreshBoth}
                             onError={setError}
+                            onNavigate={(target) => {
+                                onClose();
+                                onNavigate(target);
+                            }}
                         />
 
                         <section className="space-y-2.5 border-t border-border pt-4 text-xs">
                             <div className="flex items-center justify-between">
                                 <h4 className="flex items-center gap-1.5 font-medium text-muted-foreground">
                                     <GitBranch className="size-3.5" />
-                                    Dependencies
+                                    Dependency flow
                                 </h4>
                                 <Badge variant="secondary">{dependsOn.length + blocks.length}</Badge>
                             </div>
@@ -264,7 +338,7 @@ export function TaskInspectorSheet({
                                             .addDependency(task.id, prereqId)
                                             .then(() => {
                                                 setPrereqId('');
-                                                return loadDetails();
+                                                return refreshBoth();
                                             })
                                             .catch((e) =>
                                                 setError(friendlyError(e, 'Could not add dependency.')),
@@ -276,14 +350,16 @@ export function TaskInspectorSheet({
                             </div>
                             {[
                                 {
-                                    label: 'Depends on',
+                                    label: 'Prerequisites (must finish first)',
                                     list: dependsOn,
+                                    directionIcon: ArrowRight,
                                     onRemoveDep: (id: string) =>
                                         window.devLedger.operations.removeDependency(task.id, id),
                                 },
                                 {
-                                    label: 'Blocks',
+                                    label: 'Unlocks downstream (waiting on this task)',
                                     list: blocks,
+                                    directionIcon: CheckCircle2,
                                     onRemoveDep: (id: string) =>
                                         window.devLedger.operations.removeDependency(id, task.id),
                                 },
@@ -295,37 +371,45 @@ export function TaskInspectorSheet({
                                                 {group.label}
                                             </p>
                                             <div className="divide-y divide-border rounded-md border border-border">
-                                                {group.list.map((id) => (
-                                                    <div
-                                                        key={id}
-                                                        className="flex items-center gap-2 px-2.5 py-1.5"
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            className="min-w-0 flex-1 truncate text-left font-medium hover:underline"
-                                                            onClick={() =>
-                                                                onNavigate({
-                                                                    view: 'tasks',
-                                                                    recordId: id,
-                                                                    projectId: task.projectId,
-                                                                })
-                                                            }
+                                                {group.list.map((id) => {
+                                                    const summary = depSummaries[`task:${id}`];
+                                                    const depStatus = summary?.status ?? 'not_started';
+                                                    const isDone = depStatus === 'completed';
+                                                    return (
+                                                        <div
+                                                            key={id}
+                                                            className="flex items-center gap-2 px-2.5 py-1.5"
                                                         >
-                                                            {taskTitles[id] ?? 'Linked task'}
-                                                        </button>
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-6 px-2 text-xs text-muted-foreground"
-                                                            onClick={() =>
-                                                                void group.onRemoveDep(id).then(loadDetails)
-                                                            }
-                                                        >
-                                                            Remove
-                                                        </Button>
-                                                    </div>
-                                                ))}
+                                                            <span
+                                                                className={`size-2 shrink-0 rounded-full ${DEP_STATUS_DOT[depStatus] ?? 'bg-muted-foreground/50'}`}
+                                                                aria-hidden="true"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                className={`min-w-0 flex-1 truncate text-left font-medium hover:text-primary hover:underline ${isDone ? 'text-muted-foreground line-through' : ''}`}
+                                                                onClick={() => openLinkedTask(id)}
+                                                            >
+                                                                {summary?.title ?? 'Linked task'}
+                                                            </button>
+                                                            <span className="shrink-0 text-[10px] capitalize text-muted-foreground">
+                                                                {depStatus.replaceAll('_', ' ')}
+                                                            </span>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                className="h-6 px-2 text-xs text-muted-foreground"
+                                                                onClick={() =>
+                                                                    void group
+                                                                        .onRemoveDep(id)
+                                                                        .then(refreshBoth)
+                                                                }
+                                                            >
+                                                                Remove
+                                                            </Button>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     ),
@@ -348,6 +432,7 @@ export function TaskInspectorSheet({
                         <RecordConnectionsPanel
                             entityType="task"
                             entityId={task.id}
+                            onChanged={() => void onRefreshParent()}
                             onNavigate={(target) => {
                                 onClose();
                                 onNavigate(target);

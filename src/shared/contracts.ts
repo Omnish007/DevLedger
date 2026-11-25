@@ -149,6 +149,56 @@ export interface ActiveTimerRecord {
     recoveryRequired: boolean;
 }
 
+export interface TaskRelationSummary {
+    dependsOnOpen: number;
+    dependsOnTotal: number;
+    blocksCount: number;
+    linkCount: number;
+    activeBlockerId: string | null;
+    activeBlockerReason: string | null;
+    waitingContactId: string | null;
+    waitingContactName: string | null;
+    blockerFollowUpAt: string | null;
+    firstPrereqId: string | null;
+    firstPrereqTitle: string | null;
+}
+
+export interface DashboardBlockedItem {
+    task: TaskRecord;
+    blockerId: string;
+    reason: string;
+    waitingContactId: string | null;
+    waitingContactName: string | null;
+    followUpAt: string | null;
+}
+
+export interface DashboardReminderItem {
+    id: string;
+    entityType: 'task' | 'project' | 'contact' | 'note';
+    entityId: string;
+    entityTitle: string;
+    projectId: string | null;
+    dueAt: string;
+    status: ReminderRecord['status'];
+    message: string;
+}
+
+export interface DashboardChecklistItem {
+    noteId: string;
+    noteTitle: string;
+    projectId: string | null;
+    text: string;
+    updatedAt: string;
+}
+
+export interface DashboardActiveTimerDetail {
+    taskId: string;
+    taskTitle: string;
+    projectId: string;
+    startedAt: string;
+    recoveryRequired: boolean;
+}
+
 export interface DashboardSummary {
     activeProjects: number;
     openTasks: number;
@@ -158,6 +208,15 @@ export interface DashboardSummary {
     upcomingTasks: TaskRecord[];
     activeTimers: number;
     pendingDocuments: number;
+    overdueTaskItems: TaskRecord[];
+    blockedItems: DashboardBlockedItem[];
+    waitingTasks: TaskRecord[];
+    readyTasks: TaskRecord[];
+    dueReminders: DashboardReminderItem[];
+    noteActionItems: DashboardChecklistItem[];
+    activeTimerDetail: DashboardActiveTimerDetail | null;
+    attentionDocumentCount: number;
+    recentActivity: ActivityRecord[];
 }
 
 export interface ProjectInput {
@@ -334,6 +393,7 @@ export interface RecordSummary {
     title: string;
     subtitle: string;
     projectId: string | null;
+    status?: string;
 }
 
 export interface DevLedgerApi {
@@ -375,6 +435,7 @@ export interface DevLedgerApi {
     tasks: {
         listPage(input?: PageRequest): Promise<PageResult<TaskRecord>>;
         getTitles(ids: string[]): Promise<Record<string, string>>;
+        relationSummaries(ids: string[]): Promise<Record<string, TaskRelationSummary>>;
         create(input: TaskInput): Promise<TaskRecord>;
         update(
             id: string,

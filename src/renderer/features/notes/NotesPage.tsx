@@ -101,6 +101,7 @@ export function NotesPage({
     const [projectId, setProjectId] = useState('');
     const [contactPreview, setContactPreview] = useState<ContactRecord | null>(null);
     const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+    const [connectionCount, setConnectionCount] = useState(0);
     const [projectIdRef, selectedIdRef, titleRef, lockedRef] = [
         useRef(projectId),
         useRef(selectedId),
@@ -114,6 +115,13 @@ export function NotesPage({
     const [error, setError] = useState('');
     const [unlockedNote, setUnlockedNote] = useState<ProtectedNoteRecord | null>(null);
     const [revision, isDirty] = [useRef(0), useRef(false)];
+    const isMountedRef = useRef(true);
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
     const selected = (
         unlockedNote?.id === selectedId ? unlockedNote : (pageNotes.find((n) => n.id === selectedId) ?? null)
     ) as NoteRecord | ProtectedNoteRecord | null;
@@ -170,6 +178,28 @@ export function NotesPage({
             active = false;
         };
     }, [pageNotes]);
+
+    const currentSelectedId = selected?.id ?? null;
+    const currentSelectedLocked = Boolean(selected?.locked);
+
+    useEffect(() => {
+        if (!currentSelectedId || currentSelectedLocked) {
+            setConnectionCount(0);
+            return;
+        }
+        let active = true;
+        void Promise.all([
+            window.devLedger.operations.listEntityTags('note', currentSelectedId),
+            window.devLedger.operations.listLinksPage('note', currentSelectedId, { limit: 1, offset: 0 }),
+        ])
+            .then(([tags, linksPage]) => {
+                if (active) setConnectionCount(tags.length + linksPage.total);
+            })
+            .catch(() => undefined);
+        return () => {
+            active = false;
+        };
+    }, [currentSelectedId, currentSelectedLocked, inspectorOpen]);
 
     const syncNoteReminder = useCallback(
         async (attrs: SmartDateReference, dueAtIso: string | null): Promise<string | null> => {
@@ -262,12 +292,16 @@ export function NotesPage({
             setSaveState('idle');
             setError('');
             isDirty.current = false;
-            editor?.commands.setContent(selected.content || '', { emitUpdate: false });
+            if (!selected.locked && editor && !editor.isDestroyed) {
+                editor.commands.setContent(selected.content || '', { emitUpdate: false });
+            }
         } else if (selectedId === null) {
             setTitle('');
             setContent('');
             setProjectId('');
-            editor?.commands.clearContent();
+            if (editor && !editor.isDestroyed) {
+                editor.commands.clearContent();
+            }
         }
     }, [selectedId, selected?.id, editor]);
 
@@ -305,7 +339,7 @@ export function NotesPage({
         exportMarkdownFromEditor(editor, title, setError);
     }
     function insertSmartDateReference(reference: SmartDateReference) {
-        if (!editor) return;
+        if (!editor || editor.isDestroyed) return;
         editor
             .chain()
             .focus()
@@ -396,12 +430,13 @@ export function NotesPage({
         setUnlockedNote(null);
         try {
             const detail = await window.devLedger.notes.get(id);
+            if (!isMountedRef.current) return;
             setPageNotes((c) =>
                 c.some((i) => i.id === id) ? c.map((i) => (i.id === id ? detail : i)) : [detail, ...c],
             );
             setSelectedId(id);
         } catch (caught) {
-            setError(friendlyError(caught, 'Note could not be opened.'));
+            if (isMountedRef.current) setError(friendlyError(caught, 'Note could not be opened.'));
         }
     }
     async function unlockSelected(id: string) {
@@ -411,7 +446,9 @@ export function NotesPage({
             setTitle(n.title);
             setContent(n.content);
             setProjectId(n.projectId ?? '');
-            editor?.commands.setContent(n.content || '', { emitUpdate: false });
+            if (editor && !editor.isDestroyed) {
+                editor.commands.setContent(n.content || '', { emitUpdate: false });
+            }
             setError('');
             setSaveState('idle');
             isDirty.current = false;
@@ -722,7 +759,12 @@ export function NotesPage({
                                             onClick={() => setInspectorOpen(true)}
                                         >
                                             <Link2 className="size-3.5" />
-                                            Connections
+                                            <span>Connections</span>
+                                            {connectionCount > 0 && (
+                                                <span className="rounded bg-primary/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary tabular-nums">
+                                                    {connectionCount}
+                                                </span>
+                                            )}
                                         </Button>
                                         {selected.locked ? (
                                             <Button

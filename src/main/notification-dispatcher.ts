@@ -49,7 +49,9 @@ export function dispatchDeliveredNotifications(
                 body: `${items.length - 3} more reminder${items.length - 3 === 1 ? '' : 's'} added to your inbox.`,
                 silent: true,
             });
-            overflow.on('click', openMainWindow);
+            overflow.on('click', () => {
+                openMainWindow();
+            });
             overflow.show();
         }
     }

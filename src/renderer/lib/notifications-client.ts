@@ -85,10 +85,12 @@ export function dispatchRendererNotifications(
                 ? {
                       label: `Open ${item.entityType}`,
                       onClick: () => {
-                          void window.devLedger.notifications
-                              .markRead(item.id)
-                              .then(emitNotificationsUpdated)
-                              .catch(() => undefined);
+                          if (typeof window.devLedger?.notifications?.markRead === 'function') {
+                              void window.devLedger.notifications
+                                  .markRead(item.id)
+                                  .then(emitNotificationsUpdated)
+                                  .catch(() => undefined);
+                          }
                           onNavigateTarget(targetFromRecord(item.entityType as EntityType, item.entityId!));
                       },
                   }
@@ -97,11 +99,14 @@ export function dispatchRendererNotifications(
                 item.kind === 'reminder' && item.reminderId
                     ? {
                           label: 'Snooze 15m',
-                          onClick: () =>
-                              void window.devLedger.notifications
-                                  .snooze(item.id, 15)
-                                  .then(emitNotificationsUpdated)
-                                  .catch(() => undefined),
+                          onClick: () => {
+                              if (typeof window.devLedger?.notifications?.snooze === 'function') {
+                                  void window.devLedger.notifications
+                                      .snooze(item.id, 15)
+                                      .then(emitNotificationsUpdated)
+                                      .catch(() => undefined);
+                              }
+                          },
                       }
                     : undefined,
         });

@@ -33,21 +33,21 @@ export class DesktopWindowManager {
         });
     }
 
-    createMainWindow(): BrowserWindow {
+    createMainWindow = (): BrowserWindow => {
         this.ensurePermissions();
         const window = this.createWindow();
         this.primaryWindow = window;
         return window;
-    }
+    };
 
-    openMainWindow(): BrowserWindow {
+    openMainWindow = (): BrowserWindow => {
         if (!this.primaryWindow || this.primaryWindow.isDestroyed()) this.createMainWindow();
         const window = this.primaryWindow!;
         if (window.isMinimized()) window.restore();
         window.show();
         window.focus();
         return window;
-    }
+    };
 
     openQuickCapture = (): void => {
         const existing = BrowserWindow.getAllWindows().find((window) =>

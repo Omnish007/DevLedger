@@ -33,54 +33,56 @@ export function NoteEditorToolbar({
     onExportMarkdown,
 }: NoteEditorToolbarProps) {
     const markdownInputRef = useRef<HTMLInputElement | null>(null);
+    const activeEditor = editor && !editor.isDestroyed ? editor : null;
     const actions = [
         {
             label: 'Bold',
             icon: Bold,
-            run: () => editor?.chain().focus().toggleBold().run(),
-            active: editor?.isActive('bold'),
+            run: () => activeEditor?.chain().focus().toggleBold().run(),
+            active: activeEditor?.isActive('bold'),
         },
         {
             label: 'Italic',
             icon: Italic,
-            run: () => editor?.chain().focus().toggleItalic().run(),
-            active: editor?.isActive('italic'),
+            run: () => activeEditor?.chain().focus().toggleItalic().run(),
+            active: activeEditor?.isActive('italic'),
         },
         {
             label: 'Heading',
             icon: Heading2,
-            run: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(),
-            active: editor?.isActive('heading'),
+            run: () => activeEditor?.chain().focus().toggleHeading({ level: 2 }).run(),
+            active: activeEditor?.isActive('heading'),
         },
         {
             label: 'Bulleted list',
             icon: List,
-            run: () => editor?.chain().focus().toggleBulletList().run(),
-            active: editor?.isActive('bulletList'),
+            run: () => activeEditor?.chain().focus().toggleBulletList().run(),
+            active: activeEditor?.isActive('bulletList'),
         },
         {
             label: 'Numbered list',
             icon: ListOrdered,
-            run: () => editor?.chain().focus().toggleOrderedList().run(),
-            active: editor?.isActive('orderedList'),
+            run: () => activeEditor?.chain().focus().toggleOrderedList().run(),
+            active: activeEditor?.isActive('orderedList'),
         },
         {
             label: 'Checklist',
             icon: CheckSquare,
-            run: () => editor?.chain().focus().toggleTaskList().run(),
-            active: editor?.isActive('taskList'),
+            run: () => activeEditor?.chain().focus().toggleTaskList().run(),
+            active: activeEditor?.isActive('taskList'),
         },
         {
             label: 'Table',
             icon: Table2,
-            run: () => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
-            active: editor?.isActive('table'),
+            run: () =>
+                activeEditor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+            active: activeEditor?.isActive('table'),
         },
         {
             label: 'Quote',
             icon: Quote,
-            run: () => editor?.chain().focus().toggleBlockquote().run(),
-            active: editor?.isActive('blockquote'),
+            run: () => activeEditor?.chain().focus().toggleBlockquote().run(),
+            active: activeEditor?.isActive('blockquote'),
         },
     ];
 

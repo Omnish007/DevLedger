@@ -175,6 +175,9 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
 
     register('tasks:listPage', pageRequest, (input) => workspace.listTasksPage((input ?? {}) as PageRequest));
     register('tasks:getTitles', z.array(idInput).max(200), (ids) => workspace.getTaskTitles(ids));
+    register('tasks:relationSummaries', z.array(idInput).max(200), (ids) =>
+        workspace.getTaskRelationSummaries(ids),
+    );
     register('tasks:create', taskInput, (input) => workspace.createTask(input as TaskInput));
     register('tasks:update', z.tuple([idInput, taskUpdate]), ([id, input]) =>
         workspace.updateTask(id, input as Partial<TaskInput> & { status?: TaskStatus | undefined }),

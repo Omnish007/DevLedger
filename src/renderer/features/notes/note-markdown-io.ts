@@ -11,13 +11,14 @@ export async function importMarkdownIntoEditor(
 ): Promise<void> {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !editor) return;
+    if (!file || !editor || editor.isDestroyed) return;
     if (editor.getText().trim() && !(await confirmReplace())) return;
     if (file.size > 2 * 1024 * 1024) {
         onError('Markdown files must be 2 MB or smaller.');
         return;
     }
     try {
+        if (editor.isDestroyed) return;
         editor.commands.setContent(await file.text(), { contentType: 'markdown', emitUpdate: false });
         onLoaded(editor.getHTML());
         onError('');

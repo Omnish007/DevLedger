@@ -46,6 +46,7 @@ const api: DevLedgerApi = {
     tasks: {
         listPage: (input) => invoke('tasks:listPage', input ?? {}),
         getTitles: (ids) => invoke('tasks:getTitles', ids),
+        relationSummaries: (ids) => invoke('tasks:relationSummaries', ids),
         create: (input) => invoke('tasks:create', input),
         update: (id, input) => invoke('tasks:update', [id, input]),
         remove: (id) => invoke('tasks:remove', id),

@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import type { SearchResult, SemanticIndexReport } from '../../shared/contracts.js';
 import { stripHtmlToPlainText } from '../../domain/html-text.ts';
 import { splitIntoChunks, vectorBandBuckets } from '../../domain/vector-search.ts';
+import { formatTextForEmbeddingModel, resolveEmbeddingModel } from './ai-models.ts';
 import type { EmbeddingAdapter } from './embeddings.ts';
 
 interface EmbeddingServiceStatus {
@@ -19,11 +20,49 @@ interface KnowledgeSourceRow {
     body: string;
     source_updated_at: string;
 }
+
 interface PendingChunk extends KnowledgeSourceRow {
     chunk_index: number;
     content: string;
     content_hash: string;
 }
+
+const UNIFIED_KNOWLEDGE_SOURCES_SQL = `
+  SELECT 'project' AS source_type, id AS source_id, id AS project_id, name AS title,
+    description AS body, updated_at AS source_updated_at
+  FROM projects WHERE deleted_at IS NULL
+  UNION ALL
+  SELECT 'contact', c.id, NULL, c.name,
+    trim(
+      c.company || char(10) || c.role || char(10) || c.email || char(10) || c.phone || char(10) || c.notes || char(10) ||
+      replace(replace(replace(c.custom_attributes_json, '{', ''), '}', ''), '"', '')
+    ),
+    c.updated_at
+  FROM contacts c WHERE c.deleted_at IS NULL
+  UNION ALL
+  SELECT 'note', id, project_id, title, content, updated_at
+  FROM notes WHERE locked = 0 AND deleted_at IS NULL
+  UNION ALL
+  SELECT 'task', t.id, t.project_id, t.title,
+    trim(
+      t.description || char(10) ||
+      coalesce(
+        (
+          SELECT group_concat(
+            trim(tb.reason || coalesce((SELECT ' waiting on ' || c.name FROM contacts c WHERE c.id = tb.waiting_contact_id), '') || CASE WHEN tb.resolution_note <> '' THEN ' ' || tb.resolution_note ELSE '' END),
+            char(10)
+          )
+          FROM task_blockers tb WHERE tb.task_id = t.id
+        ),
+        ''
+      )
+    ),
+    t.updated_at
+  FROM tasks t WHERE t.deleted_at IS NULL
+  UNION ALL
+  SELECT 'document', id, project_id, title, extracted_text, updated_at
+  FROM documents WHERE status = 'indexed' AND deleted_at IS NULL AND is_encrypted = 0
+`;
 
 export class SemanticIndexer {
     private readonly db: Database.Database;
@@ -40,19 +79,10 @@ export class SemanticIndexer {
         this.getStatus = getStatus;
     }
 
-    private embeddingModel(): string {
-        const row = this.db
-            .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.embeddingModel'")
-            .get() as { value_json: string } | undefined;
-        let selected = 'embeddinggemma';
-        try {
-            if (row) selected = String(JSON.parse(row.value_json));
-        } catch {
-            /* use safe default */
-        }
-        if (!/^[A-Za-z0-9._:/-]{1,128}$/.test(selected))
-            throw new Error('The configured embedding model name is invalid.');
-        return selected;
+    private formatSourceText(source: KnowledgeSourceRow): string {
+        const rawBody = String(source.body ?? '').slice(0, 500_000);
+        const body = source.source_type === 'note' ? stripHtmlToPlainText(rawBody) : rawBody;
+        return `${String(source.title).trim()}\n\n${body}`.trim();
     }
 
     private saveSetting(key: string, value: unknown): void {
@@ -65,6 +95,17 @@ export class SemanticIndexer {
             .run(key, JSON.stringify(value), timestamp);
     }
 
+    private insertChunkStatements() {
+        const insert = this.db.prepare(`INSERT INTO semantic_chunks
+      (id, source_type, source_id, project_id, chunk_index, title, content, excerpt, source_updated_at,
+       content_hash, model, generation_id, dimensions, vector_json, indexed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        const insertBucket = this.db.prepare(
+            'INSERT INTO semantic_vector_buckets (chunk_id, band, bucket) VALUES (?, ?, ?)',
+        );
+        return { insert, insertBucket };
+    }
+
     /** Build a new generation off to the side, then atomically switch active generation after every batch succeeds. */
     async indexLocalKnowledge(
         signal?: AbortSignal,
@@ -73,7 +114,7 @@ export class SemanticIndexer {
         const status = await this.getStatus();
         if (!status.available)
             throw new Error(`Ollama is unavailable (${status.error ?? 'connection failed'}).`);
-        const model = this.embeddingModel();
+        const { model } = resolveEmbeddingModel(this.db, status.models);
         if (!status.models.includes(model))
             throw new Error(
                 `Embedding model “${model}” is not installed. Pull it in Ollama or change ai.embeddingModel in Settings.`,
@@ -89,38 +130,21 @@ export class SemanticIndexer {
             startedAt,
         });
 
-        const sourceQuery = `
-      SELECT 'project' AS source_type, id AS source_id, id AS project_id, name AS title, description AS body, updated_at AS source_updated_at
-        FROM projects WHERE deleted_at IS NULL
-      UNION ALL
-      SELECT 'contact', c.id, NULL, c.name, trim(c.company || char(10) || c.role || char(10) || c.notes), c.updated_at
-        FROM contacts c WHERE c.deleted_at IS NULL
-      UNION ALL
-      SELECT 'note', id, project_id, title, content, updated_at FROM notes WHERE locked = 0 AND deleted_at IS NULL
-      UNION ALL
-      SELECT 'task', id, project_id, title, description, updated_at FROM tasks WHERE deleted_at IS NULL
-      UNION ALL
-      SELECT 'document', id, project_id, title, extracted_text, updated_at FROM documents WHERE status = 'indexed' AND deleted_at IS NULL AND is_encrypted = 0
-    `;
-        const iterator = this.db.prepare(sourceQuery).iterate() as Iterable<KnowledgeSourceRow>;
+        const iterator = this.db
+            .prepare(UNIFIED_KNOWLEDGE_SOURCES_SQL)
+            .iterate() as Iterable<KnowledgeSourceRow>;
         const pending: PendingChunk[] = [];
         let sourceCount = 0;
         let chunkCount = 0;
         let dimensions = 0;
-        const insert = this.db.prepare(`INSERT INTO semantic_chunks
-      (id, source_type, source_id, project_id, chunk_index, title, content, excerpt, source_updated_at,
-       content_hash, model, generation_id, dimensions, vector_json, indexed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-        const insertBucket = this.db.prepare(
-            'INSERT INTO semantic_vector_buckets (chunk_id, band, bucket) VALUES (?, ?, ?)',
-        );
+        const { insert, insertBucket } = this.insertChunkStatements();
 
         const persistBatch = async (): Promise<void> => {
             if (!pending.length) return;
             const batch = pending.splice(0, pending.length);
             signal?.throwIfAborted();
             const vectors = await this.embeddingAdapter.embed(
-                batch.map((item) => item.content),
+                batch.map((item) => formatTextForEmbeddingModel(item.content, model, 'document')),
                 model,
                 signal,
             );
@@ -178,9 +202,7 @@ export class SemanticIndexer {
             for (const raw of iterator) {
                 signal?.throwIfAborted();
                 const source: KnowledgeSourceRow = raw;
-                const rawBody = String(source.body ?? '').slice(0, 500_000);
-                const body = source.source_type === 'note' ? stripHtmlToPlainText(rawBody) : rawBody;
-                const text = `${String(source.title).trim()}\n\n${body}`.trim();
+                const text = this.formatSourceText(source);
                 if (!text) continue;
                 const chunks = splitIntoChunks(text, 400, 60);
                 if (!chunks.length) continue;
@@ -205,7 +227,6 @@ export class SemanticIndexer {
             signal?.throwIfAborted();
             if (!chunkCount)
                 throw new Error('No eligible unlocked text records were found for semantic indexing.');
-            // Publish the new generation only after all batches have been stored successfully.
             this.saveSetting('ai.semantic.activeGeneration', generation);
             this.saveSetting('ai.semantic.activeModel', model);
             this.saveSetting('ai.semantic.indexedAt', new Date().toISOString());
@@ -228,11 +249,107 @@ export class SemanticIndexer {
                 error: message,
                 failedAt: new Date().toISOString(),
             });
-            // Incomplete generations are not active and are safe to delete.
             this.db
                 .prepare('DELETE FROM semantic_chunks WHERE model = ? AND generation_id = ?')
                 .run(model, generation);
             throw error;
         }
+    }
+
+    /** Incrementally embed records added or modified since the last active generation build. */
+    async syncMissingSources(signal?: AbortSignal): Promise<{ syncedSources: number; syncedChunks: number }> {
+        const modelRow = this.db
+            .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.semantic.activeModel'")
+            .get() as { value_json: string } | undefined;
+        const genRow = this.db
+            .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.semantic.activeGeneration'")
+            .get() as { value_json: string } | undefined;
+        if (!modelRow || !genRow) return { syncedSources: 0, syncedChunks: 0 };
+        const model = String(JSON.parse(modelRow.value_json));
+        const generation = String(JSON.parse(genRow.value_json));
+
+        const missingRows = this.db
+            .prepare(
+                `SELECT src.* FROM (${UNIFIED_KNOWLEDGE_SOURCES_SQL}) src
+                 WHERE trim(coalesce(src.title, '') || coalesce(src.body, '')) <> ''
+                   AND NOT EXISTS (
+                     SELECT 1 FROM semantic_chunks sc
+                     WHERE sc.source_type = src.source_type
+                       AND sc.source_id = src.source_id
+                       AND sc.model = ?
+                       AND sc.generation_id = ?
+                   )
+                 LIMIT 80`,
+            )
+            .all(model, generation) as KnowledgeSourceRow[];
+        if (!missingRows.length) return { syncedSources: 0, syncedChunks: 0 };
+
+        const pending: PendingChunk[] = [];
+        let syncedSources = 0;
+        for (const source of missingRows) {
+            signal?.throwIfAborted();
+            const text = this.formatSourceText(source);
+            if (!text) continue;
+            const chunks = splitIntoChunks(text, 400, 60);
+            if (!chunks.length) continue;
+            syncedSources += 1;
+            const contentHash = createHash('sha256').update(text).digest('hex');
+            chunks.forEach((content, chunkIndex) =>
+                pending.push({ ...source, chunk_index: chunkIndex, content, content_hash: contentHash }),
+            );
+        }
+        if (!pending.length) return { syncedSources: 0, syncedChunks: 0 };
+
+        const { insert, insertBucket } = this.insertChunkStatements();
+        const del = this.db.prepare(
+            'DELETE FROM semantic_chunks WHERE source_type = ? AND source_id = ? AND model = ? AND generation_id = ?',
+        );
+        let syncedChunks = 0;
+        for (let offset = 0; offset < pending.length; offset += 16) {
+            signal?.throwIfAborted();
+            const batch = pending.slice(offset, offset + 16);
+            const vectors = await this.embeddingAdapter.embed(
+                batch.map((item) => formatTextForEmbeddingModel(item.content, model, 'document')),
+                model,
+                signal,
+            );
+            if (vectors.length !== batch.length)
+                throw new Error('The embedding adapter returned an invalid batch size.');
+            const timestamp = new Date().toISOString();
+            this.db.exec('BEGIN IMMEDIATE');
+            try {
+                for (const item of batch) del.run(item.source_type, item.source_id, model, generation);
+                batch.forEach((item, index) => {
+                    const vector = vectors[index]!;
+                    const chunkId = randomUUID();
+                    insert.run(
+                        chunkId,
+                        item.source_type,
+                        item.source_id,
+                        item.project_id,
+                        item.chunk_index,
+                        item.title,
+                        item.content,
+                        item.content.slice(0, 320),
+                        item.source_updated_at,
+                        item.content_hash,
+                        model,
+                        generation,
+                        vector.length,
+                        JSON.stringify(vector),
+                        timestamp,
+                    );
+                    vectorBandBuckets(vector).forEach((bucket, band) =>
+                        insertBucket.run(chunkId, band, bucket),
+                    );
+                });
+                this.db.exec('COMMIT');
+            } catch (error) {
+                this.db.exec('ROLLBACK');
+                throw error;
+            }
+            syncedChunks += batch.length;
+        }
+        return { syncedSources, syncedChunks };
     }
 }

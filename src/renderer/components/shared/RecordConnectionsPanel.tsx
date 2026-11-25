@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
     AlarmClock,
     ArrowUpRight,
+    CornerDownLeft,
     FileText,
     FolderKanban,
     Link2,
@@ -40,7 +41,8 @@ const entityIcon: Record<EntityType, typeof FolderKanban> = {
 interface RecordConnectionsPanelProps {
     entityType: EntityType;
     entityId: string;
-    onNavigate?: (target: WorkspaceNavigationTarget) => void;
+    onNavigate?: ((target: WorkspaceNavigationTarget) => void) | undefined;
+    onChanged?: (() => void) | undefined;
     hideReminders?: boolean;
 }
 
@@ -48,6 +50,7 @@ export function RecordConnectionsPanel({
     entityType,
     entityId,
     onNavigate,
+    onChanged,
     hideReminders = false,
 }: RecordConnectionsPanelProps) {
     const [tags, setTags] = useState<TagRecord[]>([]);
@@ -111,6 +114,11 @@ export function RecordConnectionsPanel({
         void refresh();
     }, [refresh]);
 
+    async function refreshAndNotify() {
+        await refresh();
+        onChanged?.();
+    }
+
     async function addLink() {
         if (!targetId) return;
         setBusy(true);
@@ -124,7 +132,7 @@ export function RecordConnectionsPanel({
             );
             setTargetId('');
             setShowLinkForm(false);
-            await refresh();
+            await refreshAndNotify();
         } catch (caught) {
             setError(friendlyError(caught, 'Link could not be created.'));
         } finally {
@@ -146,12 +154,86 @@ export function RecordConnectionsPanel({
             );
             setReminderNote('');
             setShowReminderForm(false);
-            await refresh();
+            await refreshAndNotify();
         } catch (caught) {
             setError(friendlyError(caught, 'Reminder could not be scheduled.'));
         } finally {
             setBusy(false);
         }
+    }
+
+    const outgoingLinks = links.filter((item) => item.direction === 'outgoing');
+    const incomingLinks = links.filter((item) => item.direction === 'incoming');
+
+    function renderLinkGroup(title: string, groupLinks: EntityLinkRecord[], incoming: boolean) {
+        if (!groupLinks.length) return null;
+        return (
+            <div className="space-y-1">
+                <p className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                    {incoming && <CornerDownLeft className="size-3" />}
+                    <span>
+                        {title} ({groupLinks.length})
+                    </span>
+                </p>
+                <div className="divide-y divide-border rounded-md border border-border">
+                    {groupLinks.map((link) => {
+                        const otherType = link.direction === 'outgoing' ? link.targetType : link.sourceType;
+                        const otherId = link.direction === 'outgoing' ? link.targetId : link.sourceId;
+                        const summary = summaries[`${otherType}:${otherId}`];
+                        const Icon = entityIcon[otherType];
+                        return (
+                            <div key={link.id} className="flex items-center gap-2 px-2.5 py-2">
+                                <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+                                <button
+                                    type="button"
+                                    className="min-w-0 flex-1 text-left hover:underline"
+                                    onClick={() =>
+                                        onNavigate?.(targetFromRecord(otherType, otherId, summary?.projectId))
+                                    }
+                                >
+                                    <span className="block truncate font-medium">
+                                        {summary?.title ?? `${otherType} record`}
+                                    </span>
+                                    <span className="block truncate text-muted-foreground">
+                                        {link.relationship} · {summary?.subtitle ?? otherType}
+                                    </span>
+                                </button>
+                                {onNavigate && (
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="size-6 shrink-0"
+                                        aria-label={`Open ${summary?.title ?? otherType}`}
+                                        onClick={() =>
+                                            onNavigate(
+                                                targetFromRecord(otherType, otherId, summary?.projectId),
+                                            )
+                                        }
+                                    >
+                                        <ArrowUpRight className="size-3.5" />
+                                    </Button>
+                                )}
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-6 shrink-0 text-muted-foreground hover:text-danger"
+                                    aria-label="Remove link"
+                                    onClick={() =>
+                                        void window.devLedger.operations
+                                            .removeLink(link.id)
+                                            .then(refreshAndNotify)
+                                    }
+                                >
+                                    <Trash2 className="size-3" />
+                                </Button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -171,7 +253,7 @@ export function RecordConnectionsPanel({
                     entityType={entityType}
                     entityId={entityId}
                     assigned={tags}
-                    onChanged={() => void refresh()}
+                    onChanged={() => void refreshAndNotify()}
                     onError={setError}
                 />
             </section>
@@ -241,7 +323,7 @@ export function RecordConnectionsPanel({
                                         onClick={() =>
                                             void window.devLedger.operations
                                                 .updateReminder(item.id, 'snooze', undefined, 60)
-                                                .then(refresh)
+                                                .then(refreshAndNotify)
                                         }
                                     >
                                         Snooze
@@ -254,7 +336,7 @@ export function RecordConnectionsPanel({
                                         onClick={() =>
                                             void window.devLedger.operations
                                                 .updateReminder(item.id, 'dismiss')
-                                                .then(refresh)
+                                                .then(refreshAndNotify)
                                         }
                                     >
                                         Dismiss
@@ -268,7 +350,7 @@ export function RecordConnectionsPanel({
                 </section>
             )}
 
-            <section className="space-y-2.5 border-t border-border pt-4">
+            <section className="space-y-3 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
                     <h4 className="font-medium text-muted-foreground">Links & backlinks</h4>
                     <Button
@@ -330,63 +412,9 @@ export function RecordConnectionsPanel({
                     </div>
                 )}
                 {links.length ? (
-                    <div className="divide-y divide-border rounded-md border border-border">
-                        {links.map((link) => {
-                            const otherType =
-                                link.direction === 'outgoing' ? link.targetType : link.sourceType;
-                            const otherId = link.direction === 'outgoing' ? link.targetId : link.sourceId;
-                            const summary = summaries[`${otherType}:${otherId}`];
-                            const Icon = entityIcon[otherType];
-                            return (
-                                <div key={link.id} className="flex items-center gap-2 px-2.5 py-2">
-                                    <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-                                    <button
-                                        type="button"
-                                        className="min-w-0 flex-1 text-left hover:underline"
-                                        onClick={() =>
-                                            onNavigate?.(
-                                                targetFromRecord(otherType, otherId, summary?.projectId),
-                                            )
-                                        }
-                                    >
-                                        <span className="block truncate font-medium">
-                                            {summary?.title ?? `${otherType} record`}
-                                        </span>
-                                        <span className="block truncate text-muted-foreground">
-                                            {link.relationship} · {summary?.subtitle ?? otherType}
-                                        </span>
-                                    </button>
-                                    {onNavigate && (
-                                        <Button
-                                            type="button"
-                                            size="icon"
-                                            variant="ghost"
-                                            className="size-6 shrink-0"
-                                            aria-label={`Open ${summary?.title ?? otherType}`}
-                                            onClick={() =>
-                                                onNavigate(
-                                                    targetFromRecord(otherType, otherId, summary?.projectId),
-                                                )
-                                            }
-                                        >
-                                            <ArrowUpRight className="size-3.5" />
-                                        </Button>
-                                    )}
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        className="size-6 shrink-0 text-muted-foreground hover:text-danger"
-                                        aria-label="Remove link"
-                                        onClick={() =>
-                                            void window.devLedger.operations.removeLink(link.id).then(refresh)
-                                        }
-                                    >
-                                        <Trash2 className="size-3" />
-                                    </Button>
-                                </div>
-                            );
-                        })}
+                    <div className="space-y-3">
+                        {renderLinkGroup('Links to', outgoingLinks, false)}
+                        {renderLinkGroup('Referenced by (backlinks)', incomingLinks, true)}
                     </div>
                 ) : (
                     !showLinkForm && <p className="text-muted-foreground">No linked items yet.</p>

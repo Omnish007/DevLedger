@@ -92,4 +92,9 @@ test('global focus-visible outline lives in @layer base and NativeSelect shrink-
 
     const pageControls = source('src/renderer/components/shared/PageControls.tsx');
     assert.match(pageControls, /if \(total <= limit && offset === 0\) return null/);
+
+    const windowManager = source('src/main/desktop-window-manager.ts');
+    assert.match(windowManager, /createMainWindow\s*=\s*\(\)/);
+    assert.match(windowManager, /openMainWindow\s*=\s*\(\)/);
+    assert.match(source('src/renderer/features/notes/NotesPage.tsx'), /!editor\.isDestroyed/);
 });

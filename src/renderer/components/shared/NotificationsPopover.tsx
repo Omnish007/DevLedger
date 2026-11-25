@@ -27,10 +27,12 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
     const [error, setError] = useState('');
 
     const loadInbox = useCallback(async () => {
+        const api = window.devLedger?.notifications;
+        if (!api) return;
         try {
             const [unread, list] = await Promise.all([
-                window.devLedger.notifications.unreadCount(),
-                open ? window.devLedger.notifications.list(filter, 30) : Promise.resolve(null),
+                typeof api.unreadCount === 'function' ? api.unreadCount() : Promise.resolve(0),
+                open && typeof api.list === 'function' ? api.list(filter, 30) : Promise.resolve(null),
             ]);
             setUnreadCount(unread);
             if (list) setItems(list);

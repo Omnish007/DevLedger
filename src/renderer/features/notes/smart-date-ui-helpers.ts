@@ -9,7 +9,7 @@ export function attachSyncedReminderId(
     reminderId: string | null,
     time?: string | null,
 ): void {
-    if (!editor || !reminderId) return;
+    if (!editor || editor.isDestroyed || !reminderId) return;
     editor.state.doc.descendants((node, pos) => {
         const matchesDate = node.attrs['date'] === date;
         const matchesTime = time === undefined || (node.attrs['time'] ?? null) === (time ?? null);

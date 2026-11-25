@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BellRing, Check, Clipboard, Monitor, Moon, Sun } from 'lucide-react';
 import type {
     AppMetadata,
@@ -56,16 +56,32 @@ export function SettingsPage(props: Props) {
     const [message, setMessage] = useState('');
     const [saving, setSaving] = useState(false);
     const [chatModel, setChatModel] = useState(
-        typeof props.settings['ai.chatModel'] === 'string' ? props.settings['ai.chatModel'] : 'llama3.2:3b',
+        typeof props.settings['ai.chatModel'] === 'string'
+            ? props.settings['ai.chatModel']
+            : 'qwen3.5:2b-q4_K_M',
     );
     const [embeddingModel, setEmbeddingModel] = useState(
         typeof props.settings['ai.embeddingModel'] === 'string'
             ? props.settings['ai.embeddingModel']
-            : 'embeddinggemma',
+            : 'nomic-embed-text:latest',
     );
     const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
     const [semanticReport, setSemanticReport] = useState<SemanticIndexReport | null>(null);
     const [webPerm, setWebPerm] = useState(() => getWebNotificationPermission());
+
+    useEffect(() => {
+        if (section !== 'ai' || ollamaStatus) return;
+        let active = true;
+        void props
+            .onCheckOllama()
+            .then((status) => {
+                if (active) setOllamaStatus(status);
+            })
+            .catch(() => undefined);
+        return () => {
+            active = false;
+        };
+    }, [section, ollamaStatus, props]);
     const theme = typeof props.settings['theme'] === 'string' ? props.settings['theme'] : 'system';
     const captureShortcut =
         typeof props.settings['shortcuts.quickCapture'] === 'string'
@@ -258,6 +274,14 @@ export function SettingsPage(props: Props) {
                                         onClick={() => {
                                             setSaving(true);
                                             void (async () => {
+                                                if (
+                                                    typeof window.devLedger?.notifications?.sendTest !==
+                                                    'function'
+                                                ) {
+                                                    throw new Error(
+                                                        'Notification bridge is unavailable. Restart DevLedger to reload the desktop preload.',
+                                                    );
+                                                }
                                                 const perm = webPushEnabled
                                                     ? await requestWebNotificationPermission()
                                                     : webPerm;
@@ -448,17 +472,41 @@ export function SettingsPage(props: Props) {
                                 </p>
                             )}
                             {ollamaStatus && (
-                                <div className="rounded border border-border bg-surface-subtle p-3">
+                                <div className="space-y-2 rounded border border-border bg-surface-subtle p-3">
                                     <Badge variant={ollamaStatus.available ? 'success' : 'warning'}>
                                         {ollamaStatus.available ? 'Connected' : 'Unavailable'}
                                     </Badge>
-                                    <p className="mt-1.5 text-muted-foreground">
-                                        {ollamaStatus.available
-                                            ? ollamaStatus.models.length
-                                                ? ollamaStatus.models.join(', ')
-                                                : 'No models installed'
-                                            : ollamaStatus.error}
-                                    </p>
+                                    {ollamaStatus.available ? (
+                                        ollamaStatus.models.length ? (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                {ollamaStatus.models.map((modelName) => {
+                                                    const isEmbed =
+                                                        /(embed|minilm|bge[-_:]|e5[-_:]|embeddinggemma|mxbai)/i.test(
+                                                            modelName,
+                                                        );
+                                                    return (
+                                                        <button
+                                                            key={modelName}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                isEmbed
+                                                                    ? setEmbeddingModel(modelName)
+                                                                    : setChatModel(modelName)
+                                                            }
+                                                            className="rounded-md border border-border/80 bg-card px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/50 hover:bg-surface-hover"
+                                                            title={`Use ${modelName} as ${isEmbed ? 'embedding' : 'chat'} model`}
+                                                        >
+                                                            {modelName}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <p className="text-muted-foreground">No models installed</p>
+                                        )
+                                    ) : (
+                                        <p className="text-muted-foreground">{ollamaStatus.error}</p>
+                                    )}
                                 </div>
                             )}
                         </section>

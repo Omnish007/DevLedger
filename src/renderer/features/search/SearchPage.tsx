@@ -301,9 +301,43 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                     </p>
                 )}
                 {semanticError && (
-                    <p role="alert" className="text-xs text-warning">
-                        {semanticError}
-                    </p>
+                    <div
+                        role="alert"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning"
+                    >
+                        <span>{semanticError}</span>
+                        {semanticError.toLowerCase().includes('index') && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                disabled={semanticBusy}
+                                onClick={() => {
+                                    setSemanticBusy(true);
+                                    setSemanticError('');
+                                    void window.devLedger.ai
+                                        .indexSemanticKnowledge()
+                                        .then(() =>
+                                            query.trim()
+                                                ? rerankSemantically(query.trim(), projectId)
+                                                : undefined,
+                                        )
+                                        .catch((caught) =>
+                                            setSemanticError(
+                                                friendlyError(
+                                                    caught,
+                                                    'Could not build local semantic index.',
+                                                ),
+                                            ),
+                                        )
+                                        .finally(() => setSemanticBusy(false));
+                                }}
+                            >
+                                Build index now
+                            </Button>
+                        )}
+                    </div>
                 )}
                 {aiError && (
                     <div

@@ -6,6 +6,7 @@ import type {
     ActiveTimerRecord,
     TaskInput,
     TaskRecord,
+    TaskRelationSummary,
     TaskStatus,
     WorkspaceNavigationTarget,
 } from '@shared/contracts';
@@ -110,6 +111,7 @@ export function TasksPage({
     const [pageTasks, setPageTasks] = useState<TaskRecord[]>([]);
     const [pageTotal, setPageTotal] = useState(0);
     const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+    const [relationSummaries, setRelationSummaries] = useState<Record<string, TaskRelationSummary>>({});
     const [pageOffset, setPageOffset] = useState(0);
     const [pageLoading, setPageLoading] = useState(true);
     const pageRequest = useRef(0);
@@ -150,6 +152,15 @@ export function TasksPage({
                                 setProjectNames((c) => ({ ...c, ...names }));
                         })
                         .catch(() => undefined);
+                    const taskIds = page.items.map((t) => t.id);
+                    if (typeof window.devLedger.tasks.relationSummaries === 'function') {
+                        void window.devLedger.tasks
+                            .relationSummaries(taskIds)
+                            .then((summaries) => {
+                                if (requestId === pageRequest.current) setRelationSummaries(summaries);
+                            })
+                            .catch(() => undefined);
+                    }
                 }
             } finally {
                 if (requestId === pageRequest.current) setPageLoading(false);
@@ -521,7 +532,7 @@ export function TasksPage({
                     <VirtualList
                         items={orderedVisible}
                         itemKey={taskItemKey}
-                        itemHeight={64}
+                        itemHeight={70}
                         label="Workspace tasks"
                         className="max-h-[min(70vh,740px)]"
                         empty={
@@ -551,6 +562,7 @@ export function TasksPage({
                                 collapsed={collapsedIds.has(task.id)}
                                 projectName={projectNames[task.projectId] ?? 'Project'}
                                 activeTimer={activeTimer}
+                                relations={relationSummaries[task.id]}
                                 busy={busyId === task.id}
                                 onToggleCollapse={(id) =>
                                     setCollapsedIds((c) => {
@@ -615,6 +627,7 @@ export function TasksPage({
                 }}
                 onStartTimer={onStartTimer}
                 onStopTimer={onStopTimer}
+                onSelectTask={setInspectedTaskId}
                 onNavigate={onNavigateTarget}
                 onRefreshParent={async () => {
                     await refresh();

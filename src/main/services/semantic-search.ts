@@ -8,6 +8,7 @@ import {
     nearbyBucketValues,
 } from '../../domain/vector-search.ts';
 import { parseSearchQuery } from '../../domain/search-query.ts';
+import { formatTextForEmbeddingModel } from './ai-models.ts';
 import type { EmbeddingAdapter } from './embeddings.ts';
 
 export class SemanticSearchService {
@@ -17,6 +18,16 @@ export class SemanticSearchService {
     constructor(db: Database.Database, embeddingAdapter: EmbeddingAdapter) {
         this.db = db;
         this.embeddingAdapter = embeddingAdapter;
+    }
+
+    hasActiveIndex(): boolean {
+        const count = this.db
+            .prepare(
+                `SELECT count(*) AS total FROM app_settings
+                 WHERE key IN ('ai.semantic.activeModel', 'ai.semantic.activeGeneration')`,
+            )
+            .get() as { total: number };
+        return Number(count.total) === 2;
     }
 
     private ensureVectorBuckets(model: string, generation: string): void {
@@ -29,8 +40,6 @@ export class SemanticSearchService {
         const insert = this.db.prepare(
             'INSERT OR IGNORE INTO semantic_vector_buckets (chunk_id, band, bucket) VALUES (?, ?, ?)',
         );
-        // Legacy vector generations are backfilled completely in bounded transactions.
-        // New generations already write buckets in the same transaction as each vector.
         while (true) {
             const missing = select.all(model, generation) as Array<{ id: string; vector_json: string }>;
             if (!missing.length) break;
@@ -44,7 +53,6 @@ export class SemanticSearchService {
                             );
                             if (vector.length === 0) throw new Error('empty vector');
                         } catch {
-                            // Mark malformed vectors as handled so they cannot cause an infinite backfill loop.
                             insert.run(row.id, 0, 0);
                             insert.run(row.id, 1, 0);
                             insert.run(row.id, 2, 0);
@@ -73,8 +81,10 @@ export class SemanticSearchService {
         const model = String(JSON.parse(modelRow.value_json));
         const generation = String(JSON.parse(generationRow.value_json));
         this.ensureVectorBuckets(model, generation);
-        const [queryVector] = await this.embeddingAdapter.embed([filters.text], model);
+        const formattedQuery = formatTextForEmbeddingModel(filters.text, model, 'query');
+        const [queryVector] = await this.embeddingAdapter.embed([formattedQuery], model);
         if (!queryVector) throw new Error('The embedding model did not return a query vector.');
+
         let scopedProjectId = projectId ?? null;
         if (filters.project) {
             const exact = this.db
@@ -138,71 +148,78 @@ export class SemanticSearchService {
             );
             if (filters.status === 'overdue') params.push(new Date().toISOString());
         }
-        // Three-band random-hyperplane LSH reduces a large generation to a bounded
-        // cosine-neighborhood candidate set. FTS5 adds exact lexical hits and the recent
-        // window protects recall while a fresh index is warming up.
-        const candidateIds: string[][] = [];
-        const bandHashes = vectorBandBuckets(queryVector);
-        const bandClauses: string[] = [];
-        const bandParams: number[] = [];
-        bandHashes.forEach((hash, band) => {
-            const nearby = nearbyBucketValues(hash, 2);
-            bandClauses.push(`(band = ? AND bucket IN (${nearby.map(() => '?').join(',')}))`);
-            bandParams.push(band, ...nearby);
-        });
-        const vectorCandidates = this.db
-            .prepare(
-                `
-      SELECT sc.id, count(*) AS matches
-      FROM semantic_vector_buckets vb INDEXED BY semantic_vector_bucket_lookup_idx JOIN semantic_chunks sc ON sc.id = vb.chunk_id
-      WHERE (${bandClauses.join(' OR ')}) AND ${clauses.join(' AND ')}
-      GROUP BY sc.id ORDER BY matches DESC, sc.indexed_at DESC LIMIT 6_000
-    `,
-            )
-            .all(...bandParams, ...params) as Array<{ id: string }>;
-        candidateIds.push(vectorCandidates.map((item) => String(item.id)));
 
-        const ftsExpression = semanticCandidateExpression(filters.text);
-        if (ftsExpression) {
-            try {
-                const lexicalCandidates = this.db
-                    .prepare(
-                        `
-          SELECT sc.id
-          FROM semantic_chunk_search
-          JOIN semantic_chunks sc ON sc.id = semantic_chunk_search.chunk_id
-          WHERE semantic_chunk_search MATCH ? AND ${clauses.join(' AND ')}
-          ORDER BY bm25(semantic_chunk_search)
-          LIMIT 1_500
-        `,
-                    )
-                    .all(ftsExpression, ...params) as Array<{ id: string }>;
-                candidateIds.push(lexicalCandidates.map((item) => String(item.id)));
-            } catch {
-                // The vector index remains usable if the auxiliary FTS index requires repair.
+        const totalScopedRow = this.db
+            .prepare(`SELECT count(*) AS total FROM semantic_chunks sc WHERE ${clauses.join(' AND ')}`)
+            .get(...params) as { total: number };
+        const totalScoped = Number(totalScopedRow.total);
+        if (!totalScoped) return [];
+
+        let rows: Iterable<Record<string, unknown>>;
+        if (totalScoped <= 2_500) {
+            // Exact cosine pass eliminates LSH quantization misses on typical local workspaces.
+            rows = this.db
+                .prepare(
+                    `SELECT sc.source_type, sc.source_id, sc.project_id, sc.title, sc.excerpt, sc.source_updated_at, sc.dimensions, sc.vector_json
+                     FROM semantic_chunks sc WHERE ${clauses.join(' AND ')}`,
+                )
+                .iterate(...params) as Iterable<Record<string, unknown>>;
+        } else {
+            const candidateIds: string[][] = [];
+            const bandHashes = vectorBandBuckets(queryVector);
+            const bandClauses: string[] = [];
+            const bandParams: number[] = [];
+            bandHashes.forEach((hash, band) => {
+                const nearby = nearbyBucketValues(hash, 2);
+                bandClauses.push(`(band = ? AND bucket IN (${nearby.map(() => '?').join(',')}))`);
+                bandParams.push(band, ...nearby);
+            });
+            const vectorCandidates = this.db
+                .prepare(
+                    `SELECT sc.id, count(*) AS matches
+                     FROM semantic_vector_buckets vb INDEXED BY semantic_vector_bucket_lookup_idx
+                     JOIN semantic_chunks sc ON sc.id = vb.chunk_id
+                     WHERE (${bandClauses.join(' OR ')}) AND ${clauses.join(' AND ')}
+                     GROUP BY sc.id ORDER BY matches DESC, sc.indexed_at DESC LIMIT 6_000`,
+                )
+                .all(...bandParams, ...params) as Array<{ id: string }>;
+            candidateIds.push(vectorCandidates.map((item) => String(item.id)));
+
+            const ftsExpression = semanticCandidateExpression(filters.text);
+            if (ftsExpression) {
+                try {
+                    const lexicalCandidates = this.db
+                        .prepare(
+                            `SELECT sc.id FROM semantic_chunk_search
+                             JOIN semantic_chunks sc ON sc.id = semantic_chunk_search.chunk_id
+                             WHERE semantic_chunk_search MATCH ? AND ${clauses.join(' AND ')}
+                             ORDER BY bm25(semantic_chunk_search) LIMIT 1_500`,
+                        )
+                        .all(ftsExpression, ...params) as Array<{ id: string }>;
+                    candidateIds.push(lexicalCandidates.map((item) => String(item.id)));
+                } catch {
+                    /* keep vector candidates */
+                }
             }
+            const recentCandidates = this.db
+                .prepare(
+                    `SELECT sc.id FROM semantic_chunks sc WHERE ${clauses.join(' AND ')}
+                     ORDER BY indexed_at DESC LIMIT 1_000`,
+                )
+                .all(...params) as Array<{ id: string }>;
+            candidateIds.push(recentCandidates.map((item) => String(item.id)));
+            const selectedIds = mergeCandidateIds(...candidateIds).slice(0, 8_000);
+            if (!selectedIds.length) return [];
+            const placeholders = selectedIds.map(() => '?').join(',');
+            rows = this.db
+                .prepare(
+                    `SELECT sc.source_type, sc.source_id, sc.project_id, sc.title, sc.excerpt, sc.source_updated_at, sc.dimensions, sc.vector_json
+                     FROM semantic_chunks sc
+                     WHERE ${clauses.join(' AND ')} AND sc.id IN (${placeholders})`,
+                )
+                .iterate(...params, ...selectedIds) as Iterable<Record<string, unknown>>;
         }
-        const recentCandidates = this.db
-            .prepare(
-                `
-      SELECT sc.id FROM semantic_chunks sc WHERE ${clauses.join(' AND ')}
-      ORDER BY indexed_at DESC LIMIT 500
-    `,
-            )
-            .all(...params) as Array<{ id: string }>;
-        candidateIds.push(recentCandidates.map((item) => String(item.id)));
-        const selectedIds = mergeCandidateIds(...candidateIds).slice(0, 8_000);
-        if (!selectedIds.length) return [];
-        const placeholders = selectedIds.map(() => '?').join(',');
-        const rows = this.db
-            .prepare(
-                `
-      SELECT sc.source_type, sc.source_id, sc.project_id, sc.title, sc.excerpt, sc.source_updated_at, sc.dimensions, sc.vector_json
-      FROM semantic_chunks sc
-      WHERE ${clauses.join(' AND ')} AND sc.id IN (${placeholders})
-    `,
-            )
-            .iterate(...params, ...selectedIds) as Iterable<Record<string, unknown>>;
+
         const best = new Map<string, { result: SearchResult; score: number }>();
         for (const row of rows) {
             if (Number(row['dimensions']) !== queryVector.length) continue;

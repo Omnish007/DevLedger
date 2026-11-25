@@ -13,7 +13,7 @@ export function targetFromRecord(
     id: string,
     projectId?: string | null,
 ): WorkspaceNavigationTarget {
-    return { view: VIEW_BY_ENTITY[type], recordId: id, projectId: projectId ?? null };
+    return { view: VIEW_BY_ENTITY[type] ?? 'dashboard', recordId: id, projectId: projectId ?? null };
 }
 
 export const TAG_DOT_CLASS: Record<string, string> = {

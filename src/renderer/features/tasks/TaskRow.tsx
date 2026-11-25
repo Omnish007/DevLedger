@@ -6,14 +6,23 @@ import {
     ChevronRight,
     Circle,
     CircleDot,
+    GitBranch,
+    Link2,
     PauseCircle,
     Pencil,
     Play,
     Square,
     Trash2,
+    UserRound,
     XCircle,
 } from 'lucide-react';
-import type { ActiveTimerRecord, TaskRecord, TaskStatus, WorkspaceNavigationTarget } from '@shared/contracts';
+import type {
+    ActiveTimerRecord,
+    TaskRecord,
+    TaskRelationSummary,
+    TaskStatus,
+    WorkspaceNavigationTarget,
+} from '@shared/contracts';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/utils';
@@ -27,6 +36,7 @@ interface TaskRowProps {
     collapsed: boolean;
     projectName: string;
     activeTimer: ActiveTimerRecord | null;
+    relations?: TaskRelationSummary | undefined;
     busy: boolean;
     onToggleCollapse: (id: string) => void;
     onInspect: (id: string) => void;
@@ -62,6 +72,7 @@ export function TaskRow({
     collapsed,
     projectName,
     activeTimer,
+    relations,
     busy,
     onToggleCollapse,
     onInspect,
@@ -78,6 +89,16 @@ export function TaskRow({
     const dueMs = rawDue ? Date.parse(rawDue.length === 10 ? `${rawDue}T23:59:59` : rawDue) : NaN;
     const overdue =
         !isCompleted && task.status !== 'cancelled' && Number.isFinite(dueMs) && dueMs < Date.now();
+    const hasMetaLine = Boolean(
+        task.description ||
+        task.estimateMinutes !== null ||
+        task.parentId ||
+        relations?.activeBlockerReason ||
+        relations?.waitingContactName ||
+        (relations?.dependsOnOpen ?? 0) > 0 ||
+        (relations?.blocksCount ?? 0) > 0 ||
+        (relations?.linkCount ?? 0) > 0,
+    );
 
     return (
         <div
@@ -142,16 +163,65 @@ export function TaskRow({
                             </span>
                         )}
                     </div>
-                    {(task.description || task.estimateMinutes !== null || task.parentId) && (
-                        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                            {task.description && (
-                                <span className="max-w-[260px] truncate">{task.description}</span>
+                    {hasMetaLine && (
+                        <div className="mt-0.5 flex items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
+                            {relations?.waitingContactName ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(task.id)}
+                                    className="inline-flex shrink-0 items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info hover:bg-info/15"
+                                >
+                                    <UserRound className="size-2.5" />
+                                    Waiting: {relations.waitingContactName}
+                                </button>
+                            ) : relations?.activeBlockerReason ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(task.id)}
+                                    className="inline-flex max-w-[190px] shrink-0 items-center gap-1 truncate rounded bg-warning/12 px-1.5 py-0.5 text-[10px] font-medium text-warning hover:bg-warning/20"
+                                >
+                                    Blocked: {relations.activeBlockerReason}
+                                </button>
+                            ) : null}
+                            {(relations?.dependsOnOpen ?? 0) > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(task.id)}
+                                    className="inline-flex max-w-[180px] shrink-0 items-center gap-1 rounded border border-border/80 bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                    <GitBranch className="size-2.5 shrink-0" />
+                                    <span className="truncate">
+                                        {relations!.dependsOnOpen === 1 && relations!.firstPrereqTitle
+                                            ? `After ${relations!.firstPrereqTitle}`
+                                            : `${relations!.dependsOnOpen} prerequisites`}
+                                    </span>
+                                </button>
                             )}
-                            {task.parentId && <span>· Subtask</span>}
+                            {(relations?.blocksCount ?? 0) > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(task.id)}
+                                    className="inline-flex shrink-0 items-center gap-1 rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                    Unlocks {relations!.blocksCount}
+                                </button>
+                            )}
+                            {(relations?.linkCount ?? 0) > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => onInspect(task.id)}
+                                    className="inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                    <Link2 className="size-2.5" />
+                                    {relations!.linkCount}
+                                </button>
+                            )}
+                            {task.description && <span className="min-w-0 truncate">{task.description}</span>}
+                            {task.parentId && <span className="shrink-0">· Subtask</span>}
                             {task.estimateMinutes !== null && (
-                                <span className="tabular-nums">· {task.estimateMinutes}m</span>
+                                <span className="shrink-0 tabular-nums">· {task.estimateMinutes}m</span>
                             )}
-                            <span className="task-inline-context">
+                            <span className="task-inline-context shrink-0">
                                 · {projectName} · {task.status.replaceAll('_', ' ')}
                             </span>
                         </div>

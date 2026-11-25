@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { CircleAlert, ShieldCheck } from 'lucide-react';
-import type { TaskBlockerRecord } from '@shared/contracts';
+import { useEffect, useState } from 'react';
+import { CircleAlert, ShieldCheck, UserRound } from 'lucide-react';
+import type { TaskBlockerRecord, WorkspaceNavigationTarget } from '@shared/contracts';
 import { resolveSmartDateInstant } from '@domain/smart-date-resolution';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,16 +13,44 @@ interface TaskBlockerSectionProps {
     blockers: TaskBlockerRecord[];
     onUpdated: () => Promise<void>;
     onError: (message: string) => void;
+    onNavigate?: ((target: WorkspaceNavigationTarget) => void) | undefined;
 }
 
-export function TaskBlockerSection({ taskId, blockers, onUpdated, onError }: TaskBlockerSectionProps) {
+export function TaskBlockerSection({
+    taskId,
+    blockers,
+    onUpdated,
+    onError,
+    onNavigate,
+}: TaskBlockerSectionProps) {
     const [adding, setAdding] = useState(false);
     const [reason, setReason] = useState('');
     const [waitingContactId, setWaitingContactId] = useState('');
     const [followUpAt, setFollowUpAt] = useState('');
     const [busy, setBusy] = useState(false);
+    const [waitingContactName, setWaitingContactName] = useState<string | null>(null);
 
     const openBlocker = blockers.find((item) => !item.resolvedAt) ?? null;
+
+    useEffect(() => {
+        const contactId = openBlocker?.waitingContactId;
+        if (!contactId) {
+            setWaitingContactName(null);
+            return;
+        }
+        let active = true;
+        void window.devLedger.operations
+            .resolveRecordSummaries([{ type: 'contact', id: contactId }])
+            .then((resolved) => {
+                if (active) setWaitingContactName(resolved[`contact:${contactId}`]?.title ?? null);
+            })
+            .catch(() => {
+                if (active) setWaitingContactName(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [openBlocker?.waitingContactId]);
 
     async function submitBlocker(event: React.FormEvent) {
         event.preventDefault();
@@ -63,7 +91,7 @@ export function TaskBlockerSection({ taskId, blockers, onUpdated, onError }: Tas
     return (
         <section className="space-y-2.5 border-t border-border pt-4 text-xs">
             <div className="flex items-center justify-between">
-                <h4 className="font-medium text-muted-foreground">Blocker status</h4>
+                <h4 className="font-medium text-muted-foreground">Blocker & waiting status</h4>
                 {!openBlocker && (
                     <Button
                         type="button"
@@ -78,15 +106,30 @@ export function TaskBlockerSection({ taskId, blockers, onUpdated, onError }: Tas
             </div>
 
             {openBlocker ? (
-                <div className="flex items-start gap-2.5 rounded-md border border-warning/40 bg-warning/5 p-3">
+                <div className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/5 p-3">
                     <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
                     <div className="min-w-0 flex-1 space-y-1">
                         <p className="font-medium text-foreground">{openBlocker.reason}</p>
-                        {openBlocker.followUpAt && (
-                            <p className="text-muted-foreground">
-                                Follow up {formatDate(openBlocker.followUpAt)}
-                            </p>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            {openBlocker.waitingContactId && (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        onNavigate?.({
+                                            view: 'contacts',
+                                            recordId: openBlocker.waitingContactId!,
+                                        })
+                                    }
+                                    className="inline-flex items-center gap-1 font-medium text-info hover:underline"
+                                >
+                                    <UserRound className="size-3" />
+                                    Waiting on {waitingContactName ?? 'contact'}
+                                </button>
+                            )}
+                            {openBlocker.followUpAt && (
+                                <span>· Follow up {formatDate(openBlocker.followUpAt)}</span>
+                            )}
+                        </div>
                     </div>
                     <Button
                         type="button"
@@ -132,7 +175,7 @@ export function TaskBlockerSection({ taskId, blockers, onUpdated, onError }: Tas
                 </form>
             ) : (
                 <p className="flex items-center gap-1.5 text-muted-foreground">
-                    <ShieldCheck className="size-3.5" />
+                    <ShieldCheck className="size-3.5 text-success" />
                     No active blocker.
                 </p>
             )}

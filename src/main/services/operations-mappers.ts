@@ -107,6 +107,7 @@ export function resolveRecordSummaries(
             title: String(row['title']),
             subtitle: String(row['status'] ?? '').replaceAll('_', ' '),
             projectId: row['project_id'] ? String(row['project_id']) : null,
+            status: String(row['status'] ?? ''),
         }),
     );
     queryRows(

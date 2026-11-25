@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { toast } from 'sonner';
 import { Sonner } from '@/components/ui/sonner';
@@ -26,31 +26,16 @@ import { RendererErrorBoundary } from '@/components/shared/RendererErrorBoundary
 import { targetFromRecord } from '@/lib/navigation';
 import { dispatchRendererNotifications } from '@/lib/notifications-client';
 import { friendlyError } from '@/lib/utils';
+import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { ProjectsPage } from '@/features/projects/ProjectsPage';
+import { NotesPage } from '@/features/notes/NotesPage';
+import { TasksPage } from '@/features/tasks/TasksPage';
+import { DocumentsPage } from '@/features/documents/DocumentsPage';
+import { SearchPage } from '@/features/search/SearchPage';
+import { SettingsPage } from '@/features/settings/SettingsPage';
+import { QuickCapturePage } from '@/features/capture/QuickCapturePage';
+import { ContactsPage } from '@/features/contacts/ContactsPage';
 import '@/styles/globals.css';
-
-const DashboardPage = lazy(() =>
-    import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
-);
-const ProjectsPage = lazy(() =>
-    import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
-);
-const NotesPage = lazy(() => import('@/features/notes/NotesPage').then((m) => ({ default: m.NotesPage })));
-const TasksPage = lazy(() => import('@/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })));
-const DocumentsPage = lazy(() =>
-    import('@/features/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
-);
-const SearchPage = lazy(() =>
-    import('@/features/search/SearchPage').then((m) => ({ default: m.SearchPage })),
-);
-const SettingsPage = lazy(() =>
-    import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
-);
-const QuickCapturePage = lazy(() =>
-    import('@/features/capture/QuickCapturePage').then((m) => ({ default: m.QuickCapturePage })),
-);
-const ContactsPage = lazy(() =>
-    import('@/features/contacts/ContactsPage').then((m) => ({ default: m.ContactsPage })),
-);
 
 function App() {
     const captureWindow = new URLSearchParams(window.location.search).get('capture') === '1';
@@ -191,6 +176,8 @@ function App() {
 
     useEffect(() => {
         if (captureWindow || loading) return;
+        const notifApi = window.devLedger?.notifications;
+        if (!notifApi) return;
         const handleDelivery = (payload: Parameters<typeof dispatchRendererNotifications>[0]) => {
             if (!allowInAppRef.current && !allowWebPushRef.current) return;
             dispatchRendererNotifications(payload, (target) => void navigateRef.current(target), {
@@ -198,16 +185,23 @@ function App() {
                 alwaysWebPush: webPushSetting === true,
             });
         };
-        const offDelivered = window.devLedger.notifications.onDelivered(handleDelivery);
-        const offOpenTarget = window.devLedger.notifications.onOpenTarget(
-            (target) => void navigateRef.current(target),
-        );
-        void window.devLedger.notifications
-            .deliverDue()
-            .then(handleDelivery)
-            .catch(() => undefined);
+        const offDelivered =
+            typeof notifApi.onDelivered === 'function'
+                ? notifApi.onDelivered(handleDelivery)
+                : () => undefined;
+        const offOpenTarget =
+            typeof notifApi.onOpenTarget === 'function'
+                ? notifApi.onOpenTarget((target) => void navigateRef.current(target))
+                : () => undefined;
+        if (typeof notifApi.deliverDue === 'function') {
+            void notifApi
+                .deliverDue()
+                .then(handleDelivery)
+                .catch(() => undefined);
+        }
         const timer = window.setInterval(() => {
-            void window.devLedger.notifications
+            if (typeof notifApi.deliverDue !== 'function') return;
+            void notifApi
                 .deliverDue()
                 .then(handleDelivery)
                 .catch(() => undefined);
@@ -334,13 +328,7 @@ function App() {
                     Opening your local workspace…
                 </div>
             ) : (
-                <Suspense
-                    fallback={
-                        <div className="grid min-h-64 place-items-center text-sm text-muted-foreground">
-                            Loading…
-                        </div>
-                    }
-                >
+                <>
                     {viewLoading && (
                         <div className="pointer-events-none fixed bottom-4 right-5 z-20 rounded border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground shadow-sm">
                             Refreshing…
@@ -353,6 +341,38 @@ function App() {
                             loading={loading}
                             onNavigate={(view) => void navigateToTarget({ view })}
                             onNavigateTarget={(target) => void navigateToTarget(target)}
+                            onCompleteTask={async (id) => {
+                                await window.devLedger.tasks.update(id, { status: 'completed' });
+                                toast.success('Task completed');
+                                await refreshAll();
+                            }}
+                            onResolveBlocker={async (blockerId) => {
+                                await window.devLedger.operations.resolveBlocker(
+                                    blockerId,
+                                    'Resolved from overview.',
+                                );
+                                toast.success('Blocker resolved');
+                                await refreshAll();
+                            }}
+                            onStartTimer={async (id) => {
+                                await window.devLedger.tasks.startTimer(id);
+                                toast.success('Timer started');
+                                await refreshAll();
+                            }}
+                            onStopTimer={async (id) => {
+                                const secs = await window.devLedger.tasks.stopTimer(id);
+                                toast.success(`Timer stopped · ${Math.round(secs / 60)} minutes`);
+                                await refreshAll();
+                            }}
+                            onReminderAction={async (id, action) => {
+                                await window.devLedger.operations.updateReminder(
+                                    id,
+                                    action === 'snooze' ? 'snooze' : 'dismiss',
+                                    undefined,
+                                    action === 'snooze' ? 60 : undefined,
+                                );
+                                await refreshAll();
+                            }}
                         />
                     )}
                     {activeView === 'projects' && (
@@ -574,7 +594,7 @@ function App() {
                             onNavigateTarget={(target) => void navigateToTarget(target)}
                         />
                     )}
-                </Suspense>
+                </>
             )}
             <Sonner
                 position="bottom-right"
