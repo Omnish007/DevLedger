@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/shared/PageHeader';
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,6 +38,7 @@ export function ContactsPage({ onCreate, onUpdate, onRemove }: Props) {
   const projectId = form.watch('projectId');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pageError, setPageError] = useState('');
   const [visible, setVisible] = useState<ContactRecord[]>([]);
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
   const [total, setTotal] = useState(0);
@@ -51,14 +53,14 @@ export function ContactsPage({ onCreate, onUpdate, onRemove }: Props) {
     try {
       const page = await window.devLedger.contacts.listPage({ limit: pageSize, offset: requestedOffset, query: deferredQuery });
       if (requestId === requestRef.current) {
-        setVisible(page.items); setTotal(page.total);
+        setVisible(page.items); setTotal(page.total); setPageError('');
         const ids = [...new Set(page.items.flatMap((contact) => contact.projectIds))];
         void window.devLedger.projects.getNames(ids).then((names) => { if (requestId === requestRef.current) setProjectNames((current) => ({ ...current, ...names })); }).catch(() => undefined);
       }
     } finally { if (requestId === requestRef.current) setPageLoading(false); }
   }, [deferredQuery, offset]);
 
-  useEffect(() => { void loadPage().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Contacts could not be loaded.')); }, [loadPage]);
+  useEffect(() => { void loadPage().catch((cause: unknown) => setPageError(cause instanceof Error ? cause.message : 'Contacts could not be loaded.')); }, [loadPage]);
 
   function beginEdit(contact: ContactRecord) {
     setEditingId(contact.id);
@@ -82,24 +84,22 @@ export function ContactsPage({ onCreate, onUpdate, onRemove }: Props) {
   async function confirmRemoval() {
     if (!pendingRemoval) return;
     setBusy(true);
-    try { await onRemove(pendingRemoval.id); setPendingRemoval(null); await loadPage(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Contact could not be removed.'); }
+    try { await onRemove(pendingRemoval.id); setPendingRemoval(null); setPageError(''); await loadPage(); }
+    catch (cause) { setPageError(cause instanceof Error ? cause.message : 'Contact could not be removed.'); }
     finally { setBusy(false); }
   }
 
   return (
-    <div className="mx-auto max-w-[1120px] space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div><p className="mb-1 text-xs text-muted-foreground">People and stakeholders, not app accounts</p><h2 className="text-2xl font-semibold tracking-tight">Contacts</h2><p className="mt-1 text-sm text-muted-foreground">Keep client, project manager and delivery contacts close to the work.</p></div>
-        <Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-4"/>Add contact</Button>
-      </div>
-      <div className="relative max-w-sm"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-9" value={query} onChange={(event) => { setOffset(0); setQuery(event.target.value); }} placeholder="Search contacts…"/></div>
+    <div className="workspace-page page-contacts mx-auto space-y-6">
+      <PageHeader title="Contacts" description="Keep client, project manager and delivery contacts close to the work." actions={<Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-4"/>Add contact</Button>} />
+      {pageError && <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-3 text-sm text-danger">{pageError}</div>}
+      <div className="workspace-toolbar contacts-toolbar relative max-w-xl"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-9" value={query} onChange={(event) => { setOffset(0); setQuery(event.target.value); }} placeholder="Search contacts…"/></div>
 
-      {pageLoading ? <p className="py-12 text-center text-sm text-muted-foreground">Loading contacts…</p> : visible.length > 0 && <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{visible.map((contact) => {
+      {pageLoading ? <p className="py-12 text-center text-sm text-muted-foreground">Loading contacts…</p> : visible.length > 0 && <div className="contact-directory">{visible.map((contact) => {
         const associatedProjectNames = contact.projectIds.map((id) => projectNames[id] ?? 'Project');
         const initials = contact.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
         const card = (
-          <article className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80 hover:bg-surface-subtle/50">
+          <article className="contact-record rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-border/80 hover:bg-surface-subtle/50">
             <div className="flex items-start gap-3">
               <Avatar><AvatarFallback>{initials || <UserRound className="size-4"/>}</AvatarFallback></Avatar>
               <div className="min-w-0 flex-1">
@@ -124,7 +124,7 @@ export function ContactsPage({ onCreate, onUpdate, onRemove }: Props) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="mt-4 space-y-2 text-[11px] text-muted-foreground">
+            <div className="contact-details mt-4 space-y-2 text-[11px] text-muted-foreground">
               {contact.email && <p className="flex items-center gap-2"><Mail className="size-3.5"/>{contact.email}</p>}
               {contact.phone && <p className="flex items-center gap-2"><Phone className="size-3.5"/>{contact.phone}</p>}
               {contact.company && <p className="flex items-center gap-2"><Building2 className="size-3.5"/>{contact.company}</p>}
@@ -137,7 +137,7 @@ export function ContactsPage({ onCreate, onUpdate, onRemove }: Props) {
         return <ContextMenu key={contact.id}><ContextMenuTrigger asChild>{card}</ContextMenuTrigger><ContextMenuContent><ContextMenuItem onSelect={() => beginEdit(contact)}><Pencil className="size-4"/>Edit contact</ContextMenuItem><ContextMenuSeparator/><ContextMenuItem onSelect={() => setPendingRemoval(contact)} className="text-destructive focus:text-destructive"><Trash2 className="size-4"/>Move to trash</ContextMenuItem></ContextMenuContent></ContextMenu>;
       })}</div>}
 
-      {!pageLoading && !visible.length && <Empty className="min-h-64"><EmptyHeader><EmptyMedia variant="icon"><UserRound/></EmptyMedia><EmptyTitle>{query ? 'No matching contacts' : 'No contacts yet'}</EmptyTitle><EmptyDescription>{query ? 'Try another name, role or company, or clear your filter.' : 'Add a client or project contact to connect people with your work.'}</EmptyDescription></EmptyHeader><EmptyContent>{query ? <Button variant="outline" size="sm" onClick={() => setQuery('')}>Clear filter</Button> : <Button size="sm" onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-3.5"/> Add first contact</Button>}</EmptyContent></Empty>}
+      {!pageLoading && !visible.length && !pageError && <Empty className="min-h-64"><EmptyHeader><EmptyMedia variant="icon"><UserRound/></EmptyMedia><EmptyTitle>{query ? 'No matching contacts' : 'No contacts yet'}</EmptyTitle><EmptyDescription>{query ? 'Try another name, role or company, or clear your filter.' : 'Add a client or project contact to connect people with your work.'}</EmptyDescription></EmptyHeader><EmptyContent>{query ? <Button variant="outline" size="sm" onClick={() => setQuery('')}>Clear filter</Button> : <Button size="sm" onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-3.5"/> Add first contact</Button>}</EmptyContent></Empty>}
 
       <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) resetForm(); }}>
         <DialogContent><DialogHeader><DialogTitle>{editingId ? 'Edit contact' : 'Add a contact'}</DialogTitle><DialogDescription>{editingId ? 'Update this local contact record.' : 'Create a local contact record and optionally associate it with a project.'}</DialogDescription></DialogHeader>

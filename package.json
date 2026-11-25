@@ -38,7 +38,11 @@
     "check:all": "npm run check:syntax && npm run check:source && npm run check:strip && npm run check:size && npm run shadcn:check && npm test && npm run test:performance && npm run tokens:build",
     "check:syntax": "node scripts/check-syntax.mjs",
     "test:performance": "node --experimental-strip-types --test tests/performance/*.test.ts",
-    "check:size": "node scripts/check-source-size.mjs"
+    "check:size": "node scripts/check-source-size.mjs",
+    "test:e2e:smoke": "npm run build && playwright test --grep @smoke",
+    "test:e2e:headed": "npm run build && playwright test --headed",
+    "test:e2e:report": "playwright show-report playwright-report",
+    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json"
   },
   "dependencies": {
     "@daypicker/react": "^10.0.2",

@@ -3,10 +3,10 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 export interface SafeStoragePort {
-  isEncryptionAvailable(): boolean;
+  isAsyncEncryptionAvailable(): Promise<boolean>;
   getSelectedStorageBackend?: () => string;
-  encryptString(value: string): Buffer;
-  decryptString(value: Buffer): string;
+  encryptStringAsync(value: string): Promise<Buffer>;
+  decryptStringAsync(value: Buffer): Promise<{ result: string; shouldReEncrypt: boolean }>;
 }
 
 export interface VaultKeyReceiver {
@@ -24,15 +24,21 @@ export class VaultDeviceKeyStore {
   }
 
   isAvailable(platform = process.platform): boolean {
-    if (!this.storage.isEncryptionAvailable()) return false;
+    // Note: isAsyncEncryptionAvailable() is async; callers that need a quick synchronous
+    // gate should use this method only after awaiting checkAvailability() first.
     const backend = this.storage.getSelectedStorageBackend?.() ?? 'unknown';
     return platform !== 'linux' || (backend !== 'basic_text' && backend !== 'unknown');
   }
 
+  async checkAvailability(platform = process.platform): Promise<boolean> {
+    if (!(await this.storage.isAsyncEncryptionAvailable())) return false;
+    return this.isAvailable(platform);
+  }
+
   async save(key: Buffer): Promise<void> {
-    if (!this.isAvailable()) throw new Error('A secure OS credential backend is unavailable. Device unlock was not enabled.');
+    if (!(await this.checkAvailability())) throw new Error('A secure OS credential backend is unavailable. Device unlock was not enabled.');
     if (key.length !== 32) throw new Error('Invalid vault key material.');
-    const encrypted = this.storage.encryptString(key.toString('base64url'));
+    const encrypted = await this.storage.encryptStringAsync(key.toString('base64url'));
     const temporary = `${this.keyPath}.${randomUUID()}.partial`;
     await mkdir(dirname(this.keyPath), { recursive: true, mode: 0o700 });
     try {
@@ -45,7 +51,7 @@ export class VaultDeviceKeyStore {
   }
 
   async unlock(vault: VaultKeyReceiver): Promise<boolean> {
-    if (!this.isAvailable()) return false;
+    if (!(await this.checkAvailability())) return false;
     let encrypted: Buffer;
     try { encrypted = await readFile(this.keyPath); }
     catch (error) {
@@ -54,7 +60,7 @@ export class VaultDeviceKeyStore {
     }
     let key: Buffer | undefined;
     try {
-      const encoded = this.storage.decryptString(encrypted);
+      const { result: encoded } = await this.storage.decryptStringAsync(encrypted);
       if (!/^[A-Za-z0-9_-]{43}$/.test(encoded)) throw new Error('The stored device key has an invalid format.');
       key = Buffer.from(encoded, 'base64url');
       if (key.length !== 32) throw new Error('The stored device key has an invalid length.');

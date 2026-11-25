@@ -45,8 +45,8 @@ export class AutomaticBackupManager {
     }
   }
 
-  private secureBackendAvailable(): boolean {
-    if (!safeStorage.isEncryptionAvailable()) return false;
+  private async secureBackendAvailable(): Promise<boolean> {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) return false;
     const storage = safeStorage as typeof safeStorage & { getSelectedStorageBackend?: () => string };
     const backend = storage.getSelectedStorageBackend?.() ?? 'unknown';
     // Electron explicitly identifies basic_text as unencrypted on Linux. Unknown is also fail-closed there.
@@ -65,7 +65,7 @@ export class AutomaticBackupManager {
       const entries = await readdir(this.backupDirectory, { withFileTypes: true });
       assertCredentialCanBeInitialized(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
       const secret = randomBytes(32).toString('base64url');
-      const protectedValue = safeStorage.encryptString(secret);
+      const protectedValue = await safeStorage.encryptStringAsync(secret);
       const temporary = `${this.keyPath}.${randomUUID()}.partial`;
       await writeFile(temporary, protectedValue, { mode: 0o600, flag: 'wx' });
       try {
@@ -77,12 +77,12 @@ export class AutomaticBackupManager {
       }
       return secret;
     }
-    try { return safeStorage.decryptString(encrypted); }
+    try { return (await safeStorage.decryptStringAsync(encrypted)).result; }
     catch { throw new Error('The OS-protected automatic-backup key cannot be decrypted. Automatic backups are paused to avoid making existing snapshots unrecoverable.'); }
   }
 
   async start(options: { schedule?: boolean; deferInitial?: boolean } = {}): Promise<{ enabled: boolean; reason?: string }> {
-    if (!this.secureBackendAvailable()) {
+    if (!(await this.secureBackendAvailable())) {
       const reason = 'A secure OS credential backend is unavailable. Automatic backups are disabled; create manual encrypted backups instead.';
       this.saveSetting('backup.autoEnabled', false); this.saveSetting('backup.autoLastError', reason);
       return { enabled: false, reason };
@@ -116,7 +116,7 @@ export class AutomaticBackupManager {
   }
 
   async runIfDue(throwOnError = false): Promise<void> {
-    if (this.running || !this.secureBackendAvailable()) return;
+    if (this.running || !(await this.secureBackendAvailable())) return;
     this.running = true;
     try {
       await mkdir(this.backupDirectory, { recursive: true, mode: 0o700 });

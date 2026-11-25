@@ -543,3 +543,8 @@ Historical reports from earlier checkpoints are retained for traceability. Prefe
 ## License
 
 The package metadata currently declares this project as `UNLICENSED` and private. No open-source license or redistribution rights are granted by this repository. Obtain authorization from the project owner before redistributing or incorporating the source into another product.
+
+
+## End-to-end testing
+
+DevLedger uses the repository's existing Playwright dependency to automate the real Electron app. E2E tests run with isolated temporary user-data profiles; never point them at your everyday workspace. See [`tests/e2e/README.md`](tests/e2e/README.md) for setup, commands, isolation guarantees and troubleshooting. The architecture review, feature inventory, workflow analysis, scenario matrix, coverage matrix and execution report are under [`docs/`](docs/).

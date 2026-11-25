@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/shared/PageHeader';
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -38,24 +39,34 @@ export function ProjectsPage({ onCreate, onUpdate, onArchive, onRestore, onExpor
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
+  const [pageError, setPageError] = useState('');
   const requestRef = useRef(0);
   const pageSize = 30;
 
   const loadPage = useCallback(async (requestedOffset = offset) => {
     const requestId = ++requestRef.current;
     setPageLoading(true);
+    setPageError('');
     try {
       const page = await window.devLedger.projects.listPage({ limit: pageSize, offset: requestedOffset, query: deferredQuery, includeArchived: showArchived });
       if (requestId === requestRef.current) { setPageRows(page.items); setTotal(page.total); }
+    } catch (cause) {
+      if (requestId === requestRef.current) { setPageRows([]); setTotal(0); setPageError(cause instanceof Error ? cause.message : 'Projects could not be loaded.'); }
     } finally { if (requestId === requestRef.current) setPageLoading(false); }
   }, [deferredQuery, offset, showArchived]);
 
-  useEffect(() => { void loadPage().catch(() => setPageRows([])); }, [loadPage]);
+  useEffect(() => { void loadPage(); }, [loadPage]);
   const filtered = pageRows;
 
-  async function archiveAndReload(id: string) { await onArchive(id); await loadPage(); }
-  async function restoreAndReload(id: string) { await onRestore(id); await loadPage(); }
-  async function importAndReload() { await onImport(); await loadPage(); }
+  async function runPageAction(action: () => Promise<unknown>, fallback: string) {
+    setPageError('');
+    try { await action(); await loadPage(); }
+    catch (cause) { setPageError(cause instanceof Error ? cause.message : fallback); }
+  }
+  async function archiveAndReload(id: string) { await runPageAction(() => onArchive(id), 'Project could not be archived.'); }
+  async function restoreAndReload(id: string) { await runPageAction(() => onRestore(id), 'Project could not be restored.'); }
+  async function importAndReload() { await runPageAction(onImport, 'Project archive could not be imported.'); }
+  async function exportProject(id: string) { await runPageAction(() => onExport(id), 'Project could not be exported.'); }
 
   function resetForm() {
     setEditing(null); form.reset(emptyProjectForm);
@@ -78,19 +89,18 @@ export function ProjectsPage({ onCreate, onUpdate, onArchive, onRestore, onExpor
   }
 
   return (
-    <div className="mx-auto max-w-[1120px] space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><p className="mb-1 text-xs text-muted-foreground">Your work, organized</p><h2 className="text-2xl font-semibold tracking-tight">Projects</h2><p className="mt-1 text-sm text-muted-foreground">Keep project context, tasks, documents and decisions connected.</p></div>
-        <div className="flex items-center gap-2"><Button variant="outline" onClick={() => void importAndReload()}><Upload className="size-4"/> Import archive</Button><Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-4" /> New project</Button></div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative max-w-sm flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input aria-label="Filter projects by name or description" value={query} onChange={(event) => { setOffset(0); setQuery(event.target.value); }} placeholder="Filter projects…" className="pl-9" /></div>
+    <div className="workspace-page page-projects mx-auto space-y-6">
+      <PageHeader title="Projects" description="Keep project context, tasks, documents and decisions connected." actions={<><Button variant="outline" onClick={() => void importAndReload()}><Upload className="size-4"/>Import archive</Button><Button onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-4"/>New project</Button></>} />
+      {pageError && <div role="alert" className="rounded-lg border border-danger/30 bg-danger/5 px-3.5 py-3 text-sm text-danger">{pageError}</div>}
+      <div className="workspace-toolbar projects-toolbar">
+        <div className="relative min-w-[220px] max-w-md flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input aria-label="Filter projects by name or description" value={query} onChange={(event) => { setOffset(0); setQuery(event.target.value); }} placeholder="Filter projects…" className="pl-9" /></div>
         <Button variant={showArchived ? 'secondary' : 'outline'} size="sm" onClick={() => { setOffset(0); setShowArchived((value) => !value); }}><Archive className="size-3.5" /> {showArchived ? 'Hide archived' : 'Show archived'}</Button>
       </div>
       {loading || pageLoading ? <p className="py-12 text-center text-sm text-muted-foreground">Loading projects…</p> : filtered.length ? (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="workspace-surface projects-table">
+          <div className="overflow-x-auto">
           <Table className="min-w-[52rem]">
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="projects-table-head bg-muted/50">
               <TableRow>
                 <TableHead>Project</TableHead>
                 <TableHead>Type</TableHead>
@@ -106,7 +116,7 @@ export function ProjectsPage({ onCreate, onUpdate, onArchive, onRestore, onExpor
                   <TableCell className="min-w-[250px]">
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"><FolderKanban className="size-4"/></div>
-                      <div className="min-w-0"><div className="truncate text-[13px] font-medium">{project.name}</div><div className="max-w-[360px] truncate text-[11px] text-muted-foreground">{project.description || 'No description yet'}</div></div>
+                      <div className="min-w-0"><div className="project-name truncate text-[13px] font-medium">{project.name}</div>{project.description && <div className="project-description max-w-[420px] truncate text-xs text-muted-foreground">{project.description}</div>}</div>
                     </div>
                   </TableCell>
                   <TableCell><Badge variant="outline">{project.type === 'greenfield' ? 'Greenfield' : 'Ongoing'}</Badge></TableCell>
@@ -119,7 +129,7 @@ export function ProjectsPage({ onCreate, onUpdate, onArchive, onRestore, onExpor
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="size-8" aria-label={`Actions for ${project.name}`}><MoreHorizontal className="size-4"/></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onSelect={() => editProject(project)}><Pencil className="size-4"/>Edit project</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => void onExport(project.id)}><Download className="size-4"/>Export project</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => void exportProject(project.id)}><Download className="size-4"/>Export project</DropdownMenuItem>
                           <DropdownMenuSeparator/>
                           {project.status === 'archived'
                             ? <DropdownMenuItem onSelect={() => void restoreAndReload(project.id)}><RotateCcw className="size-4"/>Restore project</DropdownMenuItem>
@@ -132,8 +142,9 @@ export function ProjectsPage({ onCreate, onUpdate, onArchive, onRestore, onExpor
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
-      ) : <div className="rounded-lg border border-dashed border-border py-16 text-center"><FolderKanban className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">{query ? 'No matching projects' : 'Your project space is ready'}</p><p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">Create a project to bring notes, tasks, client context and technical documents together.</p>{!query && <Button className="mt-4" size="sm" onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-3.5"/> Create your first project</Button>}</div>}
+      ) : pageError ? null : <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center"><FolderKanban className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">{query ? 'No matching projects' : 'Your project space is ready'}</p><p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">Create a project to bring notes, tasks, client context and technical documents together.</p>{!query && <Button className="mt-4" size="sm" onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-3.5"/> Create your first project</Button>}</div>}
 
       <PageControls offset={offset} limit={pageSize} total={total} disabled={pageLoading} onPageChange={setOffset} />
 

@@ -7,13 +7,14 @@ import { VaultDeviceKeyStore, type SafeStoragePort } from '../../src/main/servic
 
 function fakeStorage(backend = 'test-keyring'): SafeStoragePort {
   return {
-    isEncryptionAvailable: () => true,
+    isAsyncEncryptionAvailable: () => Promise.resolve(true),
     getSelectedStorageBackend: () => backend,
-    encryptString: (value) => Buffer.from(`protected:${Buffer.from(value, 'utf8').toString('base64')}`, 'utf8'),
-    decryptString: (value) => {
+    encryptStringAsync: (value: string) => Promise.resolve(Buffer.from(`protected:${Buffer.from(value, 'utf8').toString('base64')}`, 'utf8')),
+    decryptStringAsync: (value: Buffer) => {
       const encoded = value.toString('utf8');
-      if (!encoded.startsWith('protected:')) throw new Error('Invalid protected payload.');
-      return Buffer.from(encoded.slice('protected:'.length), 'base64').toString('utf8');
+      if (!encoded.startsWith('protected:')) return Promise.reject(new Error('Invalid protected payload.'));
+      const result = Buffer.from(encoded.slice('protected:'.length), 'base64').toString('utf8');
+      return Promise.resolve({ result, shouldReEncrypt: false });
     },
   };
 }

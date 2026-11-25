@@ -63,7 +63,13 @@ export class OllamaService {
   async summarize(query: string, projectId?: string | null, signal?: AbortSignal): Promise<AiSummary> {
     const normalizedQuery = query.trim().replace(/\s+/g, ' ').toLowerCase();
     if (!normalizedQuery || normalizedQuery.length > 300) throw new Error('Enter a search query before requesting an AI summary.');
-    const sources = this.workspace.search({ query, projectId: projectId ?? null, limit: 12 });
+    let sources = this.workspace.search({ query, projectId: projectId ?? null, limit: 12 });
+    if (!sources.length) {
+      // Lexical FTS5 found nothing — try hybrid (semantic + lexical) search before giving up,
+      // since the caller may have found results through semantic matching.
+      try { sources = await this.hybridSearch(query, projectId); } catch { /* semantic unavailable */ }
+      sources = sources.slice(0, 12);
+    }
     if (!sources.length) throw new Error('There are no search results to summarize. Search results remain available without AI.');
     const safeSources = sources.map((source) => ({ ...source, excerpt: cleanExcerpt(source.excerpt) }));
     const sourceHash = createHash('sha256').update(JSON.stringify(safeSources)).digest('hex');
