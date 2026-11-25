@@ -5,6 +5,7 @@ import { TableKit } from '@tiptap/extension-table';
 import type { ContactRecord } from '@shared/contracts';
 import { parseContactMentionMarkdownLink, serializeContactMentionMarkdown } from '@domain/contact-mention-markdown';
 import { parseSmartDateMarkdownLink, serializeSmartDateMarkdown, type SmartDateReference } from '@domain/smart-date-markdown';
+import { buildAtSuggestions, createAtSuggestionRenderer, type AtSuggestionItem } from './mention-suggestions';
 
 export function createNoteExtensions(searchContacts: (query: string, projectId: string) => Promise<ContactRecord[]>, getProjectId: () => string) {
   const smartDate = Node.create({
@@ -51,7 +52,7 @@ export function createNoteExtensions(searchContacts: (query: string, projectId: 
   });
   const mention = Mention.extend({
     markdownTokenName: 'link',
-    parseHTML() { return [{ tag: 'a[data-type=\"mention\"][data-contact-id]' }]; },
+    parseHTML() { return [{ tag: 'a[data-type="mention"][data-contact-id]' }]; },
     parseMarkdown(token) {
       const fields = token as unknown as Record<string, unknown>;
       const href = typeof fields.href === 'string' ? fields.href : '';
@@ -86,77 +87,28 @@ export function createNoteExtensions(searchContacts: (query: string, projectId: 
     },
     suggestion: {
       char: '@',
-      minQueryLength: 1,
-      debounce: 180,
+      minQueryLength: 0,
+      allowSpaces: true,
+      debounce: 100,
       allowedPrefixes: [' ', '\n', '(', '['],
-      items: async ({ query }: { query: string }) => {
-        const contacts = await searchContacts(query, getProjectId());
-        return contacts.slice(0, 8).map((contact) => ({ id: contact.id, label: contact.name, role: contact.role }));
+      command: ({ editor, range, props }) => {
+        const item = props as unknown as AtSuggestionItem;
+        if (item.kind === 'date') {
+          editor.chain().focus().insertContentAt(range, [{ type: 'smartDate', attrs: item.attrs }, { type: 'text', text: ' ' }]).run();
+          return;
+        }
+        editor.chain().focus().insertContentAt(range, [{ type: 'mention', attrs: { id: item.id, label: item.label } }, { type: 'text', text: ' ' }]).run();
       },
-      render: () => {
-        let popup: HTMLDivElement | null = null;
-        let activeIndex = 0;
-        let currentItems: Array<{ id: string; label: string; role: string }> = [];
-        let currentCommand: ((item: { id: string; label: string }) => void) | null = null;
-
-        const paint = (props: { items: Array<{ id: string; label: string; role: string }>; command: (item: { id: string; label: string }) => void; clientRect?: (() => DOMRect | null) | null }) => {
-          currentItems = props.items;
-          currentCommand = props.command;
-          if (!popup) {
-            popup = document.createElement('div');
-            popup.setAttribute('role', 'listbox');
-            popup.setAttribute('aria-label', 'Contact suggestions');
-            popup.className = 'fixed z-[100] min-w-56 overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl';
-            document.body.appendChild(popup);
-          }
-          popup.replaceChildren();
-          const rect = props.clientRect?.();
-          if (rect) {
-            popup.style.left = `${Math.max(8, rect.left)}px`;
-            popup.style.top = `${Math.min(window.innerHeight - 16, rect.bottom + 6)}px`;
-          }
-          if (!currentItems.length) {
-            const empty = document.createElement('div');
-            empty.className = 'px-3 py-2 text-xs text-muted-foreground';
-            empty.textContent = 'No matching contacts';
-            popup.append(empty);
-            return;
-          }
-          currentItems.forEach((item, index) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.setAttribute('role', 'option');
-            button.setAttribute('aria-selected', String(index === activeIndex));
-            button.className = `flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-xs ${index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60'}`;
-            const name = document.createElement('span');
-            name.className = 'font-medium';
-            name.textContent = item.label;
-            const role = document.createElement('span');
-            role.className = 'text-[10px] text-muted-foreground';
-            role.textContent = item.role || 'Contact';
-            button.append(name, role);
-            button.addEventListener('mousedown', (event) => event.preventDefault());
-            button.addEventListener('click', () => currentCommand?.({ id: item.id, label: item.label }));
-            popup?.append(button);
-          });
-        };
-
-        return {
-          onStart: (props: Parameters<typeof paint>[0]) => { activeIndex = 0; paint(props); },
-          onUpdate: (props: Parameters<typeof paint>[0]) => { activeIndex = Math.min(activeIndex, Math.max(0, props.items.length - 1)); paint(props); },
-          onKeyDown: ({ event }: { event: KeyboardEvent }) => {
-            if (event.key === 'Escape') { popup?.remove(); popup = null; return true; }
-            if (!currentItems.length) return false;
-            if (event.key === 'ArrowDown') { activeIndex = (activeIndex + 1) % currentItems.length; const button = popup?.querySelectorAll<HTMLButtonElement>('button')[activeIndex]; popup?.querySelectorAll('button').forEach((item) => item.setAttribute('aria-selected', 'false')); button?.setAttribute('aria-selected', 'true'); button?.scrollIntoView({ block: 'nearest' }); return true; }
-            if (event.key === 'ArrowUp') { activeIndex = (activeIndex - 1 + currentItems.length) % currentItems.length; const button = popup?.querySelectorAll<HTMLButtonElement>('button')[activeIndex]; popup?.querySelectorAll('button').forEach((item) => item.setAttribute('aria-selected', 'false')); button?.setAttribute('aria-selected', 'true'); button?.scrollIntoView({ block: 'nearest' }); return true; }
-            if (event.key === 'Enter') { const item = currentItems[activeIndex]; if (item) currentCommand?.({ id: item.id, label: item.label }); return true; }
-            return false;
-          },
-          onExit: () => { popup?.remove(); popup = null; currentItems = []; currentCommand = null; },
-        };
-      },
+      items: ({ query }: { query: string }) => buildAtSuggestions(query, searchContacts, getProjectId()),
+      render: createAtSuggestionRenderer,
     },
   });
 
-  return [TaskList, TaskItem.configure({ nested: true }), TableKit.configure({ table: { resizable: false } }), mention, smartDate];
+  return [
+    TaskList.configure({ HTMLAttributes: { 'data-type': 'taskList' } }),
+    TaskItem.configure({ nested: true, HTMLAttributes: { 'data-type': 'taskItem' } }),
+    TableKit.configure({ table: { resizable: false } }),
+    mention,
+    smartDate,
+  ];
 }

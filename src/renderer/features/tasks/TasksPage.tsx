@@ -2,22 +2,21 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CalendarClock, CheckCircle2, Circle, Clock3, ChevronDown, ChevronRight, ListTodo, Pencil, Play, Plus, Square, TimerReset } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Circle, Clock3, ChevronDown, ChevronRight, ListTodo, Pencil, Play, Plus, Square, Trash2 } from 'lucide-react';
 import type { ActiveTimerRecord, TaskInput, TaskRecord, TaskStatus } from '@shared/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { formatDate } from '@/lib/utils';
+import { formatDate, friendlyError } from '@/lib/utils';
 import { parseSmartDate } from '@domain/smart-date';
 import { createTaskSchema, editTaskSchema, type CreateTaskForm, type EditTaskForm, statuses } from './task-form-schema';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useConfirm } from '@/components/shared/ConfirmProvider';
 import { VirtualList } from '@/components/shared/VirtualList';
 import { PageControls } from '@/components/shared/PageControls';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
+import { TaskCreateDialog } from './TaskCreateDialog';
 import { TaskEditDialog } from './TaskEditDialog';
 import { orderVisibleTasks, type OrderedTaskRow } from './task-tree';
 
@@ -39,11 +38,13 @@ export function TasksPage({ onCreate, onUpdate, onRemove, onStartTimer, onStopTi
   const [projectId, setProjectId] = useState('all');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const createTaskForm = useForm<CreateTaskForm>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: { title: '', projectId: '', parentId: '', dueAt: '', estimate: '', priority: 'medium', description: '' },
   });
-  const [selectedProject, parentId, dueAt, estimate] = createTaskForm.watch(['projectId', 'parentId', 'dueAt', 'estimate']);
+  const [selectedProject, parentId] = createTaskForm.watch(['projectId', 'parentId']);
   const editTaskForm = useForm<EditTaskForm>({
     resolver: zodResolver(editTaskSchema),
     defaultValues: { title: '', description: '', parentId: '', dueAt: '', estimate: '', priority: 'medium', status: 'not_started' },
@@ -79,15 +80,8 @@ export function TasksPage({ onCreate, onUpdate, onRemove, onStartTimer, onStopTi
       }
     } finally { if (requestId === pageRequest.current) setPageLoading(false); }
   }, [deferredQuery, pageOffset, projectId, showCompleted]);
-  useEffect(() => { void loadPage().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Tasks could not be loaded.')); }, [loadPage]);
-  const dueDatePreview = useMemo(() => {
-    if (!dueAt.trim()) return null;
-    try { return { parsed: parseSmartDate(dueAt), error: '' }; }
-    catch (caught) { return { parsed: null, error: caught instanceof Error ? caught.message : 'Invalid date' }; }
-  }, [dueAt]);
-  useEffect(() => {
-    if (activeTimer?.recoveryRequired) setRecoveryEndAt(toDateTimeLocal(new Date()));
-  }, [activeTimer?.taskId, activeTimer?.recoveryRequired]);
+  useEffect(() => { void loadPage().catch((cause: unknown) => setError(friendlyError(cause, 'Tasks could not be loaded.'))); }, [loadPage]);
+  useEffect(() => { if (activeTimer?.recoveryRequired) setRecoveryEndAt(toDateTimeLocal(new Date())); }, [activeTimer?.taskId, activeTimer?.recoveryRequired]);
   useEffect(() => {
     if (!activeTimer) return;
     const interval = window.setInterval(() => setClockNow(Date.now()), 1000);
@@ -98,85 +92,64 @@ export function TasksPage({ onCreate, onUpdate, onRemove, onStartTimer, onStopTi
   const elapsedHours = elapsedMs / 3_600_000;
   const crossedLocalDay = Boolean(activeTimer && new Date(activeTimer.startedAt).toDateString() !== new Date(elapsedEnd).toDateString());
   const elapsedLabel = `${String(Math.floor(elapsedMs / 3_600_000)).padStart(2, '0')}:${String(Math.floor((elapsedMs % 3_600_000) / 60_000)).padStart(2, '0')}:${String(Math.floor((elapsedMs % 60_000) / 1_000)).padStart(2, '0')}`;
-  const visible = pageTasks;
-  const orderedVisible = useMemo(() => orderVisibleTasks(visible, pageTasks, collapsedIds), [pageTasks, visible, collapsedIds]);
+  const orderedVisible = useMemo(() => orderVisibleTasks(pageTasks, pageTasks, collapsedIds), [pageTasks, collapsedIds]);
 
   function toggleExpanded(taskId: string) {
-    setCollapsedIds((current) => {
-      const next = new Set(current);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
+    setCollapsedIds((current) => { const next = new Set(current); if (next.has(taskId)) next.delete(taskId); else next.add(taskId); return next; });
   }
-
   function resolveDueDate(value: string): { dueAt: string | null; dueDate: string | null } {
     if (!value.trim()) return { dueAt: null, dueDate: null };
     const parsed = parseSmartDate(value);
     return parsed.kind === 'datetime' ? { dueAt: parsed.isoUtc, dueDate: null } : { dueAt: null, dueDate: parsed.date };
   }
-
+  function openCreateModal() {
+    setError('');
+    createTaskForm.clearErrors();
+    createTaskForm.reset({ title: '', projectId: projectId === 'all' ? '' : projectId, parentId: '', dueAt: '', estimate: '', priority: 'medium', description: '' });
+    setCreateOpen(true);
+  }
   function beginEdit(task: TaskRecord) {
     setEditingTask(task);
     let dueAtValue = '';
-    if (task.dueDate) {
-      const [year, month, day] = task.dueDate.split('-');
-      dueAtValue = `${day}/${month}/${year}`;
-    } else if (task.dueAt) {
+    if (task.dueDate) { const [year, month, day] = task.dueDate.split('-'); dueAtValue = `${day}/${month}/${year}`; }
+    else if (task.dueAt) {
       const date = new Date(task.dueAt);
       const parts = [date.getDate(), date.getMonth() + 1, date.getFullYear() % 100, date.getHours(), date.getMinutes()];
       dueAtValue = `@${String(parts[0]).padStart(2, '0')}${String(parts[1]).padStart(2, '0')}${String(parts[2]).padStart(2, '0')}${String(parts[3]).padStart(2, '0')}${String(parts[4]).padStart(2, '0')}`;
     }
-    editTaskForm.reset({ title: task.title, description: task.description, parentId: task.parentId ?? '', dueAt: dueAtValue,
-      estimate: task.estimateMinutes === null ? '' : String(task.estimateMinutes), priority: task.priority, status: task.status });
+    editTaskForm.reset({ title: task.title, description: task.description, parentId: task.parentId ?? '', dueAt: dueAtValue, estimate: task.estimateMinutes === null ? '' : String(task.estimateMinutes), priority: task.priority, status: task.status });
     setError('');
   }
-
-  function closeEdit() {
-    setEditingTask(null);
-    editTaskForm.reset({ title: '', description: '', parentId: '', dueAt: '', estimate: '', priority: 'medium', status: 'not_started' });
-  }
+  function closeEdit() { setEditingTask(null); editTaskForm.reset({ title: '', description: '', parentId: '', dueAt: '', estimate: '', priority: 'medium', status: 'not_started' }); }
 
   const saveEdit = editTaskForm.handleSubmit(async (values) => {
     if (!editingTask) return;
-    setError('');
-    editTaskForm.clearErrors('root');
-    setBusyId(editingTask.id);
+    setError(''); editTaskForm.clearErrors('root'); setBusyId(editingTask.id);
     try {
-      await onUpdate(editingTask.id, {
-        title: values.title.trim(), description: values.description, parentId: values.parentId || null,
-        ...resolveDueDate(values.dueAt), estimateMinutes: values.estimate ? Number(values.estimate) : null,
-        priority: values.priority, status: values.status,
-      });
-      await loadPage();
-      closeEdit();
+      await onUpdate(editingTask.id, { title: values.title.trim(), description: values.description, parentId: values.parentId || null, ...resolveDueDate(values.dueAt), estimateMinutes: values.estimate ? Number(values.estimate) : null, priority: values.priority, status: values.status });
+      await loadPage(); closeEdit();
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Task could not be saved.';
-      editTaskForm.setError('root', { type: 'server', message });
-      setError(message);
-    } finally {
-      setBusyId(null);
-    }
+      const message = friendlyError(caught, 'Task could not be saved.');
+      editTaskForm.setError('root', { type: 'server', message }); setError(message);
+    } finally { setBusyId(null); }
   });
-
   const create = createTaskForm.handleSubmit(async (values) => {
-    setError('');
+    setError(''); createTaskForm.clearErrors('root'); setCreating(true);
     try {
-      await onCreate({ projectId: values.projectId, parentId: values.parentId || null, title: values.title.trim(), description: values.description,
-        ...resolveDueDate(values.dueAt), estimateMinutes: values.estimate ? Number(values.estimate) : null, priority: values.priority });
-      setPageOffset(0);
-      await loadPage(0);
+      await onCreate({ projectId: values.projectId, parentId: values.parentId || null, title: values.title.trim(), description: values.description, ...resolveDueDate(values.dueAt), estimateMinutes: values.estimate ? Number(values.estimate) : null, priority: values.priority });
+      setPageOffset(0); await loadPage(0); setCreateOpen(false);
       createTaskForm.reset({ title: '', projectId: values.projectId, parentId: '', dueAt: '', estimate: '', priority: 'medium', description: '' });
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Task could not be created.'); }
+    } catch (caught) {
+      const message = friendlyError(caught, 'Task could not be created.');
+      createTaskForm.setError('root', { type: 'server', message });
+    } finally { setCreating(false); }
   });
-
   async function run(id: string, action: () => Promise<unknown>) {
     setBusyId(id); setError('');
     try { await action(); await refresh(); await loadPage(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Task action failed.'); }
+    catch (caught) { setError(friendlyError(caught, 'Task action failed.')); }
     finally { setBusyId(null); }
   }
-
   async function recoverTimer(action: 'resume' | 'stop' | 'discard') {
     if (!activeTimer) return;
     if (action === 'discard') {
@@ -186,7 +159,6 @@ export function TasksPage({ onCreate, onUpdate, onRemove, onStartTimer, onStopTi
     const endedAt = action === 'stop' ? new Date(recoveryEndAt).toISOString() : undefined;
     await run(activeTimer.taskId, () => onResolveTimerRecovery(activeTimer.taskId, action, endedAt));
   }
-
   async function stopActiveTimer(taskId: string) {
     if (elapsedHours >= 8 || crossedLocalDay) {
       const warning = crossedLocalDay ? 'This timer crossed a local calendar day.' : 'This timer has been running for at least eight hours.';
@@ -196,37 +168,25 @@ export function TasksPage({ onCreate, onUpdate, onRemove, onStartTimer, onStopTi
     await run(taskId, () => onStopTimer(taskId));
   }
 
-  const activeProjectName = (id: string) => projectNames[id] ?? 'Project';
-  return <div className="workspace-page page-tasks mx-auto space-y-6">
-    <PageHeader title="Tasks" description="Create, prioritize and track work across your projects." actions={<Button variant={showCompleted ? 'secondary' : 'outline'} size="sm" onClick={() => { setPageOffset(0); setShowCompleted((v) => !v); }}>{showCompleted ? 'Hide completed' : 'Show completed'}</Button>} />
-    {activeTimer && <div className={`task-timer flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay ? 'border-warning/50 bg-warning/5' : 'border-border bg-surface'}`}><Clock3 className="size-4 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="text-xs font-medium">{activeTimer.recoveryRequired ? 'Interrupted timer needs review' : 'Timer running'} · {pageTasks.find((task) => task.id === activeTimer.taskId)?.title ?? 'Task'}</p><p className="font-mono text-sm tabular-nums">{activeTimer.recoveryRequired ? 'Known time: ' : ''}{elapsedLabel}</p></div>{(activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay) && <Badge variant="warning">Review session</Badge>}<Button size="sm" variant="outline" disabled={activeTimer.recoveryRequired} onClick={() => void stopActiveTimer(activeTimer.taskId)}><Square className="size-3.5"/>Stop timer</Button></div>}
-    {activeTimer?.recoveryRequired && <Alert className="border-warning/50 bg-warning/5"><AlertDescription className="space-y-3"><div><p className="text-sm font-semibold text-foreground">Confirm the interrupted work session</p><p className="mt-1 text-xs leading-relaxed">DevLedger found a timer that was active before this app session began. It cannot know whether you were working while the app was closed, so that gap is never counted automatically. You can confirm an end time, or continue from now. Continuing preserves time only through the last saved checkpoint; time while the app was closed is excluded.</p></div><label className="block max-w-sm space-y-1 text-xs font-medium">I stopped working at<Input type="datetime-local" value={recoveryEndAt} onChange={(event) => setRecoveryEndAt(event.target.value)} max={toDateTimeLocal(new Date())} min={toDateTimeLocal(new Date(activeTimer.startedAt))}/></label><div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void recoverTimer('stop')} disabled={!recoveryEndAt}>Save confirmed time</Button><Button size="sm" variant="outline" onClick={() => void recoverTimer('resume')}>Continue from now</Button><Button size="sm" variant="ghost" className="text-danger" onClick={() => void recoverTimer('discard')}>Discard session</Button></div></AlertDescription></Alert>}
-    <form onSubmit={create} noValidate className="task-create-panel space-y-3">
-      <div className="flex items-center gap-2"><Plus className="size-4 text-muted-foreground"/><h3 className="text-sm font-semibold">Add a task</h3></div>
-      <div className="task-create-fields grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px_150px_140px]">
-        <label className="task-create-field space-y-1.5"><span>Task title</span><Input {...createTaskForm.register('title')} placeholder="What needs to be done?" maxLength={240} aria-invalid={Boolean(createTaskForm.formState.errors.title)}/>{createTaskForm.formState.errors.title && <p className="text-[11px] text-danger" role="alert">{createTaskForm.formState.errors.title.message}</p>}</label>
-        <div className="task-create-field space-y-1.5"><span>Project</span><RemoteRecordPicker entityType="project" value={selectedProject} onValueChange={(value) => { createTaskForm.setValue('projectId', value, { shouldValidate: true }); createTaskForm.setValue('parentId', ''); }} onChoiceChange={(choice) => { if (choice) setProjectNames((current) => ({ ...current, [choice.id]: choice.label })); }} placeholder="Choose project" selectedLabel={projectNames[selectedProject]} />{createTaskForm.formState.errors.projectId && <p className="text-[11px] text-danger" role="alert">{createTaskForm.formState.errors.projectId.message}</p>}</div>
-        <label className="task-create-field space-y-1.5"><span>Due date</span><Input type="text" {...createTaskForm.register('dueAt')} placeholder="Today, Friday, 22/11/2026" aria-invalid={Boolean(createTaskForm.formState.errors.dueAt)}/></label>
-        <label className="task-create-field space-y-1.5"><span>Estimate</span><Input type="number" min="0" max="525600" {...createTaskForm.register('estimate')} placeholder="Minutes" aria-invalid={Boolean(createTaskForm.formState.errors.estimate)}/>{createTaskForm.formState.errors.estimate && <p className="text-[11px] text-danger" role="alert">{createTaskForm.formState.errors.estimate.message}</p>}</label>
-      </div>
-      <div className="grid gap-3 md:grid-cols-[1fr_160px_auto]"><label className="space-y-1"><span className="text-[11px] font-medium text-muted-foreground">Parent task (optional)</span><RemoteRecordPicker entityType="task" value={parentId} onValueChange={(value) => createTaskForm.setValue('parentId', value)} projectId={selectedProject || null} includeCompleted={false} placeholder="Top-level task" selectedLabel={pageTasks.find((task) => task.id === parentId)?.title} /></label><label className="space-y-1"><span className="text-[11px] font-medium text-muted-foreground">Priority</span><NativeSelect aria-label="Priority" {...createTaskForm.register('priority')} className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs"><NativeSelectOption value="low">Low priority</NativeSelectOption><NativeSelectOption value="medium">Medium priority</NativeSelectOption><NativeSelectOption value="high">High priority</NativeSelectOption><NativeSelectOption value="urgent">Urgent</NativeSelectOption></NativeSelect></label><div className="flex items-end"><Button type="submit" disabled={Boolean(createTaskForm.formState.errors.title || createTaskForm.formState.errors.dueAt || createTaskForm.formState.errors.estimate || !selectedProject)}>Create task</Button></div></div>
-      {dueAt.trim() && <p className={`text-[11px] ${dueDatePreview?.error ? 'text-danger' : 'text-muted-foreground'}`} role={dueDatePreview?.error ? 'alert' : 'status'}>{dueDatePreview?.error || (dueDatePreview?.parsed?.kind === 'datetime' ? `Due ${dueDatePreview.parsed.date} at ${dueDatePreview.parsed.time} (local time)` : `Due ${dueDatePreview?.parsed?.date}`)}</p>}
-      <div className="space-y-1"><Textarea aria-label="Task description" {...createTaskForm.register('description')} placeholder="Description or acceptance notes (optional)" rows={2}/>{createTaskForm.formState.errors.description && <p className="text-[11px] text-danger" role="alert">{createTaskForm.formState.errors.description.message}</p>}</div>
-      {error && <Alert variant="destructive" className="py-2"><AlertDescription>{error}</AlertDescription></Alert>}
-    </form>
-    <div className="task-toolbar flex flex-wrap items-center gap-2"><div className="relative max-w-sm flex-1"><ListTodo className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-9" aria-label="Filter tasks by title or description" value={query} onChange={(e) => { setPageOffset(0); setQuery(e.target.value); }} placeholder="Filter tasks…"/></div><RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(value) => { setPageOffset(0); setProjectId(value || 'all'); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-48" /><Badge variant="outline">{pageTotal} tasks</Badge></div>
+  return <div className="workspace-page page-tasks mx-auto space-y-5">
+    <PageHeader title="Tasks" description="Create, prioritize and track work across your projects." actions={<><Button variant={showCompleted ? 'secondary' : 'outline'} size="sm" onClick={() => { setPageOffset(0); setShowCompleted((v) => !v); }}>{showCompleted ? 'Hide completed' : 'Show completed'}</Button><Button onClick={openCreateModal}><Plus className="size-4"/>New task</Button></>} />
+    {error && <Alert variant="destructive" className="py-2"><AlertDescription>{error}</AlertDescription></Alert>}
+    {activeTimer && <div className={`task-timer flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay ? 'border-warning/50 bg-warning/5' : 'border-border bg-card'}`}><Clock3 className="size-4 text-muted-foreground"/><div className="min-w-0 flex-1"><p className="text-xs font-medium">{activeTimer.recoveryRequired ? 'Interrupted timer needs review' : 'Timer running'} · {pageTasks.find((task) => task.id === activeTimer.taskId)?.title ?? 'Task'}</p><p className="font-mono text-sm tabular-nums">{activeTimer.recoveryRequired ? 'Known time: ' : ''}{elapsedLabel}</p></div>{(activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay) && <Badge variant="warning">Review session</Badge>}<Button size="sm" variant="outline" disabled={activeTimer.recoveryRequired} onClick={() => void stopActiveTimer(activeTimer.taskId)}><Square className="size-3.5"/>Stop timer</Button></div>}
+    {activeTimer?.recoveryRequired && <Alert className="border-warning/50 bg-warning/5"><AlertDescription className="space-y-3"><div><p className="text-sm font-semibold text-foreground">Confirm the interrupted work session</p><p className="mt-1 text-xs leading-relaxed">DevLedger found a timer that was active before this app session began. Confirm an end time, or continue from now.</p></div><label className="block max-w-sm space-y-1 text-xs font-medium">I stopped working at<Input type="datetime-local" value={recoveryEndAt} onChange={(event) => setRecoveryEndAt(event.target.value)} max={toDateTimeLocal(new Date())} min={toDateTimeLocal(new Date(activeTimer.startedAt))}/></label><div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void recoverTimer('stop')} disabled={!recoveryEndAt}>Save confirmed time</Button><Button size="sm" variant="outline" onClick={() => void recoverTimer('resume')}>Continue from now</Button><Button size="sm" variant="ghost" className="text-danger" onClick={() => void recoverTimer('discard')}>Discard session</Button></div></AlertDescription></Alert>}
+    <div className="workspace-toolbar"><div className="relative min-w-[220px] max-w-sm flex-1"><ListTodo className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-9" aria-label="Filter tasks by title or description" value={query} onChange={(e) => { setPageOffset(0); setQuery(e.target.value); }} placeholder="Filter tasks…"/></div><RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(value) => { setPageOffset(0); setProjectId(value || 'all'); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-48" /><Badge variant="secondary" className="ml-auto">{pageTotal} task{pageTotal === 1 ? '' : 's'}</Badge></div>
     <div className="workspace-surface task-queue">
-      {pageLoading ? <p className="py-10 text-center text-xs text-muted-foreground">Loading tasks…</p> : <VirtualList items={orderedVisible} itemKey={taskItemKey} itemHeight={112} label="Workspace tasks" className="max-h-[min(68vh,720px)]" empty={<div className="py-16 text-center"><Clock3 className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">No tasks match this view</p><p className="mt-1 text-xs text-muted-foreground">Create a task above to make the next action explicit.</p></div>} renderItem={({ task, depth, hasChildren, contextOnly }) => <div className={`task-row grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 py-2 md:grid-cols-[minmax(220px,1fr)_145px_120px_130px_190px] md:gap-3 md:px-4 md:py-3 ${contextOnly ? 'bg-muted/30' : ''}`}><div className="flex min-w-0 items-start gap-2">
+      {pageLoading ? <p className="py-12 text-center text-xs text-muted-foreground">Loading tasks…</p> : <VirtualList items={orderedVisible} itemKey={taskItemKey} itemHeight={104} label="Workspace tasks" className="max-h-[min(70vh,760px)]" empty={<div className="py-16 text-center"><div className="mx-auto mb-3 grid size-10 place-items-center rounded-xl bg-surface-subtle text-muted-foreground"><ListTodo className="size-5"/></div><p className="text-sm font-medium">{query || projectId !== 'all' ? 'No tasks match this view' : 'No tasks yet'}</p><p className="mt-1 text-xs text-muted-foreground">Create a task to organize work, priorities and time tracking.</p><Button size="sm" className="mt-4" onClick={openCreateModal}><Plus className="size-3.5"/>New task</Button></div>} renderItem={({ task, depth, hasChildren, contextOnly }) => <div className={`task-row grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 py-2 md:grid-cols-[minmax(220px,1fr)_145px_110px_135px_190px] md:gap-3 md:px-4 md:py-3 ${contextOnly ? 'bg-muted/30' : ''}`}><div className="flex min-w-0 items-start gap-2">
         <span className="mt-0.5 shrink-0" style={{ width: `${Math.min(depth, 5) * 14}px` }} aria-hidden="true" />
         {hasChildren ? <button type="button" className="mt-0.5 grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`${collapsedIds.has(task.id) ? 'Expand' : 'Collapse'} ${task.title}`} aria-expanded={!collapsedIds.has(task.id)} onClick={() => toggleExpanded(task.id)}>{collapsedIds.has(task.id) ? <ChevronRight className="size-3.5"/> : <ChevronDown className="size-3.5"/>}</button> : <span className="size-5 shrink-0" aria-hidden="true"/>}
-        <button type="button" className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground" aria-label={task.status === 'completed' ? 'Reopen task' : 'Complete task'} onClick={() => void run(task.id, () => onUpdate(task.id, { status: task.status === 'completed' ? 'not_started' : 'completed' }))}>{task.status === 'completed' ? <CheckCircle2 className="size-4 text-success"/> : <Circle className="size-4"/>}</button><div className="min-w-0"><p className={`truncate text-[13px] font-medium ${task.status === 'completed' ? 'text-muted-foreground line-through' : ''}`}>{task.title}{contextOnly && <span className="ml-2 text-[10px] font-normal text-muted-foreground">Parent context</span>}</p>{task.description && <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{task.description}</p>}<p className="mt-1 text-[10px] text-muted-foreground">{activeProjectName(task.projectId)}{task.parentId ? ' · Subtask' : ''}</p><p className="task-inline-context mt-1 text-[11px] text-muted-foreground">{task.status.replaceAll('_', ' ')} · {task.priority} · {task.dueDate || task.dueAt ? formatDate(task.dueDate ?? task.dueAt) : 'No due date'}</p></div></div>
+        <button type="button" className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground" aria-label={task.status === 'completed' ? 'Reopen task' : 'Complete task'} onClick={() => void run(task.id, () => onUpdate(task.id, { status: task.status === 'completed' ? 'not_started' : 'completed' }))}>{task.status === 'completed' ? <CheckCircle2 className="size-4 text-success"/> : <Circle className="size-4"/>}</button><div className="min-w-0"><p className={`truncate text-[13px] font-medium ${task.status === 'completed' ? 'text-muted-foreground line-through' : ''}`}>{task.title}{contextOnly && <span className="ml-2 text-[10px] font-normal text-muted-foreground">Parent context</span>}</p>{task.description && <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{task.description}</p>}<p className="mt-1 text-[10px] text-muted-foreground">{projectNames[task.projectId] ?? 'Project'}{task.parentId ? ' · Subtask' : ''}</p><p className="task-inline-context mt-1 text-[11px] text-muted-foreground">{task.status.replaceAll('_', ' ')} · {task.priority} · {task.dueDate || task.dueAt ? formatDate(task.dueDate ?? task.dueAt) : 'No due date'}</p></div></div>
         <div className="task-status-cell hidden md:block"><Select value={task.status} onValueChange={(value) => void run(task.id, () => onUpdate(task.id, { status: value as TaskStatus }))}><SelectTrigger aria-label={`Status for ${task.title}`} size="sm" className="w-full text-[11px]"><SelectValue/></SelectTrigger><SelectContent>{statuses.map((status) => <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>)}</SelectContent></Select></div>
         <div className="task-priority-cell hidden items-center gap-1.5 md:flex"><Badge variant={task.priority === 'urgent' ? 'destructive' : task.priority === 'high' ? 'warning' : 'secondary'}>{task.priority}</Badge></div>
         <div className="task-due-cell hidden items-center gap-1.5 text-[11px] text-muted-foreground md:flex">{task.dueDate || task.dueAt ? <><CalendarClock className="size-3.5"/>{formatDate(task.dueDate ?? task.dueAt)}</> : <span>No due date</span>}</div>
-        <div className="col-start-2 row-start-1 flex items-center justify-end gap-0.5 md:col-auto md:row-auto md:gap-1.5">{task.estimateMinutes !== null && <span className="mr-auto text-[10px] text-muted-foreground">{task.estimateMinutes}m est.</span>}<Button size="icon" variant="ghost" className="size-8" title="Edit task" aria-label={`Edit ${task.title}`} onClick={() => beginEdit(task)}><Pencil className="size-3.5"/></Button>{activeTimer?.taskId === task.id ? <Button size="icon" variant="secondary" className="size-8" title="Stop timer" aria-label={`Stop timer for ${task.title}`} disabled={busyId === task.id} onClick={() => void stopActiveTimer(task.id)}><Square className="size-3.5"/></Button> : <Button size="icon" variant="ghost" className="size-8" title="Start timer" aria-label={`Start timer for ${task.title}`} disabled={busyId === task.id || Boolean(activeTimer) || ['completed', 'cancelled'].includes(task.status)} onClick={() => void run(task.id, () => onStartTimer(task.id))}><Play className="size-3.5"/></Button>}<Button size="icon" variant="ghost" className="size-8" title="Move to trash" aria-label={`Move ${task.title} to trash`} disabled={busyId === task.id} onClick={() => { void (async () => { const accepted = await confirm({ title: 'Move task to trash?', description: `“${task.title}” will be moved to trash. You can recover it if trash recovery is enabled.`, confirmLabel: 'Move to trash', destructive: true }); if (accepted) await run(task.id, () => onRemove(task.id)); })(); }}><TimerReset className="size-3.5"/></Button></div>
+        <div className="col-start-2 row-start-1 flex items-center justify-end gap-0.5 md:col-auto md:row-auto md:gap-1">{task.estimateMinutes !== null && <span className="mr-auto rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">{task.estimateMinutes}m</span>}<Button size="icon" variant="ghost" className="size-8" title="Edit task" aria-label={`Edit ${task.title}`} onClick={() => beginEdit(task)}><Pencil className="size-3.5"/></Button>{activeTimer?.taskId === task.id ? <Button size="icon" variant="secondary" className="size-8" title="Stop timer" aria-label={`Stop timer for ${task.title}`} disabled={busyId === task.id} onClick={() => void stopActiveTimer(task.id)}><Square className="size-3.5"/></Button> : <Button size="icon" variant="ghost" className="size-8" title="Start timer" aria-label={`Start timer for ${task.title}`} disabled={busyId === task.id || Boolean(activeTimer) || ['completed', 'cancelled'].includes(task.status)} onClick={() => void run(task.id, () => onStartTimer(task.id))}><Play className="size-3.5"/></Button>}<Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:text-danger" title="Move to trash" aria-label={`Move ${task.title} to trash`} disabled={busyId === task.id} onClick={() => { void (async () => { const accepted = await confirm({ title: 'Move task to trash?', description: `“${task.title}” will be moved to trash. You can recover it if trash recovery is enabled.`, confirmLabel: 'Move to trash', destructive: true }); if (accepted) await run(task.id, () => onRemove(task.id)); })(); }}><Trash2 className="size-3.5"/></Button></div>
       </div>} />}
     </div>
     <PageControls offset={pageOffset} limit={pageSize} total={pageTotal} disabled={pageLoading} onPageChange={setPageOffset}/>
+    <TaskCreateDialog open={createOpen} form={createTaskForm} busy={creating} error={error} selectedProject={selectedProject} selectedProjectLabel={projectNames[selectedProject]} selectedParentLabel={pageTasks.find((item) => item.id === parentId)?.title} onProjectChange={(value, label) => { createTaskForm.setValue('projectId', value, { shouldValidate: true }); createTaskForm.setValue('parentId', ''); if (value && label) setProjectNames((current) => ({ ...current, [value]: label })); }} onClose={() => setCreateOpen(false)} onSubmit={create}/>
     <TaskEditDialog task={editingTask} form={editTaskForm} busy={busyId === editingTask?.id} error={error} selectedParentLabel={pageTasks.find((item) => item.id === editParentId)?.title} onClose={closeEdit} onSave={saveEdit}/>
   </div>;
 }

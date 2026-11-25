@@ -15,7 +15,7 @@ interface Props {
 
 function Metric({ label, value, detail, icon: Icon }: { label: string; value: number | string; detail: string; icon: typeof Clock3 }) {
   return (
-    <div className="overview-metric flex min-w-0 items-start gap-3 py-2">
+    <div className="overview-metric flex min-w-0 items-start gap-3 rounded-lg border border-transparent px-2.5 py-2 transition-colors hover:border-border/70 hover:bg-surface-subtle/40">
       <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-surface-subtle text-muted-foreground"><Icon className="size-4" strokeWidth={1.7} /></div>
       <div className="min-w-0">
         <div className="overview-metric-value text-2xl font-semibold tabular-nums tracking-tight">{value}</div>
@@ -48,9 +48,9 @@ export function DashboardPage({ summary, projects, loading, onNavigate }: Props)
           </div>
           <Separator />
           {loading ? <p className="py-8 text-sm text-muted-foreground">Loading workspace…</p> : summary?.upcomingTasks.length ? (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border/70">
               {summary.upcomingTasks.map((task) => (
-                <div key={task.id} className="overview-list-row flex items-center gap-3 py-3">
+                <div key={task.id} className="overview-list-row -mx-2 flex items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-surface-subtle/40">
                   <div className="size-1.5 shrink-0 rounded-full bg-primary/50" />
                   <div className="min-w-0 flex-1"><div className="truncate text-[13px] font-medium">{task.title}</div><div className="mt-0.5 truncate text-[11px] text-muted-foreground">{projects.find((project) => project.id === task.projectId)?.name ?? 'Project'}</div></div>
                   <Badge variant={task.priority === 'urgent' || task.priority === 'high' ? 'warning' : 'secondary'}>{task.priority}</Badge>

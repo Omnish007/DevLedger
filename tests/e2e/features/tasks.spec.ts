@@ -8,9 +8,11 @@ test('validates task title after a project is selected', async ({ desktop }) => 
   const projectName = data.project('Task validation');
   await createProject(page, projectName);
   await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await page.getByRole('button', { name: 'New task' }).click();
+  const dialog = page.getByRole('dialog');
   await chooseProject(page, projectName);
-  await page.getByRole('button', { name: 'Create task' }).click();
-  await expect(page.getByText('Enter a task title.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Create task' }).click();
+  await expect(dialog.getByText('Enter a task title.')).toBeVisible();
 });
 
 test('creates a task, updates status, searches it and starts/stops its timer', async ({ desktop }) => {
@@ -21,11 +23,13 @@ test('creates a task, updates status, searches it and starts/stops its timer', a
   await createProject(page, projectName);
 
   await page.getByRole('button', { name: 'Tasks', exact: true }).click();
-  await page.getByPlaceholder('What needs to be done?').fill(taskTitle);
-  await page.getByLabel('Task description').fill('Verify create, update, timer and search in an isolated workspace.');
-  await page.getByLabel('Priority').selectOption('high');
+  await page.getByRole('button', { name: 'New task' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByPlaceholder('What needs to be done?').fill(taskTitle);
+  await dialog.getByLabel('Task description').fill('Verify create, update, timer and search in an isolated workspace.');
+  await dialog.getByLabel('Priority').selectOption('high');
   await chooseProject(page, projectName);
-  await page.getByRole('button', { name: 'Create task' }).click();
+  await dialog.getByRole('button', { name: 'Create task' }).click();
   await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
 
   const status = page.getByRole('combobox', { name: `Status for ${taskTitle}` });
@@ -50,9 +54,11 @@ test('recovers an interrupted active timer after a full Electron restart', async
   const taskTitle = data.task('Recover after restart');
   await createProject(page, projectName);
   await page.getByRole('button', { name: 'Tasks', exact: true }).click();
-  await page.getByPlaceholder('What needs to be done?').fill(taskTitle);
+  await page.getByRole('button', { name: 'New task' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByPlaceholder('What needs to be done?').fill(taskTitle);
   await chooseProject(page, projectName);
-  await page.getByRole('button', { name: 'Create task' }).click();
+  await dialog.getByRole('button', { name: 'Create task' }).click();
   await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
   await page.locator('button[title="Start timer"]').first().click();
   await expect(page.getByText(/Timer running/)).toBeVisible();

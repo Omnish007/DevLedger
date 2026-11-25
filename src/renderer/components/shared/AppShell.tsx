@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Activity, BookOpen, CheckSquare2, FileText, FolderKanban, Plus, RefreshCw, Search, Settings2, Users } from 'lucide-react';
+import { Activity, BookOpen, CheckSquare2, FileText, FolderKanban, Plus, RefreshCw, Search, Settings2, Users, Workflow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarSeparator, SidebarTrigger } from '@/components/ui/sidebar';
 import { Kbd } from '@/components/ui/kbd';
@@ -14,7 +14,7 @@ const navigation: Array<{ id: ViewId; label: string; icon: typeof Activity; shor
   { id: 'tasks', label: 'Tasks', icon: CheckSquare2 },
   { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'contacts', label: 'Contacts', icon: Users },
-  { id: 'operations', label: 'Operations', icon: Activity },
+  { id: 'operations', label: 'Operations', icon: Workflow },
   { id: 'search', label: 'Search', icon: Search },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];

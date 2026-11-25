@@ -22,9 +22,12 @@ export async function chooseProject(page: Page, name: string): Promise<void> {
 export async function createTask(page: Page, projectName: string, taskTitle: string): Promise<void> {
   await page.getByRole('button', { name: 'Tasks', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tasks', exact: true })).toBeVisible();
-  await page.getByPlaceholder('What needs to be done?').fill(taskTitle);
+  await page.getByRole('button', { name: 'New task' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'New task' })).toBeVisible();
+  await dialog.getByPlaceholder('What needs to be done?').fill(taskTitle);
   await chooseProject(page, projectName);
-  await page.getByRole('button', { name: 'Create task' }).click();
+  await dialog.getByRole('button', { name: 'Create task' }).click();
   await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
 }
 

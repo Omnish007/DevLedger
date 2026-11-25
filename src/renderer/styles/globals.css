@@ -370,11 +370,24 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .rdp-root .rdp-outside .rdp-day_button { color: var(--muted-foreground); opacity: .45; }
 .rdp-root .rdp-day_button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .rdp-root .rdp-disabled .rdp-day_button { color: var(--muted-foreground); opacity: .4; }
-.prose-editor ul[data-type='taskList'] { list-style: none; padding-left: .2rem; }
-.prose-editor li[data-type='taskItem'] { display: flex; align-items: flex-start; gap: .55rem; margin: .35rem 0; }
-.prose-editor li[data-type='taskItem'] > label { margin-top: .22rem; }
-.prose-editor li[data-type='taskItem'] > div { flex: 1; min-width: 0; }
-.prose-editor li[data-type='taskItem'][data-checked='true'] > div { color: var(--muted-foreground); text-decoration: line-through; }
+.prose-editor ul[data-type='taskList'] { list-style: none; margin: 0.5rem 0; padding-left: 0.25rem; }
+.prose-editor ul[data-type='taskList'] ul[data-type='taskList'] { margin: 0.2rem 0 0; padding-left: 1.4rem; }
+.prose-editor li[data-type='taskItem'],
+.prose-editor li[data-checked] { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0.3rem 0; list-style: none; }
+.prose-editor li[data-type='taskItem'] > label,
+.prose-editor li[data-checked] > label { display: inline-flex; align-items: center; flex: 0 0 auto; height: 1.85em; margin: 0; user-select: none; cursor: pointer; }
+.prose-editor li[data-type='taskItem'] > label input[type='checkbox'],
+.prose-editor li[data-checked] > label input[type='checkbox'] { width: 0.98rem; height: 0.98rem; margin: 0; accent-color: var(--primary); cursor: pointer; }
+.prose-editor li[data-type='taskItem'] > div,
+.prose-editor li[data-checked] > div { flex: 1 1 0%; min-width: 0; }
+.prose-editor li[data-type='taskItem'] > div > p,
+.prose-editor li[data-checked] > div > p { margin: 0.15rem 0; }
+.prose-editor li[data-type='taskItem'] > div > p:first-child,
+.prose-editor li[data-checked] > div > p:first-child { margin-top: 0; }
+.prose-editor li[data-type='taskItem'] > div > p:last-child,
+.prose-editor li[data-checked] > div > p:last-child { margin-bottom: 0; }
+.prose-editor li[data-type='taskItem'][data-checked='true'] > div,
+.prose-editor li[data-checked='true'] > div { color: var(--muted-foreground); text-decoration: line-through; }
 .prose-editor table { width: 100%; border-collapse: collapse; margin: 1rem 0; table-layout: fixed; }
 .prose-editor th, .prose-editor td { border: 1px solid var(--border); min-width: 5rem; padding: .5rem .65rem; vertical-align: top; text-align: left; }
 .prose-editor th { background: var(--surface-subtle); font-weight: 600; }

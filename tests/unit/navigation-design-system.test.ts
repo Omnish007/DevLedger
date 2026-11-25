@@ -40,8 +40,10 @@ test('feature screens use the shared native select styling instead of ad hoc bro
   const featureFiles = [
     'documents/DocumentsPage.tsx',
     'notes/NotesPage.tsx',
-    'operations/OperationsPage.tsx',
-    'tasks/TasksPage.tsx',
+    'operations/OperationsTagsLinksTab.tsx',
+    'operations/OperationsTimeScheduleTab.tsx',
+    'tasks/TaskCreateDialog.tsx',
+    'tasks/TaskEditDialog.tsx',
   ];
   const remotePickerFiles = ['capture/QuickCapturePage.tsx', 'search/SearchPage.tsx', 'documents/DocumentsPage.tsx'];
   for (const file of [...featureFiles, ...remotePickerFiles]) {

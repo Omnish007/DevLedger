@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 import { CalendarClock } from 'lucide-react';
-import { parseSmartDate, type SmartDateResult } from '@domain/smart-date';
+import { getSmartDatePresets, parseSmartDate, type SmartDateResult } from '@domain/smart-date';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
@@ -24,6 +24,7 @@ export function SmartDateField({
   defaultTimeLabel = '09:00 local time',
 }: SmartDateFieldProps) {
   const id = useId();
+  const presets = useMemo(() => getSmartDatePresets().slice(0, 4), []);
   const parsed = useMemo((): { result: SmartDateResult | null; error: string } => {
     if (!value.trim()) return { result: null, error: '' };
     try { return { result: parseSmartDate(value), error: '' }; }
@@ -38,7 +39,16 @@ export function SmartDateField({
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <div className="flex flex-wrap gap-1">
+          {presets.map((preset) => (
+            <button key={preset.id} type="button" onClick={() => onChange(preset.token)} className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="relative">
         <CalendarClock className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required={required} aria-invalid={Boolean(parsed.error)} aria-describedby={`${id}-help ${id}-preview`} className="pl-8" />

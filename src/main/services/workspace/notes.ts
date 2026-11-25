@@ -11,13 +11,20 @@ export class WorkspaceNotesService extends WorkspaceProjectsService {
     const { limit, offset, query } = normalizePage(input);
     const projectId = input.projectId ?? null;
     const match = safeFtsQuery(query);
-    const normalizedQuery = query.toLocaleLowerCase();
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const titleLike = `%${normalizedQuery.replace(/[\\%_]/g, '\\$&')}%`;
     const includeLocked = input.includeLocked === true ? 1 : 0;
+    const unlockedFilter = normalizedQuery === ''
+      ? 'locked = 0'
+      : match
+        ? `(locked = 0 AND (id IN (SELECT note_id FROM note_search WHERE note_search MATCH ?) OR lower(title) LIKE ? ESCAPE '\\'))`
+        : `(locked = 0 AND lower(title) LIKE ? ESCAPE '\\')`;
     const queryWhere = `deleted_at IS NULL AND (? IS NULL OR project_id = ?) AND (
-      (locked = 1 AND ? = 1 AND (? = '' OR lower('locked protected note') LIKE '%' || ? || '%')) OR
-      (locked = 0 AND (? = '' OR id IN (SELECT note_id FROM note_search WHERE note_search MATCH ?)))
+      (locked = 1 AND ? = 1 AND (? = '' OR lower('locked protected note') LIKE ? ESCAPE '\\')) OR
+      ${unlockedFilter}
     )`;
-    const params = [projectId, projectId, includeLocked, normalizedQuery, normalizedQuery, match, match] as const;
+    const baseParams = [projectId, projectId, includeLocked, normalizedQuery, titleLike];
+    const params = normalizedQuery === '' ? baseParams : match ? [...baseParams, match, titleLike] : [...baseParams, titleLike];
     const totalRow = this.db.prepare(`SELECT count(*) AS total FROM notes WHERE ${queryWhere}`).get(...params) as { total: number };
     const rows = this.db.prepare(`SELECT id, project_id,
       CASE WHEN locked = 1 THEN 'Locked note' ELSE title END AS title,
