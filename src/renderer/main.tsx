@@ -8,6 +8,7 @@ import { AppShell, type ViewId } from '@/components/shared/AppShell';
 import { ConfirmProvider } from '@/components/shared/ConfirmProvider';
 import { RendererErrorBoundary } from '@/components/shared/RendererErrorBoundary';
 import { targetFromRecord } from '@/lib/navigation';
+import { dispatchRendererNotifications } from '@/lib/notifications-client';
 import { friendlyError } from '@/lib/utils';
 import '@/styles/globals.css';
 
@@ -108,6 +109,30 @@ function App() {
     });
   }, [captureWindow]);
 
+  const navigateRef = useRef<(next: WorkspaceNavigationTarget) => Promise<void>>(async () => {});
+  const allowWebPushRef = useRef(true);
+  allowWebPushRef.current = settings['notifications.webPush'] !== false;
+  const allowInAppRef = useRef(true);
+  allowInAppRef.current = settings['notifications.inApp'] !== false;
+
+  useEffect(() => {
+    if (captureWindow || loading) return;
+    const handleDelivery = (payload: Parameters<typeof dispatchRendererNotifications>[0]) => {
+      if (!allowInAppRef.current && !allowWebPushRef.current) return;
+      dispatchRendererNotifications(payload, (target) => void navigateRef.current(target), {
+        allowWebPush: allowWebPushRef.current,
+        alwaysWebPush: settings['notifications.webPush'] === true,
+      });
+    };
+    const offDelivered = window.devLedger.notifications.onDelivered(handleDelivery);
+    const offOpenTarget = window.devLedger.notifications.onOpenTarget((target) => void navigateRef.current(target));
+    void window.devLedger.notifications.deliverDue().then(handleDelivery).catch(() => undefined);
+    const timer = window.setInterval(() => {
+      void window.devLedger.notifications.deliverDue().then(handleDelivery).catch(() => undefined);
+    }, 20_000);
+    return () => { offDelivered(); offOpenTarget(); window.clearInterval(timer); };
+  }, [captureWindow, loading, settings['notifications.webPush']]);
+
   const theme = settings['theme'];
   useEffect(() => {
     const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
@@ -119,6 +144,7 @@ function App() {
     if (pushHistory) setNavHistory((prev) => [...prev.slice(-19), navTarget]);
     setNavTarget(next);
   }
+  navigateRef.current = (next) => navigateToTarget(next);
   async function handleGoBack() {
     const previous = navHistory.at(-1);
     if (!previous) return;

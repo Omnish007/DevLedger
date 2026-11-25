@@ -52,7 +52,7 @@ function Calendar({
           month_caption: cn(defaults.month_caption, 'flex h-8 items-center justify-center px-9', classNames?.month_caption),
           caption_label: cn(defaults.caption_label, 'inline-flex select-none items-center gap-1 text-sm font-medium', classNames?.caption_label),
           dropdowns: cn(defaults.dropdowns, 'inline-flex items-center gap-1.5', classNames?.dropdowns),
-          dropdown_root: cn(defaults.dropdown_root, 'relative inline-flex h-7 items-center rounded-md border border-input bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/60', classNames?.dropdown_root),
+          dropdown_root: cn(defaults.dropdown_root, 'relative inline-flex h-7 items-center rounded-lg border border-input/85 bg-surface-subtle/50 px-2 text-xs font-medium transition-colors hover:border-border hover:bg-surface-subtle [&>select>option]:bg-popover [&>select>option]:text-popover-foreground', classNames?.dropdown_root),
           dropdown: cn(defaults.dropdown, 'absolute inset-0 z-10 cursor-pointer opacity-0', classNames?.dropdown),
           months_dropdown: cn(defaults.months_dropdown, 'relative', classNames?.months_dropdown),
           years_dropdown: cn(defaults.years_dropdown, 'relative', classNames?.years_dropdown),

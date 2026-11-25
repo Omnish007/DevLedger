@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Check, Clipboard, Monitor, Moon, Sun } from 'lucide-react';
+import { BellRing, Check, Clipboard, Monitor, Moon, Sun } from 'lucide-react';
 import type { AppMetadata, BackupCreationResult, OllamaStatus, SemanticIndexReport, VaultStatus } from '@shared/contracts';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Switch } from '@/components/ui/switch';
+import { dispatchRendererNotifications, getWebNotificationPermission, requestWebNotificationPermission } from '@/lib/notifications-client';
 import { friendlyError } from '@/lib/utils';
 import { SettingsBackupTab } from './SettingsBackupTab';
 import { SettingsSystemTab } from './SettingsSystemTab';
@@ -38,8 +40,11 @@ export function SettingsPage(props: Props) {
   const [embeddingModel, setEmbeddingModel] = useState(typeof props.settings['ai.embeddingModel'] === 'string' ? props.settings['ai.embeddingModel'] : 'embeddinggemma');
   const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus | null>(null);
   const [semanticReport, setSemanticReport] = useState<SemanticIndexReport | null>(null);
+  const [webPerm, setWebPerm] = useState(() => getWebNotificationPermission());
   const theme = typeof props.settings['theme'] === 'string' ? props.settings['theme'] : 'system';
   const captureShortcut = typeof props.settings['shortcuts.quickCapture'] === 'string' ? props.settings['shortcuts.quickCapture'] : 'CommandOrControl+Shift+Space';
+  const inAppEnabled = props.settings['notifications.inApp'] !== false;
+  const webPushEnabled = props.settings['notifications.webPush'] !== false;
 
   async function updateSetting(key: string, value: unknown) {
     setSaving(true); setError(''); setMessage('');
@@ -88,6 +93,41 @@ export function SettingsPage(props: Props) {
                     <NativeSelectOption value="CommandOrControl+Shift+K">Ctrl/Cmd + Shift + K</NativeSelectOption>
                     <NativeSelectOption value="Alt+Shift+N">Alt + Shift + N</NativeSelectOption>
                   </NativeSelect>
+                </div>
+              </section>
+
+              <section className="workspace-surface space-y-4 p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">Reminders & notifications</h3>
+                    <p className="mt-0.5 text-muted-foreground">Deliver due reminders both in-app and via desktop/web notifications.</p>
+                  </div>
+                  <Badge variant={webPerm === 'granted' ? 'success' : 'secondary'} className="capitalize">{webPerm}</Badge>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
+                  <div><p className="font-medium">In-app alert toasts</p><p className="text-muted-foreground">Show interactive alert cards with Open & Snooze inside DevLedger.</p></div>
+                  <Switch checked={inAppEnabled} onCheckedChange={(checked) => void updateSetting('notifications.inApp', checked)} aria-label="In-app reminder alerts" />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
+                  <div><p className="font-medium">Web & desktop notifications</p><p className="text-muted-foreground">Allow Chromium Web Notification alerts when due reminders fire.</p></div>
+                  <div className="flex items-center gap-2">
+                    {webPerm !== 'granted' && webPerm !== 'unsupported' && (
+                      <Button size="sm" variant="outline" onClick={() => void requestWebNotificationPermission().then(setWebPerm)}>Allow web alerts</Button>
+                    )}
+                    <Switch checked={webPushEnabled} onCheckedChange={(checked) => void updateSetting('notifications.webPush', checked)} aria-label="Web and desktop reminder notifications" />
+                  </div>
+                </div>
+                <div className="flex justify-end border-t border-border pt-3">
+                  <Button size="sm" variant="outline" disabled={saving} onClick={() => {
+                    setSaving(true);
+                    void (async () => {
+                      const perm = webPushEnabled ? await requestWebNotificationPermission() : webPerm;
+                      setWebPerm(perm);
+                      const item = await window.devLedger.notifications.sendTest();
+                      dispatchRendererNotifications({ notifications: [item], nativeShown: false }, () => undefined, { allowWebPush: webPushEnabled, alwaysWebPush: true });
+                      setMessage('Test reminder notification sent.');
+                    })().catch((e) => setError(friendlyError(e, 'Could not send test notification.'))).finally(() => setSaving(false));
+                  }}><BellRing className="size-3.5" />Send test notification</Button>
                 </div>
               </section>
 

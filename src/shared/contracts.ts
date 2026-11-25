@@ -149,6 +149,7 @@ export interface TagRecord { id: string; name: string; color: string; createdAt:
 export interface EntityLinkRecord { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationship: string; createdAt: string; direction: 'outgoing' | 'incoming'; }
 export interface ReminderRecord { id: string; entityType: 'task' | 'project' | 'contact' | 'note'; entityId: string; dueAt: string; status: 'scheduled' | 'delivered' | 'snoozed' | 'dismissed' | 'cancelled'; message: string; lastDeliveredAt: string | null; createdAt: string; updatedAt: string; }
 export interface NotificationRecord { id: string; reminderId: string | null; entityType: 'task' | 'project' | 'contact' | 'note' | 'system'; entityId: string | null; kind: 'reminder' | 'backup' | 'system'; title: string; body: string; status: 'unread' | 'read' | 'dismissed'; createdAt: string; deliveredAt: string; readAt: string | null; dismissedAt: string | null; }
+export interface NotificationDeliveryPayload { notifications: NotificationRecord[]; nativeShown: boolean; }
 export interface TimeEntryRecord { id: string; taskId: string; startedAt: string; endedAt: string | null; durationSeconds: number | null; note: string; active: boolean; createdAt: string; }
 export interface TaskBlockerRecord { id: string; taskId: string; reason: string; waitingContactId: string | null; followUpAt: string | null; createdAt: string; resolvedAt: string | null; resolutionNote: string; }
 export interface ActivityRecord { id: string; entityType: string; entityId: string; eventType: string; summary: string; createdAt: string; }
@@ -216,7 +217,18 @@ export interface DevLedgerApi {
   settings: { getAll(): Promise<Record<string, unknown>>; set(key: string, value: unknown): Promise<void> };
   vault: { status(): Promise<VaultStatus>; setup(passphrase: string): Promise<{ recoveryKey: string }>; unlock(passphrase: string, recovery?: boolean): Promise<void>; lock(): Promise<void>; changePassphrase(passphrase: string): Promise<void>; configureDeviceUnlock(enabled: boolean): Promise<void>; onAutoLock(handler: () => void): () => void };
   backups: { create(passphrase: string): Promise<BackupCreationResult | null>; restoreAsCopy(secret: string, recovery?: boolean): Promise<string | null>; activateRestoreCopy(path: string): Promise<{ staged: boolean; restartRequired: boolean }>; getRestoreActivationStatus(): Promise<boolean>; rollbackRestoreActivation(): Promise<void>; commitRestoreActivation(): Promise<void>; chooseExternalDestination(): Promise<{ directory: string; sameVolume: boolean } | null>; clearExternalDestination(): Promise<void>; chooseOfflineDestination(): Promise<{ directory: string; sameVolume: boolean } | null>; clearOfflineDestination(): Promise<void> };
-  notifications: { list(filter?: 'all' | 'unread' | 'read' | 'dismissed', limit?: number, before?: { createdAt: string; id: string }): Promise<NotificationRecord[]>; unreadCount(): Promise<number>; markRead(id: string): Promise<void>; snooze(id: string, minutes: 15 | 60 | 240 | 1440): Promise<void>; dismiss(id: string): Promise<void>; markAllRead(): Promise<number>; };
+  notifications: {
+    list(filter?: 'all' | 'unread' | 'read' | 'dismissed', limit?: number, before?: { createdAt: string; id: string }): Promise<NotificationRecord[]>;
+    unreadCount(): Promise<number>;
+    markRead(id: string): Promise<void>;
+    snooze(id: string, minutes: 15 | 60 | 240 | 1440): Promise<void>;
+    dismiss(id: string): Promise<void>;
+    markAllRead(): Promise<number>;
+    deliverDue(): Promise<NotificationDeliveryPayload>;
+    sendTest(): Promise<NotificationRecord>;
+    onDelivered(handler: (payload: NotificationDeliveryPayload) => void): () => void;
+    onOpenTarget(handler: (target: WorkspaceNavigationTarget) => void): () => void;
+  };
   operations: {
     listTagsPage(input?: PageRequest): Promise<PageResult<TagRecord>>; createTag(name: string, color?: string): Promise<TagRecord>; deleteTag(tagId: string): Promise<void>;
     listEntityTags(type: EntityType, id: string): Promise<TagRecord[]>; assignTag(type: EntityType, id: string, tagId: string): Promise<void>; unassignTag(type: EntityType, id: string, tagId: string): Promise<void>;

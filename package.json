@@ -10,7 +10,7 @@
   "scripts": {
     "tokens:build": "node scripts/build-tokens.mjs",
     "predev": "npm run tokens:build && npm run build:worker",
-    "prebuild": "npm run tokens:build && npm run build:worker",
+    "prebuild": "npm run tokens:build && npm run format && npm run build:worker",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",

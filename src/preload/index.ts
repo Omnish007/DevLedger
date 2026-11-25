@@ -100,6 +100,18 @@ const api: DevLedgerApi = {
     snooze: (id, minutes) => invoke('notifications:snooze', [id, minutes]),
     dismiss: (id) => invoke('notifications:dismiss', id),
     markAllRead: () => invoke('notifications:markAllRead'),
+    deliverDue: () => invoke('notifications:deliverDue'),
+    sendTest: () => invoke('notifications:sendTest'),
+    onDelivered: (handler) => {
+      const listener = (_event: unknown, payload: Parameters<typeof handler>[0]) => handler(payload);
+      ipcRenderer.on('notifications:delivered', listener);
+      return () => ipcRenderer.removeListener('notifications:delivered', listener);
+    },
+    onOpenTarget: (handler) => {
+      const listener = (_event: unknown, target: Parameters<typeof handler>[0]) => handler(target);
+      ipcRenderer.on('notifications:open-target', listener);
+      return () => ipcRenderer.removeListener('notifications:open-target', listener);
+    },
   },
   operations: {
     listTagsPage: (input) => invoke('operations:tags:listPage', input),

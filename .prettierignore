@@ -1,0 +1,17 @@
+node_modules/
+out/
+dist/
+release/
+storybook-static/
+coverage/
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo
+*.log
+*.sqlite*
+*.db
+package-lock.json
+docs/
+*.md
+src/renderer/styles/generated-tokens.css

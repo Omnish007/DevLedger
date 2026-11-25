@@ -57,7 +57,6 @@ export function SmartDateField({
   const selectedDate = isoDateToLocal(parsed.result?.date);
   const currentTime = parsed.result?.kind === 'datetime' ? parsed.result.time : null;
   const hasTime = Boolean(currentTime);
-
   const previewLabel = parsed.result
     ? formatNotionDateLabel({ date: parsed.result.date, time: currentTime, format: 'full' })
     : '';
@@ -84,7 +83,7 @@ export function SmartDateField({
               key={preset.id}
               type="button"
               onClick={() => onChange(preset.token)}
-              className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="rounded-md border border-border/80 bg-surface-subtle/50 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               {preset.label}
             </button>
@@ -125,14 +124,14 @@ export function SmartDateField({
           }}
         >
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 px-2.5 text-xs" aria-label={`Open calendar and time selector for ${label}`}>
+            <Button type="button" variant="outline" size="sm" className="h-9 shrink-0 gap-1.5 rounded-lg px-2.5 text-xs" aria-label={`Open calendar and time selector for ${label}`}>
               <Clock3 className="size-3.5 text-muted-foreground" />
               <span>Pick</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[320px] p-3">
-            <div className="space-y-3">
-              <div className="rounded-md border border-border p-1">
+          <PopoverContent align="end" className="w-[312px] max-h-[min(calc(var(--radix-popover-content-available-height)-8px),80vh)] overflow-y-auto p-2.5">
+            <div className="space-y-2.5">
+              <div className="rounded-lg border border-border/80 bg-surface-subtle/25 p-1">
                 <Calendar
                   mode="single"
                   captionLayout="dropdown"
@@ -146,11 +145,11 @@ export function SmartDateField({
                     setDisplayMonth(picked);
                     commitDateTime(toDateString(picked), currentTime);
                   }}
-                  className="mx-auto [--cell-size:2rem]"
+                  className="mx-auto [--cell-size:1.85rem]"
                 />
               </div>
 
-              <div className="space-y-2 border-t border-border pt-2.5 text-xs">
+              <div className="space-y-2 border-t border-border/60 pt-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor={`${id}-time-toggle`} className="text-xs font-normal">Include time</Label>
                   <div className="flex items-center gap-2">
@@ -170,25 +169,25 @@ export function SmartDateField({
                     />
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {SMART_TIME_PRESETS.map((presetTime) => (
-                    <Button
-                      key={presetTime}
-                      type="button"
-                      size="sm"
-                      variant={currentTime === presetTime ? 'secondary' : 'outline'}
-                      className="h-6 px-2 text-[11px] tabular-nums"
-                      onClick={() => applyTimeSelection(presetTime)}
-                    >
-                      {presetTime}
-                    </Button>
-                  ))}
-                  {hasTime && (
+                {hasTime && (
+                  <div className="flex flex-wrap gap-1">
+                    {SMART_TIME_PRESETS.map((presetTime) => (
+                      <Button
+                        key={presetTime}
+                        type="button"
+                        size="sm"
+                        variant={currentTime === presetTime ? 'secondary' : 'outline'}
+                        className="h-6 px-2 text-[11px] tabular-nums"
+                        onClick={() => applyTimeSelection(presetTime)}
+                      >
+                        {presetTime}
+                      </Button>
+                    ))}
                     <Button type="button" size="sm" variant="ghost" className="h-6 px-1.5 text-[11px] text-muted-foreground" onClick={() => applyTimeSelection(null)}>
                       All day
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </PopoverContent>

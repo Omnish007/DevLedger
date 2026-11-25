@@ -51,7 +51,7 @@ export class NotificationInboxService {
         const entityType = String(reminder['entity_type']) as keyof typeof entityTables;
         const entityId = String(reminder['entity_id']);
         const entityTitle = this.getEntityTitle(entityType, entityId);
-        const title = 'Reminder due';
+        const title = `Reminder · ${entityTitle}`.slice(0, 160);
         const body = String(reminder['message'] || `${entityTitle} needs your attention.`).slice(0, 1000);
         const result = this.db.prepare(`INSERT OR IGNORE INTO notifications
           (id, idempotency_key, reminder_id, entity_type, entity_id, kind, title, body, status, created_at, delivered_at)
@@ -69,12 +69,14 @@ export class NotificationInboxService {
     return { notifications, hasMore };
   }
 
-  createSystemNotification(kind: 'backup' | 'system', title: string, body: string, idempotencyKey: string): void {
+  createSystemNotification(kind: 'backup' | 'system', title: string, body: string, idempotencyKey: string): InboxNotification {
     const timestamp = now();
+    const id = randomUUID();
     this.db.prepare(`INSERT OR IGNORE INTO notifications
       (id, idempotency_key, entity_type, kind, title, body, status, created_at, delivered_at)
       VALUES (?, ?, 'system', ?, ?, ?, 'unread', ?, ?)`)
-      .run(randomUUID(), idempotencyKey, kind, title.slice(0, 160), body.slice(0, 2000), timestamp, timestamp);
+      .run(id, idempotencyKey, kind, title.slice(0, 160), body.slice(0, 2000), timestamp, timestamp);
+    return mapNotification(this.db.prepare('SELECT * FROM notifications WHERE idempotency_key = ?').get(idempotencyKey) as Row);
   }
 
   list(filter: NotificationFilter = 'all', limit = 100, before?: { createdAt: string; id: string }): InboxNotification[] {

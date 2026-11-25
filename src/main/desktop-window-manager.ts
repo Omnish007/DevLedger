@@ -1,4 +1,4 @@
-import { BrowserWindow, globalShortcut, nativeTheme, shell } from 'electron';
+import { BrowserWindow, globalShortcut, nativeTheme, session, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
@@ -6,10 +6,32 @@ import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
 export class DesktopWindowManager {
   private primaryWindow: BrowserWindow | null = null;
   private activeCaptureShortcut: string | null = null;
+  private permissionsConfigured = false;
 
   get mainWindow(): BrowserWindow | null { return this.primaryWindow; }
 
+  private ensurePermissions(): void {
+    if (this.permissionsConfigured) return;
+    this.permissionsConfigured = true;
+    const isTrustedOrigin = (originUrl: string): boolean => {
+      try {
+        const devUrl = process.env['ELECTRON_RENDERER_URL'];
+        if (devUrl && originUrl.startsWith(new URL(devUrl).origin)) return true;
+        return originUrl.startsWith('file://');
+      } catch {
+        return false;
+      }
+    };
+    session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => (
+      permission === 'notifications' && isTrustedOrigin(requestingOrigin)
+    ));
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      callback(permission === 'notifications' && isTrustedOrigin(webContents.getURL()));
+    });
+  }
+
   createMainWindow(): BrowserWindow {
+    this.ensurePermissions();
     const window = this.createWindow();
     this.primaryWindow = window;
     return window;

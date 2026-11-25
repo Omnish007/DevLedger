@@ -22,11 +22,21 @@ type RemoteRecordPickerProps = {
   onChoiceChange?: (choice: RecordChoice | null) => void;
 };
 
-/**
- * Search-backed entity selector. Only one 30-record result page crosses IPC at a
- * time; older records remain discoverable through server-side full-text search.
- */
-export function RemoteRecordPicker({ entityType, value, onValueChange, placeholder = 'Choose a record…', searchPlaceholder = 'Search workspace records…', disabled, className, projectId, includeCompleted, excludeId, selectedLabel, onChoiceChange }: RemoteRecordPickerProps) {
+/** Search-backed entity selector with widened floating menu and clean option hierarchy. */
+export function RemoteRecordPicker({
+  entityType,
+  value,
+  onValueChange,
+  placeholder = 'Choose a record…',
+  searchPlaceholder,
+  disabled,
+  className,
+  projectId,
+  includeCompleted,
+  excludeId,
+  selectedLabel,
+  onChoiceChange,
+}: RemoteRecordPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [choices, setChoices] = useState<RecordChoice[]>([]);
@@ -47,7 +57,7 @@ export function RemoteRecordPicker({ entityType, value, onValueChange, placehold
         if (entityType === 'task') label = (await window.devLedger.tasks.getTitles([value]))[value];
         if (entityType === 'contact') label = (await window.devLedger.contacts.get(value))?.name;
         if (active && label) setSelected({ id: value, label });
-      } catch { /* Keep the caller's placeholder when a record was deleted or is unavailable. */ }
+      } catch { /* Keep placeholder when record is deleted or unavailable. */ }
     };
     void resolveLabel();
     return () => { active = false; };
@@ -61,21 +71,17 @@ export function RemoteRecordPicker({ entityType, value, onValueChange, placehold
       setLoading(true);
       setError('');
       const options: RecordSearchOptions = { projectId, includeCompleted, excludeId };
-      void loadRecordChoices(window.devLedger, entityType, query.trim(), options).then((rows) => {
-        if (active && requestId.current === currentRequest) setChoices(rows);
-      }).catch((caught: unknown) => {
-        if (active && requestId.current === currentRequest) {
-          setChoices([]);
-          setError(friendlyError(caught, 'Records could not be searched.'));
-        }
-      }).finally(() => {
-        if (active && requestId.current === currentRequest) setLoading(false);
-      });
+      void loadRecordChoices(window.devLedger, entityType, query.trim(), options)
+        .then((rows) => { if (active && requestId.current === currentRequest) setChoices(rows); })
+        .catch((caught: unknown) => {
+          if (active && requestId.current === currentRequest) {
+            setChoices([]);
+            setError(friendlyError(caught, 'Records could not be searched.'));
+          }
+        })
+        .finally(() => { if (active && requestId.current === currentRequest) setLoading(false); });
     }, query.trim() ? 220 : 0);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
+    return () => { active = false; window.clearTimeout(timer); };
   }, [entityType, open, query, projectId, includeCompleted, excludeId]);
 
   function selectChoice(choice: RecordChoice) {
@@ -86,36 +92,59 @@ export function RemoteRecordPicker({ entityType, value, onValueChange, placehold
     setQuery('');
   }
 
+  const resolvedSearchPlaceholder = searchPlaceholder ?? `Search ${entityType}s…`;
   const hasMaxOnly = /\bmax-w-\S+/.test(className ?? '') && !/\bw-\S+/.test(className ?? '');
+
   return (
     <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(''); }}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className={cn(hasMaxOnly ? 'w-auto' : 'w-full', 'justify-between gap-2 font-normal', selected?.id !== value && !selectedLabel && 'text-muted-foreground', className)}>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={cn(
+            hasMaxOnly ? 'w-auto' : 'w-full',
+            'justify-between gap-2 rounded-lg border-input/85 bg-surface-subtle/40 font-normal hover:border-border hover:bg-surface-subtle/80',
+            selected?.id !== value && !selectedLabel && 'text-muted-foreground',
+            className,
+          )}
+        >
           <span className="min-w-0 truncate text-left">{(selected?.id === value ? selected.label : selectedLabel) ?? placeholder}</span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="size-3.5 shrink-0 opacity-55" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+      <PopoverContent align="start" className="w-[max(17.5rem,var(--radix-popover-trigger-width))] max-w-[min(24rem,calc(100vw-24px))] overflow-hidden p-0">
         <Command shouldFilter={false}>
-          <CommandInput value={query} onValueChange={setQuery} placeholder={searchPlaceholder} />
+          <CommandInput value={query} onValueChange={setQuery} placeholder={resolvedSearchPlaceholder} />
           <CommandList>
-            {loading && <div className="flex items-center justify-center gap-2 px-3 py-5 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin" />Searching records…</div>}
+            {loading && <div className="flex items-center justify-center gap-2 px-3 py-5 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin" />Searching…</div>}
             {!loading && error && <div role="status" className="px-3 py-4 text-xs text-destructive">{error}</div>}
-            {!loading && !error && choices.length === 0 && <CommandEmpty>{query.trim() ? 'No matching records.' : `No ${entityType} records yet.`}</CommandEmpty>}
-            {!loading && !error && choices.length > 0 && <CommandGroup heading={`Matching ${entityType}s`}>
-              {choices.map((choice) => (
-                <CommandItem key={choice.id} value={choice.id} onSelect={() => selectChoice(choice)}>
-                  <Check className={cn('mr-2 size-4 shrink-0', value === choice.id ? 'opacity-100' : 'opacity-0')} />
-                  <span className="min-w-0 flex-1 truncate">{choice.label}{choice.description && <span className="block truncate text-xs text-muted-foreground">{choice.description}</span>}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>}
+            {!loading && !error && choices.length === 0 && <CommandEmpty>{query.trim() ? `No matching ${entityType}s.` : `No ${entityType} records yet.`}</CommandEmpty>}
+            {!loading && !error && choices.length > 0 && (
+              <CommandGroup heading={`Matching ${entityType}s`}>
+                {choices.map((choice) => (
+                  <CommandItem key={choice.id} value={choice.id} onSelect={() => selectChoice(choice)} className="py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{choice.label}</div>
+                      {choice.description && <div className="truncate text-[11px] text-muted-foreground">{choice.description}</div>}
+                    </div>
+                    <Check className={cn('ml-auto size-3.5 shrink-0 text-primary', value === choice.id ? 'opacity-100' : 'opacity-0')} />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
-        {value && <div className="flex items-center justify-between border-t border-border px-3 py-2">
-          <span className="text-[10px] text-muted-foreground">Showing up to {RECORD_PICKER_PAGE_SIZE} matches</span>
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => { setSelected(null); onValueChange(''); onChoiceChange?.(null); }}><X className="mr-1 size-3" />Clear</Button>
-        </div>}
+        {value && (
+          <div className="flex items-center justify-between border-t border-border/60 bg-surface-subtle/30 px-3 py-2">
+            <span className="text-[11px] text-muted-foreground">Up to {RECORD_PICKER_PAGE_SIZE} matches</span>
+            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setSelected(null); onValueChange(''); onChoiceChange?.(null); setOpen(false); }}>
+              <X className="mr-1 size-3" />Clear
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

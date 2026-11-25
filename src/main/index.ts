@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Notification, powerMonitor } from 'electron';
+import { app, BrowserWindow, Menu, powerMonitor } from 'electron';
 import { resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 import { initializeWorkspaceDatabase } from './workspace-database-startup.js';
@@ -10,6 +10,7 @@ import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
 import { DesktopWindowManager } from './desktop-window-manager.js';
 import { DocumentWorkerSupervisor } from './document-worker-supervisor.js';
 import { ReminderDeliveryController } from './reminder-delivery.js';
+import { dispatchDeliveredNotifications } from './notification-dispatcher.js';
 import { AutomaticBackupJobScheduler } from './automatic-backup-job-scheduler.js';
 import { hasStagedRestore, promoteStagedRestore } from './services/restore-activation.js';
 
@@ -88,22 +89,24 @@ async function initialize(): Promise<void> {
     if (migration === 'migrated') console.info('[DevLedger] Existing workspace data was moved to the new application data folder.');
   }
   database = await initializeWorkspaceDatabase(dataDirectory);
-  const services = registerIpcHandlers({ db: database, dataDirectory, version: app.getVersion(), openQuickCapture: windowManager.openQuickCapture, setQuickCaptureShortcut: windowManager.setQuickCaptureShortcut });
+  const services = registerIpcHandlers({
+    db: database,
+    dataDirectory,
+    version: app.getVersion(),
+    openQuickCapture: windowManager.openQuickCapture,
+    setQuickCaptureShortcut: windowManager.setQuickCaptureShortcut,
+    onRemindersChanged: () => reminderDelivery?.scheduleNext(),
+    onDeliverDueReminders: () => reminderDelivery?.deliver() ?? Promise.resolve([]),
+    onDispatchNotifications: (items) => dispatchDeliveredNotifications(items, windowManager.openMainWindow, () => isShuttingDown),
+  });
   vaultService = services.vault;
   workspaceService = services.workspace;
   documentStorage = services.documents;
   backgroundJobs = services.jobs;
   backupJobScheduler = new AutomaticBackupJobScheduler(services.jobs);
   if (!database) throw new Error('Database unavailable after initialization.');
-  reminderDelivery = new ReminderDeliveryController(database, services.jobs, (count) => {
-    if (!Notification.isSupported()) return;
-    const notification = new Notification({
-      title: 'DevLedger',
-      body: `${count} reminder${count === 1 ? '' : 's'} added to your notification inbox.`,
-      silent: false,
-    });
-    notification.on('click', windowManager.openMainWindow);
-    notification.show();
+  reminderDelivery = new ReminderDeliveryController(database, services.jobs, (items) => {
+    dispatchDeliveredNotifications(items, windowManager.openMainWindow, () => isShuttingDown);
   }, () => isShuttingDown);
   const deviceUnlockSetting = database.prepare("SELECT value_json FROM app_settings WHERE key = 'vault.deviceUnlockEnabled'").get() as { value_json: string } | undefined;
   if (deviceUnlockSetting) {
@@ -136,8 +139,8 @@ async function initialize(): Promise<void> {
   }).catch((error: unknown) => console.error('[DevLedger] Automatic backup scheduling could not start:', error instanceof Error ? error.message : 'Unknown error'));
   documentWorkerSupervisor.start(resolveWorkspaceDatabasePath(dataDirectory));
   windowManager.createMainWindow();
-  void deliverDueReminders();
-  reminderInterval = setInterval(() => { void deliverDueReminders(); }, 60_000);
+  reminderDelivery.scheduleNext();
+  reminderInterval = setInterval(() => { void deliverDueReminders(); }, 15_000);
   reminderInterval.unref();
   timerHeartbeatInterval = setInterval(() => {
     if (!isShuttingDown && database?.open) workspaceService?.heartbeatActiveTimer();

@@ -3,10 +3,17 @@ import { formatNotionDateLabel, parseSmartDate, type SmartDateDisplayFormat } fr
 import type { SmartDateReference } from '@domain/smart-date-markdown';
 import { atLocalTime, toDateString } from '@domain/smart-date-notion';
 
-export function attachSyncedReminderId(editor: Editor | null | undefined, date: string, reminderId: string | null): void {
+export function attachSyncedReminderId(
+  editor: Editor | null | undefined,
+  date: string,
+  reminderId: string | null,
+  time?: string | null,
+): void {
   if (!editor || !reminderId) return;
   editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === 'smartDate' && node.attrs['date'] === date && node.attrs['isReminder'] && !node.attrs['reminderId']) {
+    const matchesDate = node.attrs['date'] === date;
+    const matchesTime = time === undefined || (node.attrs['time'] ?? null) === (time ?? null);
+    if (node.type.name === 'smartDate' && matchesDate && matchesTime && node.attrs['isReminder'] && !node.attrs['reminderId']) {
       editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, reminderId }));
       return false;
     }

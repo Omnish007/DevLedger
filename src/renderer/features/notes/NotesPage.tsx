@@ -17,6 +17,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Separator } from '@/components/ui/separator';
 import { formatRelative, friendlyError } from '@/lib/utils';
 import { createNoteExtensions } from './extensions';
+import { exportMarkdownFromEditor, importMarkdownIntoEditor } from './note-markdown-io';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
 import { NoteContactDialog, NoteInspectorDrawer } from './NoteInspectorDrawer';
 import { attachSyncedReminderId, computeReminderDueIso } from './smart-date-ui-helpers';
@@ -53,13 +54,14 @@ export function NotesPage({ focusNoteId, focusProjectId, onConsumeFocus, vaultSt
   const [projectId, setProjectId] = useState('');
   const [contactPreview, setContactPreview] = useState<ContactRecord | null>(null);
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
-  const [projectIdRef, selectedIdRef] = [useRef(projectId), useRef(selectedId)];
-  projectIdRef.current = projectId; selectedIdRef.current = selectedId;
+  const [projectIdRef, selectedIdRef, titleRef, lockedRef] = [useRef(projectId), useRef(selectedId), useRef(title), useRef(false)];
+  projectIdRef.current = projectId; selectedIdRef.current = selectedId; titleRef.current = title;
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState('');
   const [unlockedNote, setUnlockedNote] = useState<ProtectedNoteRecord | null>(null);
   const [revision, isDirty] = [useRef(0), useRef(false)];
   const selected = (unlockedNote?.id === selectedId ? unlockedNote : pageNotes.find((n) => n.id === selectedId) ?? null) as (NoteRecord | ProtectedNoteRecord | null);
+  lockedRef.current = Boolean(selected?.locked);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1040px)');
@@ -87,7 +89,7 @@ export function NotesPage({ focusNoteId, focusProjectId, onConsumeFocus, vaultSt
 
   const syncNoteReminder = useCallback(async (attrs: SmartDateReference, dueAtIso: string | null): Promise<string | null> => {
     const noteId = selectedIdRef.current;
-    if (!noteId || selected?.locked) return attrs.reminderId ?? null;
+    if (!noteId || lockedRef.current) return attrs.reminderId ?? null;
     if (!dueAtIso) {
       if (attrs.reminderId) await window.devLedger.operations.updateReminder(attrs.reminderId, 'dismiss').catch(() => undefined);
       return null;
@@ -96,9 +98,9 @@ export function NotesPage({ focusNoteId, focusProjectId, onConsumeFocus, vaultSt
       const updated = await window.devLedger.operations.updateReminder(attrs.reminderId, 'reschedule', dueAtIso);
       return updated.id;
     }
-    const created = await window.devLedger.operations.createReminder('note', noteId, dueAtIso, attrs.source || title || 'Note reminder');
+    const created = await window.devLedger.operations.createReminder('note', noteId, dueAtIso, attrs.source || titleRef.current || 'Note reminder');
     return created.id;
-  }, [selected?.locked, title]);
+  }, []);
 
   const editorExtensions = useMemo(() => [StarterKit, Markdown, ...createNoteExtensions(async (q, pid) => (await window.devLedger.contacts.listPage({ limit: 8, offset: 0, query: q, projectId: pid || null })).items, () => projectIdRef.current, { onReminderSync: syncNoteReminder })], [syncNoteReminder]);
 
@@ -117,26 +119,19 @@ export function NotesPage({ focusNoteId, focusProjectId, onConsumeFocus, vaultSt
     void selectNote(focusNoteId).finally(() => onConsumeFocus?.());
   }, [focusNoteId, focusProjectId, onConsumeFocus]);
 
-  async function importMarkdownFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]; event.target.value = '';
-    if (!file || !editor) return;
-    if (editor.getText().trim() && !(await confirm({ title: 'Replace note contents?', description: 'Importing Markdown replaces the current note body.', confirmLabel: 'Replace', destructive: true }))) return;
-    if (file.size > 2 * 1024 * 1024) { setError('Markdown files must be 2 MB or smaller.'); return; }
-    try { editor.commands.setContent(await file.text(), { contentType: 'markdown', emitUpdate: false }); setContent(editor.getHTML()); isDirty.current = true; setSaveState('idle'); setError(''); }
-    catch (caught) { setError(friendlyError(caught, 'Markdown import failed.')); }
+  function importMarkdownFile(event: ChangeEvent<HTMLInputElement>) {
+    void importMarkdownIntoEditor(
+      event, editor,
+      () => confirm({ title: 'Replace note contents?', description: 'Importing Markdown replaces the current note body.', confirmLabel: 'Replace', destructive: true }),
+      (html) => { setContent(html); isDirty.current = true; setSaveState('idle'); },
+      setError,
+    );
   }
-  function exportMarkdownFile() {
-    if (!editor) return;
-    try {
-      const url = URL.createObjectURL(new Blob([editor.getMarkdown()], { type: 'text/markdown;charset=utf-8' }));
-      const a = document.createElement('a'); a.href = url; a.download = `${(title || 'note').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 60) || 'note'}.md`; a.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (caught) { setError(friendlyError(caught, 'Markdown export failed.')); }
-  }
+  function exportMarkdownFile() { exportMarkdownFromEditor(editor, title, setError); }
   function insertSmartDateReference(reference: SmartDateReference) {
     if (!editor) return;
     editor.chain().focus().insertContent([{ type: 'smartDate', attrs: reference }, { type: 'text', text: ' ' }]).run();
-    if (reference.isReminder) void syncNoteReminder(reference, reference.isoUtc ?? computeReminderDueIso(reference.date, reference.time)).then((id) => attachSyncedReminderId(editor, reference.date, id));
+    if (reference.isReminder) void syncNoteReminder(reference, reference.isoUtc ?? computeReminderDueIso(reference.date, reference.time)).then((id) => attachSyncedReminderId(editor, reference.date, id, reference.time));
     setError('');
   }
   async function handleEditorClick(event: MouseEvent<HTMLDivElement>) {

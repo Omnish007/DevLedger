@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlarmClock, ArrowUpRight, Bell, CheckCheck } from 'lucide-react';
+import { AlarmClock, ArrowUpRight, Bell, BellRing, CheckCheck } from 'lucide-react';
 import type { EntityType, NotificationRecord, WorkspaceNavigationTarget } from '@shared/contracts';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { targetFromRecord } from '@/lib/navigation';
+import {
+  getWebNotificationPermission,
+  NOTIFICATION_UPDATED_EVENT,
+  requestWebNotificationPermission,
+  type WebPushPermission,
+} from '@/lib/notifications-client';
 import { formatRelative, friendlyError } from '@/lib/utils';
 
 interface NotificationsPopoverProps {
@@ -17,6 +23,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [unreadCount, setUnreadCount] = useState(0);
   const [items, setItems] = useState<NotificationRecord[]>([]);
+  const [permission, setPermission] = useState<WebPushPermission>(() => getWebNotificationPermission());
   const [error, setError] = useState('');
 
   const loadInbox = useCallback(async () => {
@@ -35,12 +42,17 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
 
   useEffect(() => {
     void loadInbox();
-    const timer = window.setInterval(() => { void loadInbox(); }, 30_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => { void loadInbox(); }, 15_000);
+    const onUpdated = () => { void loadInbox(); };
+    window.addEventListener(NOTIFICATION_UPDATED_EVENT, onUpdated);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(NOTIFICATION_UPDATED_EVENT, onUpdated);
+    };
   }, [loadInbox]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(next) => { setOpen(next); if (next) setPermission(getWebNotificationPermission()); }}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative size-8" aria-label={`Inbox notifications (${unreadCount} unread)`}>
           <Bell className="size-4" />
@@ -51,13 +63,13 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[380px] p-0">
-        <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
+      <PopoverContent align="end" className="w-[388px] p-0">
+        <div className="flex items-center justify-between border-b border-border/70 px-3.5 py-2.5">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold">Inbox</span>
-            <div className="flex rounded-md border border-border p-0.5 text-xs">
+            <div className="flex rounded-lg border border-border/80 bg-surface-subtle/60 p-0.5 text-xs">
               {(['all', 'unread'] as const).map((tab) => (
-                <button key={tab} type="button" onClick={() => setFilter(tab)} className={`rounded px-2 py-0.5 capitalize ${filter === tab ? 'bg-accent font-medium text-accent-foreground' : 'text-muted-foreground'}`}>
+                <button key={tab} type="button" onClick={() => setFilter(tab)} className={`rounded-md px-2 py-0.5 capitalize transition-colors ${filter === tab ? 'bg-accent font-medium text-accent-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}>
                   {tab}
                 </button>
               ))}
@@ -68,7 +80,16 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
           </Button>
         </div>
 
-        <div className="max-h-96 overflow-y-auto divide-y divide-border">
+        {permission === 'default' && (
+          <div className="flex items-center justify-between gap-2 border-b border-border/70 bg-surface-subtle/50 px-3.5 py-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground"><BellRing className="size-3.5 text-primary" />Enable web push alerts</span>
+            <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[11px]" onClick={() => void requestWebNotificationPermission().then(setPermission)}>
+              Allow
+            </Button>
+          </div>
+        )}
+
+        <div className="max-h-96 divide-y divide-border/70 overflow-y-auto">
           {error && <p role="alert" className="p-3 text-xs text-danger">{error}</p>}
           {items.map((item) => {
             const canJump = item.entityId && navigableEntities.has(item.entityType);

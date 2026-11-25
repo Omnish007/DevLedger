@@ -106,7 +106,7 @@ export function createNoteExtensions(
           editor.chain().focus().insertContentAt(range, [{ type: 'smartDate', attrs: item.attrs }, { type: 'text', text: ' ' }]).run();
           if (item.attrs.isReminder && dateOptions.onReminderSync) {
             const dueIso = item.attrs.isoUtc ?? computeReminderDueIso(item.attrs.date, item.attrs.time);
-            void dateOptions.onReminderSync(item.attrs, dueIso).then((id) => attachSyncedReminderId(editor, item.attrs.date, id));
+            void dateOptions.onReminderSync(item.attrs, dueIso).then((id) => attachSyncedReminderId(editor, item.attrs.date, id, item.attrs.time));
           }
           return;
         }

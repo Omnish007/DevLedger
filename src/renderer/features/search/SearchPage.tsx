@@ -199,11 +199,21 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
         {aiError && <div role="alert" className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/5 p-3 text-xs"><AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" /><span>{aiError}</span></div>}
 
         {aiEnabled && aiSummary && (
-          <section className="rounded-xl border border-border/80 bg-surface-subtle/60 p-4">
-            <div className="mb-2 flex items-center gap-2"><Sparkles className="size-3.5 text-primary" /><h3 className="text-xs font-semibold">AI summary</h3><Badge variant="secondary">{aiSummary.model}</Badge>{aiSummary.cached && <Badge variant="outline">Cached</Badge>}</div>
-            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">{aiSummary.summary}</p>
-            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/70 pt-2.5">
-              {aiSummary.citations.map((source) => <button key={`${source.type}:${source.id}`} type="button" onClick={() => onOpenResult(source)} className="rounded-md border border-border bg-card px-2 py-1 text-[11px] hover:bg-surface-hover">{source.title}</button>)}
+          <section className="rounded-xl border border-border/80 bg-surface-subtle/55 p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <Sparkles className="size-3.5 text-primary" />
+              <h3 className="text-xs font-semibold">AI Answer</h3>
+              <Badge variant="secondary">{aiSummary.model}</Badge>
+              {aiSummary.cached && <Badge variant="outline">Cached</Badge>}
+            </div>
+            <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">{aiSummary.summary}</p>
+            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2.5">
+              {aiSummary.citations.map((source, index) => (
+                <button key={`${source.type}:${source.id}`} type="button" onClick={() => onOpenResult(source)} className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-border hover:bg-surface-hover">
+                  <span className="font-mono text-[10px] text-primary">[{index + 1}]</span>
+                  <span className="truncate">{source.title}</span>
+                </button>
+              ))}
             </div>
           </section>
         )}

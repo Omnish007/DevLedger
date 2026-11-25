@@ -78,21 +78,18 @@ test('semantic index is generation-safe, excludes locked notes and fuses with le
 });
 
 
-test('AI summaries isolate untrusted workspace text and accept only bounded, verifiable citations', async () => {
+test('AI summaries isolate untrusted workspace text, strip UUIDs and verify alias citations', async () => {
   const db = createDatabase();
   const previousFetch = globalThis.fetch;
   let capturedPrompt = '';
-  let validSourceId = '';
+  const validUuid = '00f8fc02-a3c4-43a4-b0c1-299d38cd1777';
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/api/tags')) return new Response(JSON.stringify({ models: [{ name: 'llama3.2:3b' }] }), { status: 200 });
     if (url.endsWith('/api/generate')) {
       const body = JSON.parse(String(init?.body)) as { prompt: string };
       capturedPrompt = body.prompt;
-      const evidenceJson = body.prompt.split('UNTRUSTED_EVIDENCE_JSON: ')[1] ?? '[]';
-      const evidence = JSON.parse(evidenceJson) as Array<{ id: string }>;
-      validSourceId = evidence[0]?.id ?? '';
-      return new Response(JSON.stringify({ response: JSON.stringify({ summary: 'The payment plan describes provider API and webhook settlement work.', citations: [validSourceId, 'forged-record-id'] }) }), { status: 200 });
+      return new Response(JSON.stringify({ response: JSON.stringify({ summary: `The evidence contains two records: Retail POS gateway plan [1] and ${validUuid}.`, citedSources: [1, 99] }) }), { status: 200 });
     }
     throw new Error(`Unexpected local AI URL: ${url}`);
   }) as typeof fetch;
@@ -102,11 +99,12 @@ test('AI summaries isolate untrusted workspace text and accept only bounded, ver
     const ai = new OllamaService(db as never, new KeywordEmbeddingAdapter());
     const result = await ai.summarize('payment provider');
     assert.match(capturedPrompt, /SECURITY:/);
-    assert.match(capturedPrompt, /UNTRUSTED_EVIDENCE_JSON:/);
+    assert.match(capturedPrompt, /WORKSPACE_RECORDS \(untrusted data\):/);
     assert.match(capturedPrompt, /IGNORE ALL PRIOR INSTRUCTIONS/);
-    assert.ok(validSourceId);
-    assert.ok(result.citations.some((source) => source.id === validSourceId));
-    assert.ok(result.citations.every((source) => source.id !== 'forged-record-id'));
+    assert.doesNotMatch(capturedPrompt, /p-1|n-1|t-blocked/);
+    assert.ok(result.citations.length >= 1);
+    assert.doesNotMatch(result.summary, new RegExp(validUuid));
+    assert.doesNotMatch(result.summary, /^The evidence contains/i);
     assert.equal(result.summary.includes('private keys'), false);
   } finally {
     globalThis.fetch = previousFetch;

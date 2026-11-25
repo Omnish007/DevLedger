@@ -12,9 +12,28 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
   register('notifications:list', z.tuple([z.enum(['all', 'unread', 'read', 'dismissed']).optional(), z.number().int().min(1).max(100).optional(), z.object({ createdAt: z.string().datetime(), id: idInput }).optional()]), ([filter, limit, before]) => notifications.list(filter ?? 'all', limit ?? 100, before));
   register('notifications:unreadCount', noInput, () => notifications.unreadCount());
   register('notifications:markRead', idInput, (id) => notifications.markRead(id));
-  register('notifications:snooze', z.tuple([idInput, z.union([z.literal(15), z.literal(60), z.literal(240), z.literal(1440)])]), ([id, minutes]) => notifications.snooze(id, minutes));
+  register('notifications:snooze', z.tuple([idInput, z.union([z.literal(15), z.literal(60), z.literal(240), z.literal(1440)])]), ([id, minutes]) => { notifications.snooze(id, minutes); dependencies.onRemindersChanged?.(); });
   register('notifications:dismiss', idInput, (id) => notifications.dismiss(id));
   register('notifications:markAllRead', noInput, () => notifications.markAllRead());
+  register('notifications:deliverDue', noInput, async () => {
+    if (dependencies.onDeliverDueReminders) {
+      const delivered = await dependencies.onDeliverDueReminders();
+      return { notifications: delivered, nativeShown: Boolean(delivered.length) };
+    }
+    const result = notifications.processDueReminders();
+    const nativeShown = result.notifications.length ? Boolean(dependencies.onDispatchNotifications?.(result.notifications)) : false;
+    return { notifications: result.notifications, nativeShown };
+  });
+  register('notifications:sendTest', noInput, () => {
+    const item = notifications.createSystemNotification(
+      'system',
+      'Reminder alert test · DevLedger',
+      'In-app and desktop/web reminder notifications are active.',
+      `test:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+    );
+    dependencies.onDispatchNotifications?.([item]);
+    return item;
+  });
 
   register('projects:listPage', pageRequest, (input) => workspace.listProjectsPage((input ?? {}) as PageRequest));
   register('projects:getNames', z.array(idInput).max(200), (ids) => workspace.getProjectNames(ids));

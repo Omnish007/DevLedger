@@ -62,7 +62,7 @@ export function registerIpcHandlers(dependencies: IpcDependencies): {
   jobs.register('notifications.deliver', async (_payload, context) => {
     context.throwIfCancelled();
     const delivered = notifications.processDueReminders();
-    return { count: delivered.notifications.length, notifications: delivered.notifications.map(({ title, body }) => ({ title, body })), hasMore: delivered.hasMore };
+    return { count: delivered.notifications.length, notifications: delivered.notifications, hasMore: delivered.hasMore };
   });
 
   const context: IpcHandlerContext = { dependencies, workspace, vault, vaultDeviceKeyStore, documents, backups, operations, notifications, jobs, ollama };

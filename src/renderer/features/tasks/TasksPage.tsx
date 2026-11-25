@@ -10,7 +10,6 @@ import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { useConfirm } from '@/components/shared/ConfirmProvider';
 import { VirtualList } from '@/components/shared/VirtualList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { friendlyError } from '@/lib/utils';
@@ -185,10 +184,10 @@ export function TasksPage({
       {activeTimer?.recoveryRequired && <Alert className="border-warning/50 bg-warning/5"><AlertDescription className="space-y-3 text-xs"><p className="font-semibold">Confirm interrupted work session</p><Input type="datetime-local" value={recoveryEndAt} onChange={(e) => setRecoveryEndAt(e.target.value)} max={toDateTimeLocal(new Date())} min={toDateTimeLocal(new Date(activeTimer.startedAt))} className="max-w-xs" /><div className="flex gap-2"><Button size="sm" onClick={() => void recoverTimer('stop')} disabled={!recoveryEndAt}>Save confirmed time</Button><Button size="sm" variant="outline" onClick={() => void recoverTimer('resume')}>Continue from now</Button><Button size="sm" variant="ghost" className="text-danger" onClick={() => void recoverTimer('discard')}>Discard</Button></div></AlertDescription></Alert>}
 
       <div className="workspace-toolbar justify-between">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-md border border-border bg-card p-0.5 text-xs">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+          <div className="inline-flex rounded-xl border border-border/80 bg-surface-subtle/40 p-1 text-xs">
             {([['active', 'Active'], ['in_progress', 'In progress'], ['waiting', 'Waiting'], ['blocked', 'Blocked'], ['completed', 'Completed']] as const).map(([key, label]) => (
-              <button key={key} type="button" onClick={() => { setPageOffset(0); setViewTab(key); }} className={`rounded px-2.5 py-1 font-medium transition-colors ${viewTab === key ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
+              <button key={key} type="button" onClick={() => { setPageOffset(0); setViewTab(key); }} className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${viewTab === key ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
             ))}
           </div>
           <div className="relative min-w-[200px] max-w-xs flex-1">
@@ -196,16 +195,18 @@ export function TasksPage({
             <Input className="pl-8 pr-7" aria-label="Filter tasks by title or description" value={query} onChange={(e) => { setPageOffset(0); setQuery(e.target.value); }} placeholder="Filter tasks…" />
             {query && <button type="button" aria-label="Clear task filter" className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setPageOffset(0); setQuery(''); }}>×</button>}
           </div>
-          <RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(v) => { setPageOffset(0); setProjectId(v || 'all'); }} onChoiceChange={(c) => { if (c) setProjectNames((cur) => ({ ...cur, [c.id]: c.label })); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-44" />
+          <RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(v) => { setPageOffset(0); setProjectId(v || 'all'); }} onChoiceChange={(c) => { if (c) setProjectNames((cur) => ({ ...cur, [c.id]: c.label })); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-48" />
         </div>
-        <Badge variant="secondary" className="tabular-nums">{orderedVisible.length}{viewTab === 'active' ? '' : ` of ${pageTotal}`} task{orderedVisible.length === 1 ? '' : 's'}</Badge>
+        {(viewTab !== 'active' || query || projectId !== 'all') && (
+          <span className="text-xs tabular-nums text-muted-foreground">{orderedVisible.length} matching</span>
+        )}
       </div>
 
-      <div className="workspace-surface task-queue">
-        <div className="hidden grid-cols-[minmax(240px,1fr)_136px_96px_124px_128px] gap-3 border-b border-border bg-surface-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:grid">
-          <span>Task</span><span>Status</span><span>Priority</span><span>Due</span><span className="text-right">Actions</span>
+      <div className="workspace-surface task-queue overflow-hidden rounded-xl border-border/80">
+        <div className="hidden grid-cols-[minmax(260px,1.5fr)_136px_136px_96px_112px_104px] gap-3 border-b border-border/70 bg-surface-subtle/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+          <span>Task</span><span>Project</span><span>Status</span><span>Priority</span><span>Due</span><span className="text-right">Actions</span>
         </div>
-        {pageLoading ? <p className="py-12 text-center text-xs text-muted-foreground">Loading tasks…</p> : <VirtualList items={orderedVisible} itemKey={taskItemKey} itemHeight={60} label="Workspace tasks" className="max-h-[min(72vh,760px)]" empty={<div className="py-14 text-center"><ListTodo className="mx-auto mb-2.5 size-5 text-muted-foreground" /><p className="text-sm font-medium">{query || projectId !== 'all' || viewTab !== 'active' ? 'No tasks match this view' : 'No tasks yet'}</p><Button size="sm" className="mt-4" onClick={openCreateModal}><Plus className="size-3.5" />New task</Button></div>} renderItem={({ task, depth, hasChildren, contextOnly }) => (
+        {pageLoading ? <p className="py-12 text-center text-xs text-muted-foreground">Loading tasks…</p> : <VirtualList items={orderedVisible} itemKey={taskItemKey} itemHeight={64} label="Workspace tasks" className="max-h-[min(70vh,740px)]" empty={<div className="py-14 text-center"><ListTodo className="mx-auto mb-2.5 size-5 text-muted-foreground" /><p className="text-sm font-medium">{query || projectId !== 'all' || viewTab !== 'active' ? 'No tasks match this view' : 'No tasks yet'}</p><p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">Break down deliverables into tracked tasks with optional due times and blockers.</p><Button size="sm" className="mt-4" onClick={openCreateModal}><Plus className="size-3.5" />New task</Button></div>} renderItem={({ task, depth, hasChildren, contextOnly }) => (
           <TaskRow
             task={task} depth={depth} hasChildren={hasChildren} contextOnly={contextOnly} collapsed={collapsedIds.has(task.id)}
             projectName={projectNames[task.projectId] ?? 'Project'} activeTimer={activeTimer} busy={busyId === task.id}
@@ -219,6 +220,11 @@ export function TasksPage({
             onNavigateTarget={onNavigateTarget}
           />
         )} />}
+        {!pageLoading && orderedVisible.length > 0 && (
+          <button type="button" onClick={openCreateModal} className="flex w-full items-center gap-2 border-t border-border/50 bg-surface-subtle/20 px-4 py-2.5 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-subtle/60 hover:text-foreground">
+            <Plus className="size-3.5" /><span>Create another task…</span>
+          </button>
+        )}
       </div>
 
       <PageControls offset={pageOffset} limit={pageSize} total={pageTotal} disabled={pageLoading} onPageChange={setPageOffset} />

@@ -8,7 +8,7 @@ import type { BackupService } from '../services/backup.ts';
 import type { WorkspaceOperationsService } from '../services/operations.ts';
 import type { BackgroundJobRunner } from '../services/background-jobs.ts';
 import type { OllamaService } from '../services/ollama.ts';
-import type { NotificationInboxService } from '../services/notification-inbox.ts';
+import type { InboxNotification, NotificationInboxService } from '../services/notification-inbox.ts';
 import type { VaultDeviceKeyStore } from '../services/vault-device-key.ts';
 
 export interface IpcDependencies {
@@ -17,6 +17,9 @@ export interface IpcDependencies {
   version: string;
   openQuickCapture?: () => void;
   setQuickCaptureShortcut?: (accelerator: string) => boolean;
+  onRemindersChanged?: () => void;
+  onDeliverDueReminders?: () => Promise<InboxNotification[]>;
+  onDispatchNotifications?: (items: InboxNotification[]) => boolean;
 }
 
 export type IpcRegistrar = <T>(
