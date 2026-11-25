@@ -1,7 +1,7 @@
 export const CORE_MIGRATIONS = [
-  {
-    version: 1,
-    sql: `
+    {
+        version: 1,
+        sql: `
       CREATE TABLE projects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 160),
@@ -221,5 +221,5 @@ export const CORE_MIGRATIONS = [
         DELETE FROM document_search WHERE document_id = old.id;
       END;
     `,
-  },
+    },
 ];

@@ -1,7 +1,7 @@
 export const SEARCH_MIGRATIONS = [
-  {
-    version: 7,
-    sql: `
+    {
+        version: 7,
+        sql: `
       CREATE TABLE semantic_chunks (
         id TEXT PRIMARY KEY,
         source_type TEXT NOT NULL CHECK(source_type IN ('project', 'contact', 'note', 'task', 'document')),
@@ -53,20 +53,20 @@ export const SEARCH_MIGRATIONS = [
         DELETE FROM semantic_chunks WHERE source_type = 'document' AND source_id = old.id;
       END;
     `,
-  },
-  {
-    version: 8,
-    sql: `
+    },
+    {
+        version: 8,
+        sql: `
       ALTER TABLE tasks ADD COLUMN due_date TEXT
         CHECK(due_date IS NULL OR (length(due_date) = 10 AND due_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'));
       CREATE INDEX tasks_project_status_due_date_idx
         ON tasks(project_id, status, due_date) WHERE deleted_at IS NULL;
       CREATE INDEX tasks_due_date_idx ON tasks(due_date) WHERE deleted_at IS NULL AND due_date IS NOT NULL;
     `,
-  },
-  {
-    version: 9,
-    sql: `
+    },
+    {
+        version: 9,
+        sql: `
       ALTER TABLE contacts ADD COLUMN custom_attributes_json TEXT NOT NULL DEFAULT '{}';
       DROP TRIGGER contacts_search_insert;
       DROP TRIGGER contacts_search_update;
@@ -89,10 +89,10 @@ export const SEARCH_MIGRATIONS = [
       INSERT INTO contact_search(contact_id, name, company, role, email, phone, notes, custom_attributes)
       SELECT id, name, company, role, email, phone, notes, custom_attributes_json FROM contacts WHERE deleted_at IS NULL;
     `,
-  },
-  {
-    version: 10,
-    sql: `
+    },
+    {
+        version: 10,
+        sql: `
       ALTER TABLE documents ADD COLUMN is_encrypted INTEGER NOT NULL DEFAULT 0 CHECK(is_encrypted IN (0, 1));
       ALTER TABLE documents ADD COLUMN encryption_meta TEXT;
       ALTER TABLE documents ADD COLUMN stored_sha256 TEXT;
@@ -140,15 +140,15 @@ export const SEARCH_MIGRATIONS = [
       CREATE INDEX semantic_chunks_recent_idx
         ON semantic_chunks(model, generation_id, indexed_at DESC, project_id);
     `,
-  },
-  {
-    version: 11,
-    sql: `
+    },
+    {
+        version: 11,
+        sql: `
       ALTER TABLE background_jobs ADD COLUMN result_json TEXT;
       CREATE INDEX background_jobs_kind_queue_idx
         ON background_jobs(kind, status, available_at, priority DESC, created_at);
       CREATE INDEX background_jobs_stale_lease_idx
         ON background_jobs(status, heartbeat_at) WHERE status = 'running';
     `,
-  },
+    },
 ];

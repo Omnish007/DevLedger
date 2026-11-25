@@ -1,10 +1,92 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-function InputGroup({ className, ...props }: React.ComponentProps<'div'>) { return <div data-slot="input-group" role="group" className={cn('group/input-group relative flex min-w-0 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/40 [&>input]:min-w-0 [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:shadow-none [&>input]:focus-visible:ring-0', className)} {...props} />; }
-function InputGroupAddon({ className, align = 'inline-start', ...props }: React.ComponentProps<'div'> & { align?: 'inline-start' | 'inline-end' | 'block-start' | 'block-end' }) { return <div data-slot="input-group-addon" data-align={align} className={cn('flex shrink-0 items-center gap-2 px-3 text-sm text-muted-foreground [&_svg]:size-4', align === 'inline-start' && 'order-first', align === 'inline-end' && 'order-last', align === 'block-start' && 'w-full border-b px-3 py-2', align === 'block-end' && 'w-full border-t px-3 py-2', className)} {...props} />; }
-function InputGroupText({ className, ...props }: React.ComponentProps<'span'>) { return <span data-slot="input-group-text" className={cn('text-xs text-muted-foreground', className)} {...props} />; }
-function InputGroupButton({ className, size = 'icon-sm', ...props }: React.ComponentProps<'button'> & { size?: 'xs' | 'sm' | 'icon-xs' | 'icon-sm' }) { return <button data-slot="input-group-button" type="button" className={cn('inline-flex shrink-0 items-center justify-center rounded-sm text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50', size === 'xs' && 'h-6 px-2', size === 'sm' && 'h-7 px-2', size === 'icon-xs' && 'size-6', size === 'icon-sm' && 'size-7', className)} {...props} />; }
-function InputGroupInput({ className, ...props }: React.ComponentProps<'input'>) { return <input data-slot="input-group-control" className={cn('h-9 w-full min-w-0 bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50', className)} {...props} />; }
-function InputGroupTextarea({ className, ...props }: React.ComponentProps<'textarea'>) { return <textarea data-slot="input-group-control" className={cn('min-h-20 w-full min-w-0 resize-y bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50', className)} {...props} />; }
+function InputGroup({ className, ...props }: React.ComponentProps<'div'>) {
+    return (
+        <div
+            data-slot="input-group"
+            role="group"
+            className={cn(
+                'group/input-group relative flex min-w-0 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/40 [&>input]:min-w-0 [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:shadow-none [&>input]:focus-visible:ring-0',
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+function InputGroupAddon({
+    className,
+    align = 'inline-start',
+    ...props
+}: React.ComponentProps<'div'> & { align?: 'inline-start' | 'inline-end' | 'block-start' | 'block-end' }) {
+    return (
+        <div
+            data-slot="input-group-addon"
+            data-align={align}
+            className={cn(
+                'flex shrink-0 items-center gap-2 px-3 text-sm text-muted-foreground [&_svg]:size-4',
+                align === 'inline-start' && 'order-first',
+                align === 'inline-end' && 'order-last',
+                align === 'block-start' && 'w-full border-b px-3 py-2',
+                align === 'block-end' && 'w-full border-t px-3 py-2',
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+function InputGroupText({ className, ...props }: React.ComponentProps<'span'>) {
+    return (
+        <span
+            data-slot="input-group-text"
+            className={cn('text-xs text-muted-foreground', className)}
+            {...props}
+        />
+    );
+}
+function InputGroupButton({
+    className,
+    size = 'icon-sm',
+    ...props
+}: React.ComponentProps<'button'> & { size?: 'xs' | 'sm' | 'icon-xs' | 'icon-sm' }) {
+    return (
+        <button
+            data-slot="input-group-button"
+            type="button"
+            className={cn(
+                'inline-flex shrink-0 items-center justify-center rounded-sm text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+                size === 'xs' && 'h-6 px-2',
+                size === 'sm' && 'h-7 px-2',
+                size === 'icon-xs' && 'size-6',
+                size === 'icon-sm' && 'size-7',
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+function InputGroupInput({ className, ...props }: React.ComponentProps<'input'>) {
+    return (
+        <input
+            data-slot="input-group-control"
+            className={cn(
+                'h-9 w-full min-w-0 bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                className,
+            )}
+            {...props}
+        />
+    );
+}
+function InputGroupTextarea({ className, ...props }: React.ComponentProps<'textarea'>) {
+    return (
+        <textarea
+            data-slot="input-group-control"
+            className={cn(
+                'min-h-20 w-full min-w-0 resize-y bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                className,
+            )}
+            {...props}
+        />
+    );
+}
 export { InputGroup, InputGroupAddon, InputGroupText, InputGroupButton, InputGroupInput, InputGroupTextarea };

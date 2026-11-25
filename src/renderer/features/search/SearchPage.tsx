@@ -11,236 +11,363 @@ import { Switch } from '@/components/ui/switch';
 import { SearchResultsList, SearchSyntaxPopover } from './SearchResultsList';
 
 type Props = {
-  onSearch: (query: string, projectId?: string | null) => Promise<SearchResult[]>;
-  onHybridSearch: (query: string, projectId?: string | null) => Promise<SearchResult[]>;
-  onOpenResult: (result: SearchResult) => void;
-  onAiStatus: () => Promise<OllamaStatus>;
-  onSummarize: (query: string, projectId?: string | null) => Promise<AiSummary>;
+    onSearch: (query: string, projectId?: string | null) => Promise<SearchResult[]>;
+    onHybridSearch: (query: string, projectId?: string | null) => Promise<SearchResult[]>;
+    onOpenResult: (result: SearchResult) => void;
+    onAiStatus: () => Promise<OllamaStatus>;
+    onSummarize: (query: string, projectId?: string | null) => Promise<AiSummary>;
 };
 
 export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus, onSummarize }: Props) {
-  const [query, setQuery] = useState('');
-  const [projectId, setProjectId] = useState('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | EntityType>('all');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
-  const [page, setPage] = useState(1);
-  const pageSize = 20;
-  const filteredResults = useMemo(
-    () => (typeFilter === 'all' ? results : results.filter((item) => item.type === typeFilter)),
-    [results, typeFilter],
-  );
-  const pageCount = Math.max(1, Math.ceil(filteredResults.length / pageSize));
-  const visibleResults = filteredResults.slice((page - 1) * pageSize, page * pageSize);
-  const [busy, setBusy] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [aiError, setAiError] = useState('');
-  const [searched, setSearched] = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(false);
-  const [semanticEnabled, setSemanticEnabled] = useState(false);
-  const [semanticBusy, setSemanticBusy] = useState(false);
-  const [semanticError, setSemanticError] = useState('');
-  const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
-  const semanticRequestSequence = useRef(0);
-  const summaryRequestSequence = useRef(0);
+    const [query, setQuery] = useState('');
+    const [projectId, setProjectId] = useState('all');
+    const [typeFilter, setTypeFilter] = useState<'all' | EntityType>('all');
+    const [results, setResults] = useState<SearchResult[]>([]);
+    const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+    const [page, setPage] = useState(1);
+    const pageSize = 20;
+    const filteredResults = useMemo(
+        () => (typeFilter === 'all' ? results : results.filter((item) => item.type === typeFilter)),
+        [results, typeFilter],
+    );
+    const pageCount = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+    const visibleResults = filteredResults.slice((page - 1) * pageSize, page * pageSize);
+    const [busy, setBusy] = useState(false);
+    const [aiBusy, setAiBusy] = useState(false);
+    const [error, setError] = useState('');
+    const [aiError, setAiError] = useState('');
+    const [searched, setSearched] = useState(false);
+    const [aiEnabled, setAiEnabled] = useState(false);
+    const [semanticEnabled, setSemanticEnabled] = useState(false);
+    const [semanticBusy, setSemanticBusy] = useState(false);
+    const [semanticError, setSemanticError] = useState('');
+    const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
+    const semanticRequestSequence = useRef(0);
+    const summaryRequestSequence = useRef(0);
 
-  useEffect(() => {
-    const ids = [...new Set(results.map((result) => result.projectId).filter((id): id is string => Boolean(id)))].slice(0, 200);
-    let active = true;
-    void window.devLedger.projects.getNames(ids).then((names) => { if (active) setProjectNames((current) => ({ ...current, ...names })); }).catch(() => undefined);
-    return () => { active = false; };
-  }, [results]);
+    useEffect(() => {
+        const ids = [
+            ...new Set(results.map((result) => result.projectId).filter((id): id is string => Boolean(id))),
+        ].slice(0, 200);
+        let active = true;
+        void window.devLedger.projects
+            .getNames(ids)
+            .then((names) => {
+                if (active) setProjectNames((current) => ({ ...current, ...names }));
+            })
+            .catch(() => undefined);
+        return () => {
+            active = false;
+        };
+    }, [results]);
 
-  async function requestSummary(queryValue = query, scope = projectId) {
-    if (!queryValue.trim()) return;
-    const requestId = ++summaryRequestSequence.current;
-    setAiBusy(true); setAiError(''); setAiSummary(null);
-    try {
-      const status = await onAiStatus();
-      if (!status.available) throw new Error(status.error ?? 'Ollama is unavailable.');
-      const summary = await onSummarize(queryValue.trim(), scope === 'all' ? null : scope);
-      if (requestId === summaryRequestSequence.current) setAiSummary(summary);
-    } catch (caught) {
-      if (requestId === summaryRequestSequence.current) setAiError(friendlyError(caught, 'AI summary could not be generated.'));
-    } finally {
-      if (requestId === summaryRequestSequence.current) setAiBusy(false);
+    async function requestSummary(queryValue = query, scope = projectId) {
+        if (!queryValue.trim()) return;
+        const requestId = ++summaryRequestSequence.current;
+        setAiBusy(true);
+        setAiError('');
+        setAiSummary(null);
+        try {
+            const status = await onAiStatus();
+            if (!status.available) throw new Error(status.error ?? 'Ollama is unavailable.');
+            const summary = await onSummarize(queryValue.trim(), scope === 'all' ? null : scope);
+            if (requestId === summaryRequestSequence.current) setAiSummary(summary);
+        } catch (caught) {
+            if (requestId === summaryRequestSequence.current)
+                setAiError(friendlyError(caught, 'AI summary could not be generated.'));
+        } finally {
+            if (requestId === summaryRequestSequence.current) setAiBusy(false);
+        }
     }
-  }
 
-  async function rerankSemantically(queryValue = query, scope = projectId, summarizeIfFound = false) {
-    if (!queryValue.trim()) return;
-    const requestId = ++semanticRequestSequence.current;
-    setSemanticBusy(true); setSemanticError('');
-    try {
-      const ranked = await onHybridSearch(queryValue.trim(), scope === 'all' ? null : scope);
-      if (requestId === semanticRequestSequence.current) {
-        setResults(ranked); setPage(1);
-        if (summarizeIfFound && ranked.length > 0) void requestSummary(queryValue, scope);
-      }
-    } catch (caught) {
-      if (requestId === semanticRequestSequence.current) setSemanticError(friendlyError(caught, 'Semantic search is unavailable. FTS5 results remain available.'));
-    } finally {
-      if (requestId === semanticRequestSequence.current) setSemanticBusy(false);
+    async function rerankSemantically(queryValue = query, scope = projectId, summarizeIfFound = false) {
+        if (!queryValue.trim()) return;
+        const requestId = ++semanticRequestSequence.current;
+        setSemanticBusy(true);
+        setSemanticError('');
+        try {
+            const ranked = await onHybridSearch(queryValue.trim(), scope === 'all' ? null : scope);
+            if (requestId === semanticRequestSequence.current) {
+                setResults(ranked);
+                setPage(1);
+                if (summarizeIfFound && ranked.length > 0) void requestSummary(queryValue, scope);
+            }
+        } catch (caught) {
+            if (requestId === semanticRequestSequence.current)
+                setSemanticError(
+                    friendlyError(caught, 'Semantic search is unavailable. FTS5 results remain available.'),
+                );
+        } finally {
+            if (requestId === semanticRequestSequence.current) setSemanticBusy(false);
+        }
     }
-  }
 
-  async function runQuery(nextQuery: string, nextScope = projectId) {
-    if (!nextQuery.trim()) return;
-    setQuery(nextQuery);
-    semanticRequestSequence.current += 1;
-    summaryRequestSequence.current += 1;
-    setBusy(true); setAiBusy(false); setError(''); setSearched(true); setAiSummary(null); setAiError(''); setSemanticError('');
-    let lexicalCount = 0;
-    let succeeded = false;
-    try {
-      const lexicalResults = await onSearch(nextQuery.trim(), nextScope === 'all' ? null : nextScope);
-      setResults(lexicalResults); setTypeFilter('all'); setPage(1);
-      lexicalCount = lexicalResults.length;
-      succeeded = true;
-    } catch (caught) {
-      setError(friendlyError(caught, 'Search failed.'));
-      setResults([]);
-    } finally { setBusy(false); }
-    if (!succeeded) return;
-    // Only invoke AI summary once at least one matching search result exists.
-    if (aiEnabled && lexicalCount > 0) void requestSummary(nextQuery, nextScope);
-    if (semanticEnabled) void rerankSemantically(nextQuery.trim(), nextScope, aiEnabled && lexicalCount === 0);
-  }
+    async function runQuery(nextQuery: string, nextScope = projectId) {
+        if (!nextQuery.trim()) return;
+        setQuery(nextQuery);
+        semanticRequestSequence.current += 1;
+        summaryRequestSequence.current += 1;
+        setBusy(true);
+        setAiBusy(false);
+        setError('');
+        setSearched(true);
+        setAiSummary(null);
+        setAiError('');
+        setSemanticError('');
+        let lexicalCount = 0;
+        let succeeded = false;
+        try {
+            const lexicalResults = await onSearch(nextQuery.trim(), nextScope === 'all' ? null : nextScope);
+            setResults(lexicalResults);
+            setTypeFilter('all');
+            setPage(1);
+            lexicalCount = lexicalResults.length;
+            succeeded = true;
+        } catch (caught) {
+            setError(friendlyError(caught, 'Search failed.'));
+            setResults([]);
+        } finally {
+            setBusy(false);
+        }
+        if (!succeeded) return;
+        // Only invoke AI summary once at least one matching search result exists.
+        if (aiEnabled && lexicalCount > 0) void requestSummary(nextQuery, nextScope);
+        if (semanticEnabled)
+            void rerankSemantically(nextQuery.trim(), nextScope, aiEnabled && lexicalCount === 0);
+    }
 
-  function search(event?: React.FormEvent) {
-    event?.preventDefault();
-    void runQuery(query, projectId);
-  }
+    function search(event?: React.FormEvent) {
+        event?.preventDefault();
+        void runQuery(query, projectId);
+    }
 
-  function toggleSemantic(enabled: boolean) {
-    setSemanticEnabled(enabled); setSemanticError('');
-    if (!enabled) { semanticRequestSequence.current += 1; setSemanticBusy(false); setPage(1); }
-    if (enabled && searched && query.trim()) void rerankSemantically(query, projectId, aiEnabled && results.length === 0);
-    if (!enabled && searched && query.trim()) void onSearch(query.trim(), projectId === 'all' ? null : projectId).then(setResults).catch(() => undefined);
-  }
+    function toggleSemantic(enabled: boolean) {
+        setSemanticEnabled(enabled);
+        setSemanticError('');
+        if (!enabled) {
+            semanticRequestSequence.current += 1;
+            setSemanticBusy(false);
+            setPage(1);
+        }
+        if (enabled && searched && query.trim())
+            void rerankSemantically(query, projectId, aiEnabled && results.length === 0);
+        if (!enabled && searched && query.trim())
+            void onSearch(query.trim(), projectId === 'all' ? null : projectId)
+                .then(setResults)
+                .catch(() => undefined);
+    }
 
-  function toggleAi(enabled: boolean) {
-    setAiEnabled(enabled);
-    if (!enabled) { summaryRequestSequence.current += 1; setAiBusy(false); setAiSummary(null); setAiError(''); }
-    else if (searched && results.length) void requestSummary(query, projectId);
-  }
+    function toggleAi(enabled: boolean) {
+        setAiEnabled(enabled);
+        if (!enabled) {
+            summaryRequestSequence.current += 1;
+            setAiBusy(false);
+            setAiSummary(null);
+            setAiError('');
+        } else if (searched && results.length) void requestSummary(query, projectId);
+    }
 
-  function renderExcerpt(rawExcerpt: string) {
-    const clean = stripHtmlToPlainText(rawExcerpt, { preserveMark: true });
-    return clean.split(/(<mark>[\s\S]*?<\/mark>)/g).map((part, index) => (
-      part.startsWith('<mark>') && part.endsWith('</mark>')
-        ? <mark key={index}>{part.slice(6, -7)}</mark>
-        : <span key={index}>{part}</span>
-    ));
-  }
+    function renderExcerpt(rawExcerpt: string) {
+        const clean = stripHtmlToPlainText(rawExcerpt, { preserveMark: true });
+        return clean
+            .split(/(<mark>[\s\S]*?<\/mark>)/g)
+            .map((part, index) =>
+                part.startsWith('<mark>') && part.endsWith('</mark>') ? (
+                    <mark key={index}>{part.slice(6, -7)}</mark>
+                ) : (
+                    <span key={index}>{part}</span>
+                ),
+            );
+    }
 
-  const typeCounts = useMemo(() => {
-    const counts: Record<'all' | EntityType, number> = { all: results.length, note: 0, task: 0, project: 0, document: 0, contact: 0 };
-    for (const item of results) counts[item.type] += 1;
-    return counts;
-  }, [results]);
+    const typeCounts = useMemo(() => {
+        const counts: Record<'all' | EntityType, number> = {
+            all: results.length,
+            note: 0,
+            task: 0,
+            project: 0,
+            document: 0,
+            contact: 0,
+        };
+        for (const item of results) counts[item.type] += 1;
+        return counts;
+    }, [results]);
 
-  return (
-    <div className="workspace-page page-search mx-auto">
-      <div className={searched ? 'mx-auto max-w-[780px] space-y-4' : 'mx-auto flex min-h-[58vh] max-w-[680px] flex-col justify-center space-y-5'}>
-        <PageHeader
-          title="Search"
-          actions={(
-            <div className="flex items-center gap-3 text-xs">
-              <label className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Re-rank with local Ollama embeddings">
-                <Switch checked={semanticEnabled} onCheckedChange={toggleSemantic} size="sm" />
-                <span>Semantic</span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Summarize matches with local Ollama">
-                <Switch checked={aiEnabled} onCheckedChange={toggleAi} size="sm" />
-                <Sparkles className="size-3.5" />
-                <span>AI summary</span>
-              </label>
-              <SearchSyntaxPopover />
+    return (
+        <div className="workspace-page page-search mx-auto">
+            <div
+                className={
+                    searched
+                        ? 'mx-auto max-w-[780px] space-y-4'
+                        : 'mx-auto flex min-h-[58vh] max-w-[680px] flex-col justify-center space-y-5'
+                }
+            >
+                <PageHeader
+                    title="Search"
+                    actions={
+                        <div className="flex items-center gap-3 text-xs">
+                            <label
+                                className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                                title="Re-rank with local Ollama embeddings"
+                            >
+                                <Switch
+                                    checked={semanticEnabled}
+                                    onCheckedChange={toggleSemantic}
+                                    size="sm"
+                                />
+                                <span>Semantic</span>
+                            </label>
+                            <label
+                                className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                                title="Summarize matches with local Ollama"
+                            >
+                                <Switch checked={aiEnabled} onCheckedChange={toggleAi} size="sm" />
+                                <Sparkles className="size-3.5" />
+                                <span>AI summary</span>
+                            </label>
+                            <SearchSyntaxPopover />
+                        </div>
+                    }
+                />
+
+                <form onSubmit={(event) => search(event)} className="search-pill">
+                    <SearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <input
+                        autoFocus
+                        aria-label="Search workspace"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search notes, tasks, projects, contacts or documents…"
+                        className="h-9 min-w-0 flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
+                    />
+                    {query && (
+                        <button
+                            type="button"
+                            aria-label="Clear search"
+                            onClick={() => {
+                                setQuery('');
+                                setResults([]);
+                                setSearched(false);
+                                setAiSummary(null);
+                                setError('');
+                            }}
+                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                            <X className="size-3.5" />
+                        </button>
+                    )}
+                    <span className="h-5 w-px shrink-0 bg-border/80" aria-hidden="true" />
+                    <div className="search-scope shrink-0">
+                        <RemoteRecordPicker
+                            entityType="project"
+                            value={projectId === 'all' ? '' : projectId}
+                            onValueChange={(value) => setProjectId(value || 'all')}
+                            onChoiceChange={(c) => {
+                                if (c) setProjectNames((cur) => ({ ...cur, [c.id]: c.label }));
+                            }}
+                            placeholder="All projects"
+                            selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]}
+                            className="w-36 text-xs"
+                        />
+                    </div>
+                    <Button
+                        type="submit"
+                        size="sm"
+                        className="h-9 rounded-xl px-4"
+                        disabled={busy || !query.trim()}
+                    >
+                        {busy ? 'Searching…' : 'Search'}
+                    </Button>
+                </form>
+
+                {!searched && (
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs">
+                        {(['type:note', 'type:task', 'is:blocked', 'type:pdf'] as const).map((chip) => (
+                            <button
+                                key={chip}
+                                type="button"
+                                onClick={() => void runQuery(chip)}
+                                className="rounded-full border border-border/80 bg-card px-3 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-surface-subtle hover:text-foreground"
+                            >
+                                {chip}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {error && (
+                    <p role="alert" className="text-xs text-danger">
+                        {error}
+                    </p>
+                )}
+                {semanticError && (
+                    <p role="alert" className="text-xs text-warning">
+                        {semanticError}
+                    </p>
+                )}
+                {aiError && (
+                    <div
+                        role="alert"
+                        className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/5 p-3 text-xs"
+                    >
+                        <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />
+                        <span>{aiError}</span>
+                    </div>
+                )}
+
+                {aiEnabled && aiSummary && (
+                    <section className="rounded-xl border border-border/80 bg-surface-subtle/55 p-4">
+                        <div className="mb-2 flex items-center gap-2">
+                            <Sparkles className="size-3.5 text-primary" />
+                            <h3 className="text-xs font-semibold">AI Answer</h3>
+                            <Badge variant="secondary">{aiSummary.model}</Badge>
+                            {aiSummary.cached && <Badge variant="outline">Cached</Badge>}
+                        </div>
+                        <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">
+                            {aiSummary.summary}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2.5">
+                            {aiSummary.citations.map((source, index) => (
+                                <button
+                                    key={`${source.type}:${source.id}`}
+                                    type="button"
+                                    onClick={() => onOpenResult(source)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-border hover:bg-surface-hover"
+                                >
+                                    <span className="font-mono text-[10px] text-primary">[{index + 1}]</span>
+                                    <span className="truncate">{source.title}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {searched && (
+                    <SearchResultsList
+                        visibleResults={visibleResults}
+                        filteredCount={filteredResults.length}
+                        typeFilter={typeFilter}
+                        typeCounts={typeCounts}
+                        projectNames={projectNames}
+                        busy={busy}
+                        semanticBusy={semanticBusy}
+                        aiEnabled={aiEnabled}
+                        aiBusy={aiBusy}
+                        totalResults={results.length}
+                        error={error}
+                        page={page}
+                        pageCount={pageCount}
+                        onTypeFilterChange={(next) => {
+                            setTypeFilter(next);
+                            setPage(1);
+                        }}
+                        onPageChange={setPage}
+                        onOpenResult={onOpenResult}
+                        onRequestSummary={() => void requestSummary()}
+                        renderExcerpt={renderExcerpt}
+                    />
+                )}
             </div>
-          )}
-        />
-
-        <form onSubmit={(event) => search(event)} className="search-pill">
-          <SearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <input
-            autoFocus
-            aria-label="Search workspace"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search notes, tasks, projects, contacts or documents…"
-            className="h-9 min-w-0 flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          {query && (
-            <button type="button" aria-label="Clear search" onClick={() => { setQuery(''); setResults([]); setSearched(false); setAiSummary(null); setError(''); }} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-              <X className="size-3.5" />
-            </button>
-          )}
-          <span className="h-5 w-px shrink-0 bg-border/80" aria-hidden="true" />
-          <div className="search-scope shrink-0">
-            <RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(value) => setProjectId(value || 'all')} onChoiceChange={(c) => { if (c) setProjectNames((cur) => ({ ...cur, [c.id]: c.label })); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-36 text-xs" />
-          </div>
-          <Button type="submit" size="sm" className="h-9 rounded-xl px-4" disabled={busy || !query.trim()}>{busy ? 'Searching…' : 'Search'}</Button>
-        </form>
-
-        {!searched && (
-          <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs">
-            {(['type:note', 'type:task', 'is:blocked', 'type:pdf'] as const).map((chip) => (
-              <button key={chip} type="button" onClick={() => void runQuery(chip)} className="rounded-full border border-border/80 bg-card px-3 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-surface-subtle hover:text-foreground">
-                {chip}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {error && <p role="alert" className="text-xs text-danger">{error}</p>}
-        {semanticError && <p role="alert" className="text-xs text-warning">{semanticError}</p>}
-        {aiError && <div role="alert" className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/5 p-3 text-xs"><AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" /><span>{aiError}</span></div>}
-
-        {aiEnabled && aiSummary && (
-          <section className="rounded-xl border border-border/80 bg-surface-subtle/55 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="size-3.5 text-primary" />
-              <h3 className="text-xs font-semibold">AI Answer</h3>
-              <Badge variant="secondary">{aiSummary.model}</Badge>
-              {aiSummary.cached && <Badge variant="outline">Cached</Badge>}
-            </div>
-            <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">{aiSummary.summary}</p>
-            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2.5">
-              {aiSummary.citations.map((source, index) => (
-                <button key={`${source.type}:${source.id}`} type="button" onClick={() => onOpenResult(source)} className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-border hover:bg-surface-hover">
-                  <span className="font-mono text-[10px] text-primary">[{index + 1}]</span>
-                  <span className="truncate">{source.title}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {searched && (
-          <SearchResultsList
-            visibleResults={visibleResults}
-            filteredCount={filteredResults.length}
-            typeFilter={typeFilter}
-            typeCounts={typeCounts}
-            projectNames={projectNames}
-            busy={busy}
-            semanticBusy={semanticBusy}
-            aiEnabled={aiEnabled}
-            aiBusy={aiBusy}
-            totalResults={results.length}
-            error={error}
-            page={page}
-            pageCount={pageCount}
-            onTypeFilterChange={(next) => { setTypeFilter(next); setPage(1); }}
-            onPageChange={setPage}
-            onOpenResult={onOpenResult}
-            onRequestSummary={() => void requestSummary()}
-            renderExcerpt={renderExcerpt}
-          />
-        )}
-      </div>
-    </div>
-  );
+        </div>
+    );
 }

@@ -1,7 +1,7 @@
 export const RELATION_MIGRATIONS = [
-  {
-    version: 2,
-    sql: `
+    {
+        version: 2,
+        sql: `
       CREATE TABLE vault_metadata (
         singleton_id INTEGER PRIMARY KEY CHECK(singleton_id = 1),
         pass_salt TEXT NOT NULL, pass_nonce TEXT NOT NULL, pass_wrapped_key TEXT NOT NULL, pass_tag TEXT NOT NULL,
@@ -9,18 +9,18 @@ export const RELATION_MIGRATIONS = [
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
     `,
-  },
-  {
-    version: 3,
-    sql: `
+    },
+    {
+        version: 3,
+        sql: `
       INSERT INTO note_search(note_search, rank) VALUES('secure-delete', 1);
       INSERT INTO task_search(task_search, rank) VALUES('secure-delete', 1);
       INSERT INTO document_search(document_search, rank) VALUES('secure-delete', 1);
     `,
-  },
-  {
-    version: 4,
-    sql: `
+    },
+    {
+        version: 4,
+        sql: `
       CREATE TABLE task_blockers (
         id TEXT PRIMARY KEY,
         task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -68,10 +68,10 @@ export const RELATION_MIGRATIONS = [
       CREATE INDEX reminders_entity_status_idx ON reminders(entity_type, entity_id, status);
       CREATE INDEX task_dependencies_pair_idx ON task_dependencies(task_id, depends_on_task_id);
     `,
-  },
-  {
-    version: 5,
-    sql: `
+    },
+    {
+        version: 5,
+        sql: `
       CREATE TABLE ai_summary_cache (
         cache_key TEXT PRIMARY KEY,
         normalized_query TEXT NOT NULL,
@@ -84,10 +84,10 @@ export const RELATION_MIGRATIONS = [
       );
       CREATE INDEX ai_summary_cache_created_idx ON ai_summary_cache(created_at DESC);
     `,
-  },
-  {
-    version: 6,
-    sql: `
+    },
+    {
+        version: 6,
+        sql: `
       CREATE VIRTUAL TABLE contact_search USING fts5(contact_id UNINDEXED, name, company, role, email, phone, notes, tokenize='unicode61 remove_diacritics 2');
       CREATE TRIGGER contacts_search_insert AFTER INSERT ON contacts WHEN new.deleted_at IS NULL BEGIN
         INSERT INTO contact_search(contact_id, name, company, role, email, phone, notes)
@@ -105,5 +105,5 @@ export const RELATION_MIGRATIONS = [
       INSERT INTO contact_search(contact_id, name, company, role, email, phone, notes)
       SELECT id, name, company, role, email, phone, notes FROM contacts WHERE deleted_at IS NULL;
     `,
-  },
+    },
 ];

@@ -5,52 +5,91 @@ import { stripHtmlToPlainText } from '../../domain/html-text.ts';
 import { splitIntoChunks, vectorBandBuckets } from '../../domain/vector-search.ts';
 import type { EmbeddingAdapter } from './embeddings.ts';
 
-interface EmbeddingServiceStatus { available: boolean; models: string[]; error: string | null; }
+interface EmbeddingServiceStatus {
+    available: boolean;
+    models: string[];
+    error: string | null;
+}
 
 interface KnowledgeSourceRow {
-  source_type: SearchResult['type']; source_id: string; project_id: string | null;
-  title: string; body: string; source_updated_at: string;
+    source_type: SearchResult['type'];
+    source_id: string;
+    project_id: string | null;
+    title: string;
+    body: string;
+    source_updated_at: string;
 }
-interface PendingChunk extends KnowledgeSourceRow { chunk_index: number; content: string; content_hash: string; }
+interface PendingChunk extends KnowledgeSourceRow {
+    chunk_index: number;
+    content: string;
+    content_hash: string;
+}
 
 export class SemanticIndexer {
-  private readonly db: Database.Database;
-  private readonly embeddingAdapter: EmbeddingAdapter;
-  private readonly getStatus: () => Promise<EmbeddingServiceStatus>;
+    private readonly db: Database.Database;
+    private readonly embeddingAdapter: EmbeddingAdapter;
+    private readonly getStatus: () => Promise<EmbeddingServiceStatus>;
 
-  constructor(db: Database.Database, embeddingAdapter: EmbeddingAdapter, getStatus: () => Promise<EmbeddingServiceStatus>) {
-    this.db = db;
-    this.embeddingAdapter = embeddingAdapter;
-    this.getStatus = getStatus;
-  }
+    constructor(
+        db: Database.Database,
+        embeddingAdapter: EmbeddingAdapter,
+        getStatus: () => Promise<EmbeddingServiceStatus>,
+    ) {
+        this.db = db;
+        this.embeddingAdapter = embeddingAdapter;
+        this.getStatus = getStatus;
+    }
 
-  private embeddingModel(): string {
-    const row = this.db.prepare("SELECT value_json FROM app_settings WHERE key = 'ai.embeddingModel'").get() as { value_json: string } | undefined;
-    let selected = 'embeddinggemma';
-    try { if (row) selected = String(JSON.parse(row.value_json)); } catch { /* use safe default */ }
-    if (!/^[A-Za-z0-9._:/-]{1,128}$/.test(selected)) throw new Error('The configured embedding model name is invalid.');
-    return selected;
-  }
+    private embeddingModel(): string {
+        const row = this.db
+            .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.embeddingModel'")
+            .get() as { value_json: string } | undefined;
+        let selected = 'embeddinggemma';
+        try {
+            if (row) selected = String(JSON.parse(row.value_json));
+        } catch {
+            /* use safe default */
+        }
+        if (!/^[A-Za-z0-9._:/-]{1,128}$/.test(selected))
+            throw new Error('The configured embedding model name is invalid.');
+        return selected;
+    }
 
-  private saveSetting(key: string, value: unknown): void {
-    const timestamp = new Date().toISOString();
-    this.db.prepare(`INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`)
-      .run(key, JSON.stringify(value), timestamp);
-  }
+    private saveSetting(key: string, value: unknown): void {
+        const timestamp = new Date().toISOString();
+        this.db
+            .prepare(
+                `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+            )
+            .run(key, JSON.stringify(value), timestamp);
+    }
 
-  /** Build a new generation off to the side, then atomically switch active generation after every batch succeeds. */
-  async indexLocalKnowledge(signal?: AbortSignal, onProgress?: (progress: { sources: number; chunks: number; phase: string }) => void): Promise<SemanticIndexReport> {
-    const status = await this.getStatus();
-    if (!status.available) throw new Error(`Ollama is unavailable (${status.error ?? 'connection failed'}).`);
-    const model = this.embeddingModel();
-    if (!status.models.includes(model)) throw new Error(`Embedding model “${model}” is not installed. Pull it in Ollama or change ai.embeddingModel in Settings.`);
-    signal?.throwIfAborted();
-    const generation = randomUUID();
-    const startedAt = new Date().toISOString();
-    this.saveSetting('ai.semantic.progress', { status: 'indexing', model, generation, chunks: 0, startedAt });
+    /** Build a new generation off to the side, then atomically switch active generation after every batch succeeds. */
+    async indexLocalKnowledge(
+        signal?: AbortSignal,
+        onProgress?: (progress: { sources: number; chunks: number; phase: string }) => void,
+    ): Promise<SemanticIndexReport> {
+        const status = await this.getStatus();
+        if (!status.available)
+            throw new Error(`Ollama is unavailable (${status.error ?? 'connection failed'}).`);
+        const model = this.embeddingModel();
+        if (!status.models.includes(model))
+            throw new Error(
+                `Embedding model “${model}” is not installed. Pull it in Ollama or change ai.embeddingModel in Settings.`,
+            );
+        signal?.throwIfAborted();
+        const generation = randomUUID();
+        const startedAt = new Date().toISOString();
+        this.saveSetting('ai.semantic.progress', {
+            status: 'indexing',
+            model,
+            generation,
+            chunks: 0,
+            startedAt,
+        });
 
-    const sourceQuery = `
+        const sourceQuery = `
       SELECT 'project' AS source_type, id AS source_id, id AS project_id, name AS title, description AS body, updated_at AS source_updated_at
         FROM projects WHERE deleted_at IS NULL
       UNION ALL
@@ -63,83 +102,137 @@ export class SemanticIndexer {
       UNION ALL
       SELECT 'document', id, project_id, title, extracted_text, updated_at FROM documents WHERE status = 'indexed' AND deleted_at IS NULL AND is_encrypted = 0
     `;
-    const iterator = this.db.prepare(sourceQuery).iterate() as Iterable<KnowledgeSourceRow>;
-    const pending: PendingChunk[] = [];
-    let sourceCount = 0;
-    let chunkCount = 0;
-    let dimensions = 0;
-    const insert = this.db.prepare(`INSERT INTO semantic_chunks
+        const iterator = this.db.prepare(sourceQuery).iterate() as Iterable<KnowledgeSourceRow>;
+        const pending: PendingChunk[] = [];
+        let sourceCount = 0;
+        let chunkCount = 0;
+        let dimensions = 0;
+        const insert = this.db.prepare(`INSERT INTO semantic_chunks
       (id, source_type, source_id, project_id, chunk_index, title, content, excerpt, source_updated_at,
        content_hash, model, generation_id, dimensions, vector_json, indexed_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    const insertBucket = this.db.prepare('INSERT INTO semantic_vector_buckets (chunk_id, band, bucket) VALUES (?, ?, ?)');
+        const insertBucket = this.db.prepare(
+            'INSERT INTO semantic_vector_buckets (chunk_id, band, bucket) VALUES (?, ?, ?)',
+        );
 
-    const persistBatch = async (): Promise<void> => {
-      if (!pending.length) return;
-      const batch = pending.splice(0, pending.length);
-      signal?.throwIfAborted();
-      const vectors = await this.embeddingAdapter.embed(batch.map((item) => item.content), model, signal);
-      signal?.throwIfAborted();
-      if (vectors.length !== batch.length) throw new Error('The embedding adapter returned an invalid batch size.');
-      const timestamp = new Date().toISOString();
-      this.db.exec('BEGIN IMMEDIATE');
-      try {
-        batch.forEach((item, index) => {
-          const vector = vectors[index]!;
-          if (dimensions && vector.length !== dimensions) throw new Error('Embedding model returned inconsistent vector dimensions.');
-          dimensions = vector.length;
-          const chunkId = randomUUID();
-          insert.run(chunkId, item.source_type, item.source_id, item.project_id, item.chunk_index,
-            item.title, item.content, item.content.slice(0, 320), item.source_updated_at, item.content_hash,
-            model, generation, vector.length, JSON.stringify(vector), timestamp);
-          vectorBandBuckets(vector).forEach((bucket, band) => insertBucket.run(chunkId, band, bucket));
-        });
-        this.db.exec('COMMIT');
-      } catch (error) {
-        this.db.exec('ROLLBACK');
-        throw error;
-      }
-      chunkCount += batch.length;
-      this.saveSetting('ai.semantic.progress', { status: 'indexing', model, generation, sources: sourceCount, chunks: chunkCount, startedAt });
-      onProgress?.({ sources: sourceCount, chunks: chunkCount, phase: 'embedding' });
-    };
+        const persistBatch = async (): Promise<void> => {
+            if (!pending.length) return;
+            const batch = pending.splice(0, pending.length);
+            signal?.throwIfAborted();
+            const vectors = await this.embeddingAdapter.embed(
+                batch.map((item) => item.content),
+                model,
+                signal,
+            );
+            signal?.throwIfAborted();
+            if (vectors.length !== batch.length)
+                throw new Error('The embedding adapter returned an invalid batch size.');
+            const timestamp = new Date().toISOString();
+            this.db.exec('BEGIN IMMEDIATE');
+            try {
+                batch.forEach((item, index) => {
+                    const vector = vectors[index]!;
+                    if (dimensions && vector.length !== dimensions)
+                        throw new Error('Embedding model returned inconsistent vector dimensions.');
+                    dimensions = vector.length;
+                    const chunkId = randomUUID();
+                    insert.run(
+                        chunkId,
+                        item.source_type,
+                        item.source_id,
+                        item.project_id,
+                        item.chunk_index,
+                        item.title,
+                        item.content,
+                        item.content.slice(0, 320),
+                        item.source_updated_at,
+                        item.content_hash,
+                        model,
+                        generation,
+                        vector.length,
+                        JSON.stringify(vector),
+                        timestamp,
+                    );
+                    vectorBandBuckets(vector).forEach((bucket, band) =>
+                        insertBucket.run(chunkId, band, bucket),
+                    );
+                });
+                this.db.exec('COMMIT');
+            } catch (error) {
+                this.db.exec('ROLLBACK');
+                throw error;
+            }
+            chunkCount += batch.length;
+            this.saveSetting('ai.semantic.progress', {
+                status: 'indexing',
+                model,
+                generation,
+                sources: sourceCount,
+                chunks: chunkCount,
+                startedAt,
+            });
+            onProgress?.({ sources: sourceCount, chunks: chunkCount, phase: 'embedding' });
+        };
 
-    try {
-      for (const raw of iterator) {
-        signal?.throwIfAborted();
-        const source: KnowledgeSourceRow = raw;
-        const rawBody = String(source.body ?? '').slice(0, 500_000);
-        const body = source.source_type === 'note' ? stripHtmlToPlainText(rawBody) : rawBody;
-        const text = `${String(source.title).trim()}\n\n${body}`.trim();
-        if (!text) continue;
-        const chunks = splitIntoChunks(text, 400, 60);
-        if (!chunks.length) continue;
-        sourceCount += 1;
-        const contentHash = createHash('sha256').update(text).digest('hex');
-        chunks.forEach((content, chunkIndex) => pending.push({ ...source, chunk_index: chunkIndex, content, content_hash: contentHash }));
-        if (pending.length >= 16) await persistBatch();
-        if (chunkCount + pending.length > 100_000) throw new Error('The semantic index exceeds the 100,000 chunk safety limit. Narrow your data set or use FTS5 for this workspace.');
-        if (sourceCount % 100 === 0) onProgress?.({ sources: sourceCount, chunks: chunkCount + pending.length, phase: 'collecting' });
-      }
-      await persistBatch();
-      signal?.throwIfAborted();
-      if (!chunkCount) throw new Error('No eligible unlocked text records were found for semantic indexing.');
-      // Publish the new generation only after all batches have been stored successfully.
-      this.saveSetting('ai.semantic.activeGeneration', generation);
-      this.saveSetting('ai.semantic.activeModel', model);
-      this.saveSetting('ai.semantic.indexedAt', new Date().toISOString());
-      this.db.prepare('DELETE FROM semantic_chunks WHERE model = ? AND generation_id <> ?').run(model, generation);
-      const completedAt = new Date().toISOString();
-      const report = { model, sources: sourceCount, chunks: chunkCount, completedAt };
-      this.saveSetting('ai.semantic.progress', { status: 'complete', ...report });
-      return report;
-    } catch (error) {
-      const message = error instanceof Error ? error.message.slice(0, 1000) : 'Semantic indexing failed.';
-      this.saveSetting('ai.semantic.progress', { status: 'failed', model, generation, sources: sourceCount, chunks: chunkCount, error: message, failedAt: new Date().toISOString() });
-      // Incomplete generations are not active and are safe to delete.
-      this.db.prepare('DELETE FROM semantic_chunks WHERE model = ? AND generation_id = ?').run(model, generation);
-      throw error;
+        try {
+            for (const raw of iterator) {
+                signal?.throwIfAborted();
+                const source: KnowledgeSourceRow = raw;
+                const rawBody = String(source.body ?? '').slice(0, 500_000);
+                const body = source.source_type === 'note' ? stripHtmlToPlainText(rawBody) : rawBody;
+                const text = `${String(source.title).trim()}\n\n${body}`.trim();
+                if (!text) continue;
+                const chunks = splitIntoChunks(text, 400, 60);
+                if (!chunks.length) continue;
+                sourceCount += 1;
+                const contentHash = createHash('sha256').update(text).digest('hex');
+                chunks.forEach((content, chunkIndex) =>
+                    pending.push({ ...source, chunk_index: chunkIndex, content, content_hash: contentHash }),
+                );
+                if (pending.length >= 16) await persistBatch();
+                if (chunkCount + pending.length > 100_000)
+                    throw new Error(
+                        'The semantic index exceeds the 100,000 chunk safety limit. Narrow your data set or use FTS5 for this workspace.',
+                    );
+                if (sourceCount % 100 === 0)
+                    onProgress?.({
+                        sources: sourceCount,
+                        chunks: chunkCount + pending.length,
+                        phase: 'collecting',
+                    });
+            }
+            await persistBatch();
+            signal?.throwIfAborted();
+            if (!chunkCount)
+                throw new Error('No eligible unlocked text records were found for semantic indexing.');
+            // Publish the new generation only after all batches have been stored successfully.
+            this.saveSetting('ai.semantic.activeGeneration', generation);
+            this.saveSetting('ai.semantic.activeModel', model);
+            this.saveSetting('ai.semantic.indexedAt', new Date().toISOString());
+            this.db
+                .prepare('DELETE FROM semantic_chunks WHERE model = ? AND generation_id <> ?')
+                .run(model, generation);
+            const completedAt = new Date().toISOString();
+            const report = { model, sources: sourceCount, chunks: chunkCount, completedAt };
+            this.saveSetting('ai.semantic.progress', { status: 'complete', ...report });
+            return report;
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message.slice(0, 1000) : 'Semantic indexing failed.';
+            this.saveSetting('ai.semantic.progress', {
+                status: 'failed',
+                model,
+                generation,
+                sources: sourceCount,
+                chunks: chunkCount,
+                error: message,
+                failedAt: new Date().toISOString(),
+            });
+            // Incomplete generations are not active and are safe to delete.
+            this.db
+                .prepare('DELETE FROM semantic_chunks WHERE model = ? AND generation_id = ?')
+                .run(model, generation);
+            throw error;
+        }
     }
-  }
-
 }
