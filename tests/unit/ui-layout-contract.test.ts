@@ -66,6 +66,9 @@ test('global focus-visible outline lives in @layer base and NativeSelect shrink-
   const picker = source('src/renderer/components/shared/RemoteRecordPicker.tsx');
   assert.match(picker, /hasMaxOnly \? 'w-auto' : 'w-full'/);
 
+  const tasksPage = source('src/renderer/features/tasks/TasksPage.tsx');
+  assert.match(tasksPage, /orderVisibleTasks\(matched,\s*pageTasks,\s*collapsedIds\)/);
+
   const pageControls = source('src/renderer/components/shared/PageControls.tsx');
   assert.match(pageControls, /if \(total <= limit && offset === 0\) return null/);
 });

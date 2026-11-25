@@ -23,6 +23,7 @@ export const projectFilter = z.string().uuid().nullable().optional();
 export const pageRequest = z.object({
   limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().min(0).max(10_000_000).optional(),
   query: z.string().max(200).optional(), projectId: z.string().uuid().nullable().optional(),
+  status: z.enum(['not_started', 'in_progress', 'blocked', 'waiting', 'completed', 'cancelled']).optional(),
   includeArchived: z.boolean().optional(), includeCompleted: z.boolean().optional(), includeLocked: z.boolean().optional(),
 }).optional();
 export const operationsPageRequest = z.object({ limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().min(0).max(10_000_000).optional() }).optional();

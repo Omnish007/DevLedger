@@ -12,8 +12,9 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
   listTasksPage(input: PageRequest = {}): PageResult<TaskRecord> {
     const { limit, offset, query } = normalizePage(input);
     const projectId = input.projectId ?? null;
+    const status = input.status ?? null;
     const normalizedQuery = query.trim().toLocaleLowerCase();
-    const titleLike = `%${escapeLikeQuery(normalizedQuery)}%`;
+    const likePattern = `%${escapeLikeQuery(normalizedQuery)}%`;
     const match = safeFtsQuery(query);
     const includeCompleted = input.includeCompleted !== false;
     const order = `COALESCE(due_date, date(due_at, 'localtime')) IS NULL,
@@ -21,11 +22,11 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
     const queryClause = normalizedQuery === ''
       ? ''
       : match
-        ? ` AND (id IN (SELECT task_id FROM task_search WHERE task_search MATCH ?) OR lower(title) LIKE ? ESCAPE '\\')`
-        : ` AND lower(title) LIKE ? ESCAPE '\\'`;
-    const where = `deleted_at IS NULL AND (? IS NULL OR project_id = ?)${queryClause} AND (? = 1 OR status NOT IN ('completed', 'cancelled'))`;
-    const queryParams = normalizedQuery === '' ? [] : match ? [match, titleLike] : [titleLike];
-    const params = [projectId, projectId, ...queryParams, includeCompleted ? 1 : 0] as const;
+        ? ` AND (id IN (SELECT task_id FROM task_search WHERE task_search MATCH ?) OR lower(title) LIKE ? ESCAPE '\\' OR lower(description) LIKE ? ESCAPE '\\')`
+        : ` AND (lower(title) LIKE ? ESCAPE '\\' OR lower(description) LIKE ? ESCAPE '\\')`;
+    const where = `deleted_at IS NULL AND (? IS NULL OR project_id = ?) AND (? IS NULL OR status = ?)${queryClause} AND (? IS NOT NULL OR ? = 1 OR status NOT IN ('completed', 'cancelled'))`;
+    const queryParams = normalizedQuery === '' ? [] : match ? [match, likePattern, likePattern] : [likePattern, likePattern];
+    const params = [projectId, projectId, status, status, ...queryParams, status, includeCompleted ? 1 : 0] as const;
     const totalRow = this.db.prepare(`SELECT count(*) AS total FROM tasks WHERE ${where}`).get(...params) as { total: number };
     const rows = this.db.prepare(`WITH RECURSIVE selected(id) AS (
         SELECT id FROM tasks WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?

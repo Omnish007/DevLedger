@@ -6,7 +6,7 @@ export type TaskStatus = 'not_started' | 'in_progress' | 'blocked' | 'waiting' |
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type DocumentStatus = 'queued' | 'extracting' | 'ocr_required' | 'indexed' | 'failed' | 'needs_attention';
 
-export interface PageRequest { limit?: number | undefined; offset?: number | undefined; query?: string | undefined; projectId?: string | null | undefined; includeArchived?: boolean | undefined; includeCompleted?: boolean | undefined; includeLocked?: boolean | undefined; }
+export interface PageRequest { limit?: number | undefined; offset?: number | undefined; query?: string | undefined; projectId?: string | null | undefined; status?: TaskStatus | undefined; includeArchived?: boolean | undefined; includeCompleted?: boolean | undefined; includeLocked?: boolean | undefined; }
 export interface PageResult<T> { items: T[]; total: number; limit: number; offset: number; hasMore: boolean; }
 
 export interface ContactRecord {

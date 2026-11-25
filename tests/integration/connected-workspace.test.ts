@@ -62,13 +62,17 @@ test('scoped listBlockersPage and listRemindersPage filter accurately per entity
   } finally { db.close(); }
 });
 
-test('listTasksPage supports mid-word title substrings alongside FTS description matching', () => {
+test('listTasksPage supports mid-word title/description substrings alongside status filtering', () => {
   const db = createWorkspaceDb();
   try {
     const workspace = new WorkspaceService(db as never);
     assert.deepEqual(workspace.listTasksPage({ query: 'plica' }).items.map((t) => t.id), ['t-1']);
     assert.deepEqual(workspace.listTasksPage({ query: 'SHA-256' }).items.map((t) => t.id), ['t-2']);
+    assert.deepEqual(workspace.listTasksPage({ query: 'heck' }).items.map((t) => t.id), ['t-2']);
     assert.equal(workspace.listTasksPage({ query: '%' }).total, 0);
+    workspace.updateTask('t-2', { status: 'blocked' });
+    assert.deepEqual(workspace.listTasksPage({ status: 'blocked' }).items.map((t) => t.id), ['t-2']);
+    assert.deepEqual(workspace.listTasksPage({ status: 'not_started' }).items.map((t) => t.id), ['t-1']);
   } finally { db.close(); }
 });
 

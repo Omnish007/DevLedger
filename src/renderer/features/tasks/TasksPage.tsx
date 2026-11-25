@@ -82,14 +82,21 @@ export function TasksPage({
     const requestId = ++pageRequest.current;
     setPageLoading(true);
     try {
-      const page = await window.devLedger.tasks.listPage({ limit: pageSize, offset: requestedOffset, projectId: projectId === 'all' ? null : projectId, query: deferredQuery, includeCompleted: showCompleted });
+      const page = await window.devLedger.tasks.listPage({
+        limit: pageSize,
+        offset: requestedOffset,
+        projectId: projectId === 'all' ? null : projectId,
+        query: deferredQuery,
+        status: viewTab === 'active' ? undefined : viewTab,
+        includeCompleted: showCompleted,
+      });
       if (requestId === pageRequest.current) {
         setPageTasks(page.items); setPageTotal(page.total);
         const ids = [...new Set(page.items.map((t) => t.projectId))];
         void window.devLedger.projects.getNames(ids).then((names) => { if (requestId === pageRequest.current) setProjectNames((c) => ({ ...c, ...names })); }).catch(() => undefined);
       }
     } finally { if (requestId === pageRequest.current) setPageLoading(false); }
-  }, [deferredQuery, pageOffset, projectId, showCompleted]);
+  }, [deferredQuery, pageOffset, projectId, showCompleted, viewTab]);
 
   useEffect(() => { void loadPage().catch((cause: unknown) => setError(friendlyError(cause, 'Tasks could not be loaded.'))); }, [loadPage]);
   useEffect(() => { if (activeTimer?.recoveryRequired) setRecoveryEndAt(toDateTimeLocal(new Date())); }, [activeTimer?.taskId, activeTimer?.recoveryRequired]);
@@ -102,7 +109,7 @@ export function TasksPage({
   const elapsedLabel = `${String(Math.floor(elapsedMs / 3_600_000)).padStart(2, '0')}:${String(Math.floor((elapsedMs % 3_600_000) / 60_000)).padStart(2, '0')}:${String(Math.floor((elapsedMs % 60_000) / 1_000)).padStart(2, '0')}`;
   const orderedVisible = useMemo(() => {
     const matched = viewTab === 'active' ? pageTasks : pageTasks.filter((task) => task.status === viewTab);
-    return orderVisibleTasks(pageTasks, matched, collapsedIds);
+    return orderVisibleTasks(matched, pageTasks, collapsedIds);
   }, [pageTasks, viewTab, collapsedIds]);
   const inspectedTask = pageTasks.find((t) => t.id === inspectedTaskId) ?? (inspectedFallback?.id === inspectedTaskId ? inspectedFallback : null);
 
@@ -184,8 +191,12 @@ export function TasksPage({
               <button key={key} type="button" onClick={() => { setPageOffset(0); setViewTab(key); }} className={`rounded px-2.5 py-1 font-medium transition-colors ${viewTab === key ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
             ))}
           </div>
-          <div className="relative min-w-[200px] max-w-xs flex-1"><ListTodo className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input className="pl-8" aria-label="Filter tasks by title or description" value={query} onChange={(e) => { setPageOffset(0); setQuery(e.target.value); }} placeholder="Filter tasks…" /></div>
-          <RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(v) => { setPageOffset(0); setProjectId(v || 'all'); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-44" />
+          <div className="relative min-w-[200px] max-w-xs flex-1">
+            <ListTodo className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-8 pr-7" aria-label="Filter tasks by title or description" value={query} onChange={(e) => { setPageOffset(0); setQuery(e.target.value); }} placeholder="Filter tasks…" />
+            {query && <button type="button" aria-label="Clear task filter" className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setPageOffset(0); setQuery(''); }}>×</button>}
+          </div>
+          <RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(v) => { setPageOffset(0); setProjectId(v || 'all'); }} onChoiceChange={(c) => { if (c) setProjectNames((cur) => ({ ...cur, [c.id]: c.label })); }} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="w-44" />
         </div>
         <Badge variant="secondary" className="tabular-nums">{orderedVisible.length}{viewTab === 'active' ? '' : ` of ${pageTotal}`} task{orderedVisible.length === 1 ? '' : 's'}</Badge>
       </div>

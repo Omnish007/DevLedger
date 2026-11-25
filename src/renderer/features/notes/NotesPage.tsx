@@ -229,7 +229,7 @@ export function NotesPage({ focusNoteId, focusProjectId, onConsumeFocus, vaultSt
               </div>
               <NoteEditorToolbar editor={editor} onInsertDate={insertSmartDateReference} onImportMarkdown={(e) => void importMarkdownFile(e)} onExportMarkdown={exportMarkdownFile} />
               <div className="notes-editor-scroll min-h-0 flex-1">
-                <div className="notes-writing-canvas mx-auto flex w-full max-w-[780px] flex-col px-6 py-7 sm:px-10">
+                <div className="notes-writing-canvas flex w-full max-w-[840px] flex-col px-5 py-5 sm:px-6">
                   <Input value={title} onChange={(e) => { isDirty.current = true; setTitle(e.target.value); setSaveState('idle'); }} placeholder="Untitled note" className="note-title h-auto border-0 bg-transparent px-0 py-1 text-[1.75rem] font-semibold shadow-none focus-visible:ring-0" maxLength={240} />
                   <p className="mt-1 mb-3 text-xs text-muted-foreground">Edited {formatRelative(selected.updatedAt)}</p>
                   <EditorContent editor={editor} onClick={handleEditorClick} className="min-h-80 flex-1 py-1" />
