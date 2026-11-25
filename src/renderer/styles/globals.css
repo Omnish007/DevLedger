@@ -578,82 +578,187 @@ button:disabled {
 
 .prose-editor table {
     width: 100%;
-    border-collapse: collapse;
-    margin: 0.85rem 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 1rem 0;
     table-layout: fixed;
+    border-radius: 0.625rem;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--card) 82%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 92%, transparent);
 }
 .prose-editor th,
 .prose-editor td {
-    border: 1px solid var(--border);
-    min-width: 5rem;
-    padding: 0.45rem 0.6rem;
+    position: relative;
+    border-right: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+    min-width: 0;
+    padding: 0.55rem 0.75rem;
     vertical-align: top;
     text-align: left;
+    overflow-wrap: anywhere;
+    transition: background-color 0.12s ease;
+}
+.prose-editor th:last-child,
+.prose-editor td:last-child {
+    border-right: 0;
+}
+.prose-editor tr:last-child td,
+.prose-editor tr:last-child th {
+    border-bottom: 0;
 }
 .prose-editor th {
-    background: var(--surface-subtle);
+    background: color-mix(in oklab, var(--surface-subtle) 88%, var(--primary) 6%);
+    color: var(--foreground);
+    font-size: 0.86em;
     font-weight: 600;
+    border-bottom: 1.5px solid var(--border);
+}
+.prose-editor tbody tr:hover td {
+    background: color-mix(in oklab, var(--surface-subtle) 42%, transparent);
 }
 .prose-editor .selectedCell {
-    background: color-mix(in oklab, var(--accent) 70%, transparent);
+    background: color-mix(in oklab, var(--primary) 15%, transparent) !important;
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--primary) 58%, transparent);
 }
 
 .prose-editor a.note-contact-mention {
-    display: inline;
-    border-radius: 0.3rem;
-    padding: 0.05rem 0.35rem;
-    color: var(--foreground);
-    background: var(--surface-subtle);
-    border: 1px solid var(--border);
-    font-size: 0.92em;
-    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    border-radius: 9999px;
+    padding: 0.08rem 0.52rem 0.08rem 0.4rem;
+    color: oklch(0.4 0.17 290);
+    background: oklch(0.945 0.038 290);
+    border: 1px solid oklch(0.82 0.095 290);
+    font-size: 0.87em;
+    font-weight: 600;
+    line-height: 1.35;
     text-decoration: none;
+    vertical-align: baseline;
     cursor: pointer;
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.04);
+    transition:
+        background-color 0.14s ease,
+        border-color 0.14s ease,
+        box-shadow 0.14s ease;
+}
+.prose-editor a.note-contact-mention::before {
+    content: '';
+    display: inline-block;
+    width: 0.82em;
+    height: 0.82em;
+    flex-shrink: 0;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E")
+        no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E")
+        no-repeat center / contain;
 }
 .prose-editor a.note-contact-mention:hover {
-    background: var(--surface-hover);
+    background: oklch(0.915 0.055 290);
+    border-color: oklch(0.72 0.14 290);
+}
+.dark .prose-editor a.note-contact-mention {
+    color: oklch(0.87 0.125 292);
+    background: oklch(0.275 0.072 292 / 0.78);
+    border-color: oklch(0.55 0.155 292 / 0.56);
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06);
+}
+.dark .prose-editor a.note-contact-mention:hover {
+    background: oklch(0.32 0.095 292 / 0.9);
+    border-color: oklch(0.66 0.17 292 / 0.75);
 }
 
 .prose-editor .smart-date-pill,
 .prose-editor .smart-date-reference {
     display: inline-flex;
     align-items: center;
-    gap: 0.32rem;
-    border-radius: 0.375rem;
-    padding: 0.08rem 0.44rem;
-    border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border));
-    background: color-mix(in oklab, var(--primary) 8%, var(--surface-subtle));
-    color: var(--foreground);
-    font-size: 0.88em;
-    font-weight: 500;
+    gap: 0.34rem;
+    border-radius: 0.42rem;
+    padding: 0.08rem 0.5rem 0.08rem 0.42rem;
+    border: 1px solid oklch(0.82 0.085 246);
+    background: oklch(0.948 0.034 246);
+    color: oklch(0.38 0.14 248);
+    font-size: 0.87em;
+    font-weight: 600;
     line-height: 1.35;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     vertical-align: baseline;
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.04);
     transition:
         background-color 0.14s ease,
         border-color 0.14s ease,
         box-shadow 0.14s ease;
 }
 .prose-editor .smart-date-pill .smart-date-icon {
-    color: var(--primary);
+    color: oklch(0.46 0.16 248);
 }
 .prose-editor .smart-date-pill:hover {
-    background: color-mix(in oklab, var(--primary) 14%, var(--surface-subtle));
-    border-color: color-mix(in oklab, var(--primary) 42%, var(--border));
+    background: oklch(0.915 0.05 246);
+    border-color: oklch(0.7 0.125 246);
 }
+.dark .prose-editor .smart-date-pill,
+.dark .prose-editor .smart-date-reference {
+    border-color: oklch(0.54 0.135 245 / 0.55);
+    background: oklch(0.265 0.058 245 / 0.8);
+    color: oklch(0.85 0.115 244);
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06);
+}
+.dark .prose-editor .smart-date-pill .smart-date-icon {
+    color: oklch(0.78 0.14 244);
+}
+.dark .prose-editor .smart-date-pill:hover {
+    background: oklch(0.31 0.078 245 / 0.92);
+    border-color: oklch(0.65 0.155 245 / 0.78);
+}
+
 .prose-editor .smart-date-pill.is-reminder {
-    border-color: color-mix(in oklab, var(--warning) 48%, var(--border));
-    background: color-mix(in oklab, var(--warning) 14%, var(--card));
-    color: color-mix(in oklab, var(--warning) 82%, var(--foreground));
+    border-color: oklch(0.8 0.125 75);
+    background: oklch(0.955 0.055 82);
+    color: oklch(0.45 0.14 62);
 }
 .prose-editor .smart-date-pill.is-reminder .smart-date-icon {
-    color: var(--warning);
+    color: oklch(0.54 0.165 65);
 }
 .prose-editor .smart-date-pill.is-reminder:hover {
-    background: color-mix(in oklab, var(--warning) 22%, var(--card));
-    border-color: color-mix(in oklab, var(--warning) 66%, var(--border));
+    background: oklch(0.92 0.078 80);
+    border-color: oklch(0.72 0.15 70);
 }
+.dark .prose-editor .smart-date-pill.is-reminder {
+    border-color: oklch(0.68 0.145 75 / 0.62);
+    background: oklch(0.285 0.072 72 / 0.84);
+    color: oklch(0.88 0.13 78);
+}
+.dark .prose-editor .smart-date-pill.is-reminder .smart-date-icon {
+    color: oklch(0.82 0.155 76);
+}
+.dark .prose-editor .smart-date-pill.is-reminder:hover {
+    background: oklch(0.335 0.09 72 / 0.94);
+    border-color: oklch(0.76 0.16 76 / 0.82);
+}
+
+.prose-editor .smart-date-pill.is-reminder[data-urgency='today'] {
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--warning) 40%, transparent);
+}
+.prose-editor .smart-date-pill.is-reminder[data-urgency='overdue'] {
+    border-color: oklch(0.76 0.14 24);
+    background: oklch(0.95 0.048 24);
+    color: oklch(0.46 0.18 24);
+}
+.prose-editor .smart-date-pill.is-reminder[data-urgency='overdue'] .smart-date-icon {
+    color: oklch(0.54 0.19 24);
+}
+.dark .prose-editor .smart-date-pill.is-reminder[data-urgency='overdue'] {
+    border-color: oklch(0.64 0.17 24 / 0.72);
+    background: oklch(0.28 0.088 24 / 0.88);
+    color: oklch(0.87 0.135 24);
+}
+.dark .prose-editor .smart-date-pill.is-reminder[data-urgency='overdue'] .smart-date-icon {
+    color: oklch(0.78 0.165 24);
+}
+
 .prose-editor .smart-date-pill.is-selected {
     outline: 2px solid var(--ring);
     outline-offset: 1px;

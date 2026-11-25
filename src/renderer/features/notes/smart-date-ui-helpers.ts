@@ -101,4 +101,53 @@ export function computeReminderDueIso(date: string, time: string | null, offsetM
     return new Date(target.getTime() - offsetMinutes * 60_000).toISOString();
 }
 
+export type ReminderUrgency = 'overdue' | 'today' | 'upcoming';
+
+export function getReminderUrgency(date: string, time: string | null, now = new Date()): ReminderUrgency {
+    if (!date) return 'upcoming';
+    const todayIso = toDateString(now);
+    if (date < todayIso) return 'overdue';
+    if (date === todayIso) {
+        if (time && /^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
+            const [hour, minute] = time.split(':').map(Number);
+            const target = atLocalTime(isoDateToLocalDate(date) ?? now, hour!, minute!);
+            if (target.getTime() < now.getTime()) return 'overdue';
+        }
+        return 'today';
+    }
+    return 'upcoming';
+}
+
+interface PendingDatePickerRequest {
+    date: string;
+    time: string | null;
+    isReminder: boolean;
+    requestedAt: number;
+}
+
+let pendingDatePicker: PendingDatePickerRequest | null = null;
+
+export function schedulePendingDatePicker(
+    reference: Pick<SmartDateReference, 'date' | 'time' | 'isReminder'>,
+): void {
+    pendingDatePicker = {
+        date: reference.date,
+        time: reference.time ?? null,
+        isReminder: Boolean(reference.isReminder),
+        requestedAt: Date.now(),
+    };
+}
+
+export function consumePendingDatePicker(date: string, time: string | null, isReminder: boolean): boolean {
+    if (!pendingDatePicker) return false;
+    const isFresh = Date.now() - pendingDatePicker.requestedAt < 2500;
+    const matches =
+        pendingDatePicker.date === date &&
+        (pendingDatePicker.time ?? null) === (time ?? null) &&
+        pendingDatePicker.isReminder === isReminder;
+    if (!isFresh || !matches) return false;
+    pendingDatePicker = null;
+    return true;
+}
+
 export { toDateString };

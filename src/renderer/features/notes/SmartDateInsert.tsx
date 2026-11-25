@@ -96,9 +96,28 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
             </PopoverTrigger>
             <PopoverContent
                 align="end"
-                className="w-[328px] max-h-[min(calc(var(--radix-popover-content-available-height)-8px),82vh)] overflow-y-auto p-2.5"
+                className="w-[344px] max-h-[min(calc(var(--radix-popover-content-available-height)-8px),84vh)] overflow-y-auto bg-popover p-2.5"
             >
-                <div className="space-y-2.5">
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <div>
+                            <p className="text-xs font-semibold">Insert Notion date or reminder</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Or type <code className="text-foreground">@</code> inline (
+                                <code className="text-foreground">@t</code>,{' '}
+                                <code className="text-foreground">@tom</code>,{' '}
+                                <code className="text-foreground">@r fri 9am</code>)
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setDisplayMonth(new Date())}
+                            className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-sky-600 hover:bg-sky-500/10 dark:text-sky-300"
+                        >
+                            Today
+                        </button>
+                    </div>
+
                     <div className="flex gap-1.5">
                         <Input
                             aria-label="Date or reminder expression"
@@ -119,7 +138,7 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                                     commitReference(preview.parsed);
                                 }
                             }}
-                            placeholder="@May 15, @friday 3pm, @remind…"
+                            placeholder="@t, @tom 3pm, @May 15, @r fri 9am…"
                             className="h-8 text-xs"
                         />
                         <Button
@@ -138,14 +157,14 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                         </p>
                     )}
 
-                    <div className="grid grid-cols-4 gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                         {presets.slice(0, 4).map((preset) => (
                             <Button
                                 key={preset.id}
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                className="h-6 px-1.5 text-[11px]"
+                                className="h-6 px-2 text-[11px]"
                                 onClick={() =>
                                     commitReference(
                                         parseIntoDateAttrs(preset.token, {
@@ -159,6 +178,31 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                             </Button>
                         ))}
                     </div>
+
+                    {rangeMode && (
+                        <div className="flex items-center justify-between rounded-md bg-surface-subtle/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+                            <span>
+                                Start:{' '}
+                                <strong className="font-medium text-foreground">
+                                    {preview.parsed
+                                        ? formatNotionDateLabel({
+                                              date: preview.parsed.date,
+                                              format: 'full',
+                                          })
+                                        : 'Pick start'}
+                                </strong>
+                            </span>
+                            <span>→</span>
+                            <span>
+                                End:{' '}
+                                <strong className="font-medium text-foreground">
+                                    {endDate
+                                        ? formatNotionDateLabel({ date: endDate, format: 'full' })
+                                        : 'Pick end'}
+                                </strong>
+                            </span>
+                        </div>
+                    )}
 
                     <div className="rounded-lg border border-border/80 bg-surface-subtle/25 p-1">
                         {rangeMode ? (
@@ -240,13 +284,17 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
 
                     {preview.parsed && (
                         <div
-                            className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs ${preview.parsed.isReminder ? 'border-warning/40 bg-warning/10' : 'border-border/80 bg-muted/40'}`}
+                            className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs ${
+                                preview.parsed.isReminder
+                                    ? 'border-warning/50 bg-warning/12 text-warning'
+                                    : 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                            }`}
                         >
                             <span className="inline-flex items-center gap-1.5 font-medium">
                                 {preview.parsed.isReminder ? (
-                                    <BellRing className="size-3.5 text-warning" />
+                                    <BellRing className="size-3.5" />
                                 ) : (
-                                    <CalendarDays className="size-3.5 text-primary" />
+                                    <CalendarDays className="size-3.5" />
                                 )}
                                 {formatNotionDateLabel({
                                     date: preview.parsed.date,
@@ -255,9 +303,9 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                                     format: 'full',
                                 })}
                             </span>
-                            {preview.parsed.isReminder && (
-                                <span className="text-[11px] font-medium text-warning">Reminder</span>
-                            )}
+                            <span className="rounded bg-background/70 px-1.5 py-0.5 text-[10px] font-semibold">
+                                {preview.parsed.isReminder ? 'Reminder' : 'Date'}
+                            </span>
                         </div>
                     )}
                 </div>

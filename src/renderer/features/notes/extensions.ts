@@ -3,6 +3,9 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableKit } from '@tiptap/extension-table';
+import { TableCell } from '@tiptap/extension-table/cell';
+import { TableHeader } from '@tiptap/extension-table/header';
+import { TableRow } from '@tiptap/extension-table/row';
 import type { ContactRecord } from '@shared/contracts';
 import {
     parseContactMentionMarkdownLink,
@@ -15,7 +18,11 @@ import {
 } from '@domain/smart-date-markdown';
 import { buildAtSuggestions, createAtSuggestionRenderer, type AtSuggestionItem } from './mention-suggestions';
 import { SmartDateChipView, type SmartDateNodeOptions } from './SmartDateChipView';
-import { attachSyncedReminderId, computeReminderDueIso } from './smart-date-ui-helpers';
+import {
+    attachSyncedReminderId,
+    computeReminderDueIso,
+    schedulePendingDatePicker,
+} from './smart-date-ui-helpers';
 
 export function createNoteExtensions(
     searchContacts: (query: string, projectId: string) => Promise<ContactRecord[]>,
@@ -176,6 +183,7 @@ export function createNoteExtensions(
             command: ({ editor, range, props }) => {
                 const item = props as unknown as AtSuggestionItem;
                 if (item.kind === 'date') {
+                    if (item.openPicker) schedulePendingDatePicker(item.attrs);
                     editor
                         .chain()
                         .focus()
@@ -184,7 +192,7 @@ export function createNoteExtensions(
                             { type: 'text', text: ' ' },
                         ])
                         .run();
-                    if (item.attrs.isReminder && dateOptions.onReminderSync) {
+                    if (item.attrs.isReminder && !item.openPicker && dateOptions.onReminderSync) {
                         const dueIso =
                             item.attrs.isoUtc ?? computeReminderDueIso(item.attrs.date, item.attrs.time);
                         void dateOptions
@@ -210,10 +218,68 @@ export function createNoteExtensions(
         },
     });
 
+    const colWidthPctAttr = {
+        default: null as number | null,
+        parseHTML: (element: HTMLElement) => {
+            const raw = element.getAttribute('data-col-width') ?? element.style.width;
+            if (!raw || (raw === element.style.width && !raw.includes('%'))) return null;
+            const parsed = Number.parseFloat(raw);
+            return Number.isFinite(parsed) && parsed > 5 && parsed < 96 ? Number(parsed.toFixed(1)) : null;
+        },
+        renderHTML: (attributes: Record<string, unknown>) => {
+            const pct = Number(attributes['colWidthPct']);
+            if (!Number.isFinite(pct) || pct <= 5 || pct >= 96) return {};
+            return { 'data-col-width': String(pct), style: `width: ${pct}%` };
+        },
+    };
+
+    const customTableCell = TableCell.extend({
+        addAttributes() {
+            return { ...this.parent?.(), colWidthPct: colWidthPctAttr };
+        },
+    });
+
+    const customTableHeader = TableHeader.extend({
+        addAttributes() {
+            return { ...this.parent?.(), colWidthPct: colWidthPctAttr };
+        },
+    });
+
+    const customTableRow = TableRow.extend({
+        addAttributes() {
+            return {
+                ...this.parent?.(),
+                rowHeight: {
+                    default: null as number | null,
+                    parseHTML: (element: HTMLElement) => {
+                        const raw = element.getAttribute('data-row-height') ?? element.style.height;
+                        if (!raw) return null;
+                        const parsed = Number.parseInt(raw, 10);
+                        return Number.isFinite(parsed) && parsed >= 32 && parsed <= 480 ? parsed : null;
+                    },
+                    renderHTML: (attributes: Record<string, unknown>) => {
+                        const height = Number(attributes['rowHeight']);
+                        if (!Number.isFinite(height) || height < 32 || height > 480) return {};
+                        const rounded = Math.round(height);
+                        return { 'data-row-height': String(rounded), style: `height: ${rounded}px` };
+                    },
+                },
+            };
+        },
+    });
+
     return [
         TaskList.configure({ HTMLAttributes: { 'data-type': 'taskList' } }),
         TaskItem.configure({ nested: true, HTMLAttributes: { 'data-type': 'taskItem' } }),
-        TableKit.configure({ table: { resizable: false } }),
+        TableKit.configure({
+            table: { resizable: false },
+            tableCell: false,
+            tableHeader: false,
+            tableRow: false,
+        }),
+        customTableRow,
+        customTableCell,
+        customTableHeader,
         mention,
         smartDate,
     ];

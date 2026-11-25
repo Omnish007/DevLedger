@@ -293,3 +293,91 @@ test('connected architecture drawers, checkbox layout, and interactive Notion No
     assert.match(taskEditDialog, /<SmartDateField\b/);
     assert.doesNotMatch(taskCreateDialog, /Optional details/);
 });
+
+test('Notion shorthand macros, @ calendar picker action, contextual table controls, and distinct pill styles work', async () => {
+    assert.equal(parseSmartDate('@t', fixedNow).date, '2026-03-18');
+    assert.equal(parseSmartDate('@tom', fixedNow).date, '2026-03-19');
+    assert.equal(parseSmartDate('@y', fixedNow).date, '2026-03-17');
+    assert.equal(parseSmartDate('@f', fixedNow).date, '2026-03-20');
+    assert.equal(parseSmartDate('@m', fixedNow).date, '2026-03-23');
+    assert.equal(parseSmartDate('@nw', fixedNow).date, '2026-03-25');
+    assert.equal(parseSmartDate('@lw', fixedNow).date, '2026-03-11');
+    assert.equal(parseSmartDate('@eom', fixedNow).date, '2026-03-31');
+    assert.equal(parseSmartDate('@in 2d', fixedNow).date, '2026-03-20');
+
+    const compactMin = parseSmartDate('@in 30m', fixedNow);
+    assert.equal(compactMin.kind, 'datetime');
+    assert.equal(compactMin.time, '10:30');
+
+    const compactReminder = parseSmartDate('@r tom 3pm', fixedNow);
+    assert.equal(compactReminder.kind, 'datetime');
+    assert.equal(compactReminder.date, '2026-03-19');
+    assert.equal(compactReminder.time, '15:00');
+    assert.equal(compactReminder.isReminder, true);
+
+    const contacts: ContactRecord[] = [
+        {
+            id: 'c-1',
+            name: 'Aarav Patel',
+            role: 'client',
+            company: 'Acme Labs',
+            email: 'aarav@example.test',
+            phone: '',
+            notes: '',
+            customAttributes: {},
+            projectIds: ['p-1'],
+            createdAt: '2026-03-18T10:00:00.000Z',
+            updatedAt: '2026-03-18T10:00:00.000Z',
+        },
+    ];
+    const items = await buildAtSuggestions('', async () => contacts, 'p-1', fixedNow);
+    assert.ok(items.some((item) => item.kind === 'date' && item.openPicker === true));
+    const contact = items.find((item) => item.kind === 'contact');
+    assert.equal(contact?.kind, 'contact');
+    assert.equal(contact?.company, 'Acme Labs');
+
+    const rPrefix = await buildAtSuggestions('r', async () => contacts, 'p-1', fixedNow);
+    assert.equal(rPrefix[0]?.kind, 'date');
+    assert.equal(rPrefix[0]?.attrs.isReminder, true);
+
+    const tableControls = readFileSync(
+        join(root, 'src/renderer/features/notes/NoteTableControls.tsx'),
+        'utf8',
+    );
+    const tableOverlay = readFileSync(join(root, 'src/renderer/features/notes/NoteTableOverlay.tsx'), 'utf8');
+    const combinedTableUi = `${tableControls}\n${tableOverlay}`;
+    for (const cmd of [
+        'addColumnBefore',
+        'addColumnAfter',
+        'deleteColumn',
+        'addRowBefore',
+        'addRowAfter',
+        'deleteRow',
+        'toggleHeaderRow',
+        'toggleHeaderColumn',
+        'mergeCells',
+        'splitCell',
+        'deleteTable',
+    ]) {
+        assert.ok(combinedTableUi.includes(cmd), `Missing table command: ${cmd}`);
+    }
+
+    const extensions = readFileSync(join(root, 'src/renderer/features/notes/extensions.ts'), 'utf8');
+    assert.match(extensions, /TableKit\.configure\(\{[\s\S]*?table:\s*\{\s*resizable:\s*false\s*\}/);
+    assert.match(extensions, /colWidthPct/);
+    assert.match(extensions, /rowHeight/);
+
+    const tableSizing = readFileSync(join(root, 'src/renderer/features/notes/note-table-sizing.ts'), 'utf8');
+    assert.match(tableSizing, /commitColumnWidthsPct/);
+    assert.match(tableSizing, /commitRowHeight/);
+    assert.match(tableSizing, /resetAllTableSizes/);
+
+    const notesPage = readFileSync(join(root, 'src/renderer/features/notes/NotesPage.tsx'), 'utf8');
+    assert.match(notesPage, /<NoteTableOverlay\b/);
+
+    const globalsCss = readFileSync(join(root, 'src/renderer/styles/globals.css'), 'utf8');
+    assert.match(globalsCss, /\.prose-editor a\.note-contact-mention::before/);
+    assert.match(globalsCss, /\.smart-date-pill\.is-reminder\[data-urgency='overdue'\]/);
+    assert.match(globalsCss, /\.prose-editor table\s*\{[\s\S]*border-collapse:\s*separate/);
+    assert.doesNotMatch(globalsCss, /\.column-resize-handle/);
+});

@@ -70,10 +70,10 @@ export function parseSmartDate(input: string, now = new Date()): SmartDateResult
 
     let body = withoutAt;
     let isReminder = false;
-    if (/^remind(?:\s+me)?\b/i.test(body)) {
+    if (/^remind(?:\s+me)?\b/i.test(body) || /^r\s+/i.test(body)) {
         isReminder = true;
-        body = body.replace(/^remind(?:\s+me)?\b/i, '').trim();
-        if (!body) throw new SmartDateError('Enter when to remind you (e.g. @remind tomorrow 9am).');
+        body = body.replace(/^(?:remind(?:\s+me)?|r)\b/i, '').trim();
+        if (!body) throw new SmartDateError('Enter when to remind you (e.g. @r tomorrow 9am).');
     }
 
     const extracted = extractTimeSuffix(body);
@@ -131,6 +131,7 @@ export interface SmartDatePreset {
     id: string;
     label: string;
     token: string;
+    shortcut?: string;
     result: SmartDateResult;
 }
 
@@ -138,13 +139,24 @@ export const SMART_TIME_PRESETS = ['09:00', '12:00', '15:00', '18:00'] as const;
 
 export function getSmartDatePresets(now = new Date()): SmartDatePreset[] {
     const candidates = [
-        { id: 'today', label: 'Today', token: '@today' },
-        { id: 'tomorrow', label: 'Tomorrow', token: '@tomorrow' },
-        { id: 'friday', label: 'Next Friday', token: '@friday' },
-        { id: 'monday', label: 'Next Monday', token: '@monday' },
-        { id: 'next-week', label: 'Next week', token: '@next week' },
-        { id: 'end-of-month', label: 'End of month', token: '@end of month' },
-        { id: 'remind-tomorrow', label: 'Remind tomorrow 9am', token: '@remind tomorrow 9am' },
+        { id: 'today', label: 'Today', token: '@today', shortcut: '@t' },
+        { id: 'tomorrow', label: 'Tomorrow', token: '@tomorrow', shortcut: '@tom' },
+        { id: 'friday', label: 'Next Friday', token: '@friday', shortcut: '@f' },
+        { id: 'monday', label: 'Next Monday', token: '@monday', shortcut: '@m' },
+        { id: 'next-week', label: 'Next week', token: '@next week', shortcut: '@nw' },
+        { id: 'end-of-month', label: 'End of month', token: '@end of month', shortcut: '@eom' },
+        {
+            id: 'remind-today-eve',
+            label: 'Remind today 6pm',
+            token: '@remind today 18:00',
+            shortcut: '@r t 6pm',
+        },
+        {
+            id: 'remind-tomorrow',
+            label: 'Remind tomorrow 9am',
+            token: '@remind tomorrow 9am',
+            shortcut: '@r tom 9am',
+        },
     ];
     return candidates.map((item) => ({ ...item, result: parseSmartDate(item.token, now) }));
 }

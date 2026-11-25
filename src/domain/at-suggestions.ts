@@ -9,8 +9,22 @@ import type { SmartDateReference } from './smart-date-markdown.ts';
 import type { ContactRecord } from '../shared/contracts.js';
 
 export type AtSuggestionItem =
-    | { kind: 'date'; id: string; label: string; detail: string; attrs: SmartDateReference }
-    | { kind: 'contact'; id: string; label: string; detail: string };
+    | {
+          kind: 'date';
+          id: string;
+          label: string;
+          detail: string;
+          shortcut?: string;
+          openPicker?: boolean;
+          attrs: SmartDateReference;
+      }
+    | {
+          kind: 'contact';
+          id: string;
+          label: string;
+          detail: string;
+          company?: string;
+      };
 
 export function formatSmartDateDisplay(
     result: SmartDateResult,
@@ -56,12 +70,15 @@ export async function buildAtSuggestions(
 ): Promise<AtSuggestionItem[]> {
     const query = rawQuery.trim();
     const normalized = query.toLowerCase();
+    const wantsReminder = normalized === 'r' || normalized.startsWith('r ') || normalized.startsWith('rem');
     const dateItems: AtSuggestionItem[] = [];
     const seenKeys = new Set<string>();
+    let firstParsedResult: SmartDateResult | null = null;
 
     if (query) {
         try {
             const parsed = parseSmartDate(query, now);
+            firstParsedResult = parsed;
             const key = `${parsed.date}|${parsed.kind === 'datetime' ? parsed.time : ''}|${Boolean(parsed.isReminder)}`;
             seenKeys.add(key);
             const weekday = new Intl.DateTimeFormat(undefined, {
@@ -73,8 +90,11 @@ export async function buildAtSuggestions(
             dateItems.push({
                 kind: 'date',
                 id: `date:parsed:${key}`,
-                label: `@${query.replace(/^@/, '')}`,
-                detail: `${parsed.isReminder ? 'Reminder · ' : ''}${weekday}${parsed.kind === 'datetime' ? ` · ${parsed.time}` : ''}`,
+                label: parsed.isReminder
+                    ? `Remind · ${formatSmartDateDisplay(parsed, 'relative')}`
+                    : `@${query.replace(/^@/, '')}`,
+                detail: `${weekday}${parsed.kind === 'datetime' ? ` · ${parsed.time}` : ''}`,
+                shortcut: parsed.isReminder ? 'Reminder' : 'Custom',
                 attrs: toSmartDateReference(
                     parsed,
                     formatNotionDateLabel({
@@ -91,12 +111,20 @@ export async function buildAtSuggestions(
         }
     }
 
-    for (const preset of getSmartDatePresets(now)) {
+    const presets = getSmartDatePresets(now);
+    const orderedPresets = wantsReminder
+        ? [...presets.filter((p) => p.result.isReminder), ...presets.filter((p) => !p.result.isReminder)]
+        : presets;
+
+    for (const preset of orderedPresets) {
         const tokenText = preset.token.slice(1);
+        const shortcutText = preset.shortcut?.slice(1) ?? '';
         if (
             !normalized ||
+            (wantsReminder && preset.result.isReminder) ||
             preset.label.toLowerCase().includes(normalized) ||
-            tokenText.includes(normalized)
+            tokenText.includes(normalized) ||
+            shortcutText.startsWith(normalized)
         ) {
             const time = preset.result.kind === 'datetime' ? preset.result.time : '';
             const key = `${preset.result.date}|${time}|${Boolean(preset.result.isReminder)}`;
@@ -106,7 +134,8 @@ export async function buildAtSuggestions(
                 kind: 'date',
                 id: `date:${preset.id}`,
                 label: preset.label,
-                detail: `${preset.token} · ${formatSmartDateDisplay(preset.result)}`,
+                detail: formatSmartDateDisplay(preset.result),
+                ...(preset.shortcut ? { shortcut: preset.shortcut } : {}),
                 attrs: toSmartDateReference(
                     preset.result,
                     formatNotionDateLabel({
@@ -121,6 +150,33 @@ export async function buildAtSuggestions(
         }
     }
 
+    const pickerKeywords = ['calendar', 'date', 'range', 'time', 'pick', 'custom', 'schedule', 'remind'];
+    const pickerMatches =
+        !normalized || wantsReminder || pickerKeywords.some((word) => word.includes(normalized));
+    let pickerItem: AtSuggestionItem | null = null;
+    if (pickerMatches) {
+        const seed =
+            firstParsedResult ?? parseSmartDate(wantsReminder ? '@remind tomorrow 9am' : '@today', now);
+        pickerItem = {
+            kind: 'date',
+            id: 'date:open-calendar-picker',
+            label: wantsReminder ? 'Schedule reminder…' : 'Pick on calendar…',
+            detail: 'Date or range',
+            shortcut: 'Calendar',
+            openPicker: true,
+            attrs: toSmartDateReference(
+                seed,
+                formatNotionDateLabel({
+                    date: seed.date,
+                    time: seed.kind === 'datetime' ? seed.time : null,
+                    format: 'relative',
+                    now,
+                }),
+                wantsReminder || seed.isReminder ? { isReminder: true } : {},
+            ),
+        };
+    }
+
     let contacts: ContactRecord[] = [];
     try {
         contacts = await searchContacts(query, projectId);
@@ -132,6 +188,18 @@ export async function buildAtSuggestions(
         id: contact.id,
         label: contact.name,
         detail: contact.role ? contact.role.replaceAll('_', ' ') : 'Contact',
+        ...(contact.company ? { company: contact.company } : {}),
     }));
-    return [...dateItems.slice(0, 6), ...contactItems];
+    const visibleDateLimit = normalized ? 5 : 4;
+    const pinnedReminder = !normalized
+        ? dateItems.find((item) => item.kind === 'date' && item.attrs.isReminder)
+        : undefined;
+    const initialDates =
+        !normalized && pinnedReminder
+            ? [
+                  ...dateItems.filter((item) => item.kind === 'date' && !item.attrs.isReminder).slice(0, 3),
+                  pinnedReminder,
+              ]
+            : dateItems.slice(0, visibleDateLimit);
+    return [...initialDates, ...(pickerItem ? [pickerItem] : []), ...contactItems];
 }

@@ -42,7 +42,7 @@ export function SmartDateOptionsFooter({
 }: SmartDateOptionsFooterProps) {
     return (
         <div className="space-y-2 border-t border-border/60 pt-2 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-subtle/45 px-2 py-1.5">
                 <label className="flex cursor-pointer items-center gap-1.5">
                     <Switch
                         id={`${idPrefix}-range`}
@@ -69,7 +69,7 @@ export function SmartDateOptionsFooter({
                             checked={Boolean(remindChecked)}
                             onCheckedChange={(c) => onRemindCheckedChange?.(c)}
                         />
-                        <span>Remind me</span>
+                        <span className={remindChecked ? 'font-medium text-warning' : ''}>Remind me</span>
                     </label>
                 )}
             </div>

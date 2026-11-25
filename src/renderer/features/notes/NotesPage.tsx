@@ -42,6 +42,7 @@ import { createNoteExtensions } from './extensions';
 import { exportMarkdownFromEditor, importMarkdownIntoEditor } from './note-markdown-io';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
 import { NoteContactDialog, NoteInspectorDrawer } from './NoteInspectorDrawer';
+import { NoteTableOverlay } from './NoteTableOverlay';
 import { attachSyncedReminderId, computeReminderDueIso } from './smart-date-ui-helpers';
 
 const noteItemKey = (note: NoteRecord): string => note.id;
@@ -181,6 +182,7 @@ export function NotesPage({
 
     const currentSelectedId = selected?.id ?? null;
     const currentSelectedLocked = Boolean(selected?.locked);
+    const writingCanvasRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         if (!currentSelectedId || currentSelectedLocked) {
@@ -809,7 +811,10 @@ export function NotesPage({
                                     onExportMarkdown={exportMarkdownFile}
                                 />
                                 <div className="notes-editor-scroll min-h-0 flex-1">
-                                    <div className="notes-writing-canvas flex w-full max-w-[840px] flex-col px-5 py-5 sm:px-6">
+                                    <div
+                                        ref={writingCanvasRef}
+                                        className="notes-writing-canvas relative flex w-full max-w-[840px] flex-col px-7 py-5 sm:px-9"
+                                    >
                                         <Input
                                             value={title}
                                             onChange={(e) => {
@@ -829,6 +834,7 @@ export function NotesPage({
                                             onClick={handleEditorClick}
                                             className="min-h-80 flex-1 py-1"
                                         />
+                                        <NoteTableOverlay editor={editor} canvasRef={writingCanvasRef} />
                                         {error && (
                                             <p role="alert" className="mt-2 text-xs text-danger">
                                                 {error}

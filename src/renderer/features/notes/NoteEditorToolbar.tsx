@@ -1,5 +1,5 @@
 import { useRef, type ChangeEvent } from 'react';
-import type { Editor } from '@tiptap/react';
+import { useEditorState, type Editor } from '@tiptap/react';
 import {
     Bold,
     CheckSquare,
@@ -11,12 +11,12 @@ import {
     List,
     ListOrdered,
     Quote,
-    Table2,
 } from 'lucide-react';
 import type { SmartDateReference } from '@domain/smart-date-markdown';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { NoteTableToolbarMenu } from './NoteTableControls';
 import { SmartDateInsert } from './SmartDateInsert';
 
 interface NoteEditorToolbarProps {
@@ -34,80 +34,89 @@ export function NoteEditorToolbar({
 }: NoteEditorToolbarProps) {
     const markdownInputRef = useRef<HTMLInputElement | null>(null);
     const activeEditor = editor && !editor.isDestroyed ? editor : null;
+    const editorFlags = useEditorState({
+        editor: activeEditor,
+        selector: ({ editor: instance }) => ({
+            bold: Boolean(instance?.isActive('bold')),
+            italic: Boolean(instance?.isActive('italic')),
+            heading: Boolean(instance?.isActive('heading')),
+            bulletList: Boolean(instance?.isActive('bulletList')),
+            orderedList: Boolean(instance?.isActive('orderedList')),
+            taskList: Boolean(instance?.isActive('taskList')),
+            blockquote: Boolean(instance?.isActive('blockquote')),
+            inTable: Boolean(instance?.isActive('table')),
+        }),
+    });
     const actions = [
         {
             label: 'Bold',
             icon: Bold,
             run: () => activeEditor?.chain().focus().toggleBold().run(),
-            active: activeEditor?.isActive('bold'),
+            active: Boolean(editorFlags?.bold),
         },
         {
             label: 'Italic',
             icon: Italic,
             run: () => activeEditor?.chain().focus().toggleItalic().run(),
-            active: activeEditor?.isActive('italic'),
+            active: Boolean(editorFlags?.italic),
         },
         {
             label: 'Heading',
             icon: Heading2,
             run: () => activeEditor?.chain().focus().toggleHeading({ level: 2 }).run(),
-            active: activeEditor?.isActive('heading'),
+            active: Boolean(editorFlags?.heading),
         },
         {
             label: 'Bulleted list',
             icon: List,
             run: () => activeEditor?.chain().focus().toggleBulletList().run(),
-            active: activeEditor?.isActive('bulletList'),
+            active: Boolean(editorFlags?.bulletList),
         },
         {
             label: 'Numbered list',
             icon: ListOrdered,
             run: () => activeEditor?.chain().focus().toggleOrderedList().run(),
-            active: activeEditor?.isActive('orderedList'),
+            active: Boolean(editorFlags?.orderedList),
         },
         {
             label: 'Checklist',
             icon: CheckSquare,
             run: () => activeEditor?.chain().focus().toggleTaskList().run(),
-            active: activeEditor?.isActive('taskList'),
-        },
-        {
-            label: 'Table',
-            icon: Table2,
-            run: () =>
-                activeEditor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
-            active: activeEditor?.isActive('table'),
+            active: Boolean(editorFlags?.taskList),
         },
         {
             label: 'Quote',
             icon: Quote,
             run: () => activeEditor?.chain().focus().toggleBlockquote().run(),
-            active: activeEditor?.isActive('blockquote'),
+            active: Boolean(editorFlags?.blockquote),
         },
     ];
 
     return (
         <div className="notes-editor-toolbar shrink-0 px-5 py-1.5 sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <ButtonGroup className="flex-wrap">
-                    {actions.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                            <Button
-                                key={item.label}
-                                type="button"
-                                variant={item.active ? 'secondary' : 'ghost'}
-                                size="icon"
-                                className="size-7"
-                                title={item.label}
-                                aria-label={item.label}
-                                onClick={item.run}
-                            >
-                                <Icon className="size-3.5" />
-                            </Button>
-                        );
-                    })}
-                </ButtonGroup>
+                <div className="flex flex-wrap items-center gap-0.5">
+                    <ButtonGroup className="flex-wrap">
+                        {actions.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <Button
+                                    key={item.label}
+                                    type="button"
+                                    variant={item.active ? 'secondary' : 'ghost'}
+                                    size="icon"
+                                    className="size-7"
+                                    title={item.label}
+                                    aria-label={item.label}
+                                    onClick={item.run}
+                                >
+                                    <Icon className="size-3.5" />
+                                </Button>
+                            );
+                        })}
+                    </ButtonGroup>
+                    <NoteTableToolbarMenu editor={activeEditor} inTable={Boolean(editorFlags?.inTable)} />
+                </div>
                 <div className="flex items-center gap-1">
                     <SmartDateInsert onInsert={onInsertDate} />
                     <Popover>
@@ -117,30 +126,36 @@ export function NoteEditorToolbar({
                                 size="icon"
                                 variant="ghost"
                                 className="size-7 text-muted-foreground"
-                                title="Inline @ shortcuts"
+                                title="Inline @ shortcuts & tables"
                                 aria-label="Inline @ shortcuts"
                             >
                                 <HelpCircle className="size-3.5" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="end" className="w-72 space-y-2 p-3 text-xs">
+                        <PopoverContent align="end" className="w-80 space-y-2.5 p-3 text-xs">
                             <p className="font-semibold">Inline @ shortcuts</p>
                             <p className="text-muted-foreground">
                                 Type <code className="rounded bg-surface-subtle px-1 py-0.5">@</code> anywhere
-                                in a note to insert project contacts or dates:
+                                for project contacts, dates, or reminders:
                             </p>
-                            <div className="space-y-1 text-muted-foreground">
+                            <div className="space-y-1.5 text-muted-foreground">
                                 <div>
-                                    <code className="text-foreground">@today</code>,{' '}
-                                    <code className="text-foreground">@friday</code>,{' '}
-                                    <code className="text-foreground">@next week</code>
+                                    <code className="text-foreground">@t</code> Today ·{' '}
+                                    <code className="text-foreground">@tom</code> Tomorrow ·{' '}
+                                    <code className="text-foreground">@f</code> Friday
                                 </div>
                                 <div>
-                                    <code className="text-foreground">@May 15</code>,{' '}
-                                    <code className="text-foreground">@in 3 days</code>
+                                    <code className="text-foreground">@May 15 3pm</code> ·{' '}
+                                    <code className="text-foreground">@in 3d</code> ·{' '}
+                                    <code className="text-foreground">@nw</code>
                                 </div>
                                 <div>
-                                    <code className="text-foreground">@remind tomorrow 9am</code>
+                                    <code className="text-foreground">@r tomorrow 9am</code> sets a reminder
+                                </div>
+                                <div className="border-t border-border/60 pt-1.5 text-[11px]">
+                                    Hover any table edge to add or resize rows and columns; use row/column
+                                    handles or press <code className="text-foreground">Tab</code> to move
+                                    cells.
                                 </div>
                             </div>
                         </PopoverContent>

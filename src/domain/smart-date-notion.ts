@@ -20,6 +20,16 @@ export const WEEKDAYS: Record<string, number> = {
     sat: 6,
 };
 
+export const SHORT_WEEKDAYS: Record<string, number> = {
+    su: 0,
+    m: 1,
+    tu: 2,
+    w: 3,
+    th: 4,
+    f: 5,
+    sa: 6,
+};
+
 export const MONTHS: Record<string, number> = {
     january: 1,
     jan: 1,
@@ -166,48 +176,51 @@ export function parseRelativeDateExpression(
             },
         };
     }
-    if (normalized === 'today') return { date: base };
-    if (normalized === 'tomorrow') {
+    if (normalized === 'today' || normalized === 't') return { date: base };
+    if (normalized === 'tomorrow' || normalized === 'tom' || normalized === 'tmrw' || normalized === 'tmw') {
         base.setDate(base.getDate() + 1);
         return { date: base };
     }
-    if (normalized === 'yesterday') {
+    if (normalized === 'yesterday' || normalized === 'y' || normalized === 'yest') {
         base.setDate(base.getDate() - 1);
         return { date: base };
     }
     if (normalized === 'this week') return { date: base };
-    if (normalized === 'next week') {
+    if (normalized === 'next week' || normalized === 'nw' || normalized === 'n') {
         base.setDate(base.getDate() + 7);
         return { date: base };
     }
-    if (normalized === 'last week') {
+    if (normalized === 'last week' || normalized === 'lw' || normalized === 'l') {
         base.setDate(base.getDate() - 7);
         return { date: base };
     }
     if (normalized === 'this month') return { date: localDate(now.getFullYear(), now.getMonth() + 1, 1) };
-    if (normalized === 'next month') return { date: addClampedMonths(base, 1) };
-    if (normalized === 'last month') return { date: addClampedMonths(base, -1) };
+    if (normalized === 'next month' || normalized === 'nm') return { date: addClampedMonths(base, 1) };
+    if (normalized === 'last month' || normalized === 'lm') return { date: addClampedMonths(base, -1) };
     if (normalized === 'this year') return { date: localDate(now.getFullYear(), 1, 1) };
-    if (normalized === 'next year') return { date: addClampedMonths(base, 12) };
-    if (normalized === 'last year') return { date: addClampedMonths(base, -12) };
-    if (normalized === 'start of week') {
+    if (normalized === 'next year' || normalized === 'ny') return { date: addClampedMonths(base, 12) };
+    if (normalized === 'last year' || normalized === 'ly') return { date: addClampedMonths(base, -12) };
+    if (normalized === 'start of week' || normalized === 'sow') {
         const mondayOffset = (base.getDay() + 6) % 7;
         base.setDate(base.getDate() - mondayOffset);
         return { date: base };
     }
-    if (normalized === 'end of week') {
+    if (normalized === 'end of week' || normalized === 'eow') {
         const sundayOffset = (7 - base.getDay()) % 7;
         base.setDate(base.getDate() + sundayOffset);
         return { date: base };
     }
-    if (normalized === 'start of month') return { date: localDate(now.getFullYear(), now.getMonth() + 1, 1) };
-    if (normalized === 'end of month')
+    if (normalized === 'start of month' || normalized === 'som')
+        return { date: localDate(now.getFullYear(), now.getMonth() + 1, 1) };
+    if (normalized === 'end of month' || normalized === 'eom')
         return { date: new Date(now.getFullYear(), now.getMonth() + 1, 0, 12, 0, 0, 0) };
-    if (normalized === 'start of year') return { date: localDate(now.getFullYear(), 1, 1) };
-    if (normalized === 'end of year') return { date: localDate(now.getFullYear(), 12, 31) };
+    if (normalized === 'start of year' || normalized === 'soy')
+        return { date: localDate(now.getFullYear(), 1, 1) };
+    if (normalized === 'end of year' || normalized === 'eoy')
+        return { date: localDate(now.getFullYear(), 12, 31) };
 
     const minutesOrHours =
-        /^(?:in\s+(\d{1,4})\s+(minutes?|mins?|hours?|hrs?)|(\d{1,4})\s+(minutes?|mins?|hours?|hrs?)\s+ago)$/.exec(
+        /^(?:in\s+(\d{1,4})\s*(minutes?|mins?|m|hours?|hrs?|h)|(\d{1,4})\s*(minutes?|mins?|m|hours?|hrs?|h)\s+ago)$/.exec(
             normalized,
         );
     if (minutesOrHours) {
@@ -230,7 +243,7 @@ export function parseRelativeDateExpression(
     }
 
     const relativeUnit =
-        /^(?:in\s+(\d{1,3})\s+(days?|weeks?|months?|years?)|(\d{1,3})\s+(days?|weeks?|months?|years?)\s+ago)$/.exec(
+        /^(?:in\s+(\d{1,3})\s*(days?|d|weeks?|w|months?|mos?|years?|y)|(\d{1,3})\s*(days?|d|weeks?|w|months?|mos?|years?|y)\s+ago)$/.exec(
             normalized,
         );
     if (relativeUnit) {
@@ -239,23 +252,24 @@ export function parseRelativeDateExpression(
         const unit = (relativeUnit[2] ?? relativeUnit[4])!;
         if (count < 1 || count > 365) throw new SmartDateError('Relative offset must be between 1 and 365.');
         const signed = forward ? count : -count;
-        if (unit.startsWith('day')) {
+        if (unit.startsWith('d')) {
             base.setDate(base.getDate() + signed);
             return { date: base };
         }
-        if (unit.startsWith('week')) {
+        if (unit.startsWith('w')) {
             if (count * 7 > 3650) throw new SmartDateError('Relative week offset is too large.');
             base.setDate(base.getDate() + signed * 7);
             return { date: base };
         }
-        return { date: addClampedMonths(base, unit.startsWith('month') ? signed : signed * 12) };
+        return { date: addClampedMonths(base, unit.startsWith('m') ? signed : signed * 12) };
     }
 
     const modWeekday = /^(this|next|last)\s+([a-z]+)$/.exec(normalized);
     const plainWeekday = /^([a-z]+)$/.exec(normalized);
     const token = modWeekday?.[2] ?? plainWeekday?.[1];
-    if (token && token in WEEKDAYS) {
-        const target = WEEKDAYS[token]!;
+    const resolvedWeekday = token ? (WEEKDAYS[token] ?? SHORT_WEEKDAYS[token]) : undefined;
+    if (resolvedWeekday !== undefined) {
+        const target = resolvedWeekday;
         const current = base.getDay();
         if (modWeekday?.[1] === 'last') {
             const back = (current - target + 7) % 7 || 7;
