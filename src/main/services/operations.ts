@@ -4,20 +4,11 @@ import { cancelBackgroundJob, enqueueBackgroundJob } from './background-jobs.ts'
 import { assignTag, createTag, deleteTag, listEntityTags, listTagsPage, unassignTag } from './operations-tags.ts';
 import { listActivityPage, listJobsPage } from './operations-history.ts';
 import { normalizePage } from '../../domain/pagination.ts';
-import type { PageRequest, PageResult } from '../../shared/contracts.ts';
-import { assertEntityExists, getBlocker, getReminder, mapLink } from './operations-mappers.ts';
-import {
-  REMINDER_TYPES, mapReminder, mapTimeEntry, mapBlocker, mapJob,
-  now,
-} from './operations-shared.ts';
-import type {
-  EntityType, TagRecord, EntityLinkRecord, ReminderRecord, TimeEntryRecord,
-  TaskBlockerRecord, ActivityRecord, BackgroundJobRecord,
-} from './operations-shared.ts';
-export type {
-  EntityType, TagRecord, EntityLinkRecord, ReminderRecord, TimeEntryRecord,
-  TaskBlockerRecord, ActivityRecord, BackgroundJobRecord,
-} from './operations-shared.ts';
+import type { PageRequest, PageResult, RecordSummary } from '../../shared/contracts.js';
+import { assertEntityExists, getBlocker, getReminder, mapLink, resolveRecordSummaries } from './operations-mappers.ts';
+import { REMINDER_TYPES, mapReminder, mapTimeEntry, mapBlocker, mapJob, now } from './operations-shared.ts';
+import type { EntityType, TagRecord, EntityLinkRecord, ReminderRecord, TimeEntryRecord, TaskBlockerRecord, ActivityRecord, BackgroundJobRecord } from './operations-shared.ts';
+export type { EntityType, TagRecord, EntityLinkRecord, ReminderRecord, TimeEntryRecord, TaskBlockerRecord, ActivityRecord, BackgroundJobRecord } from './operations-shared.ts';
 
 /** Operational records shared by tasks, knowledge records, reminders and persistent workers. */
 export class WorkspaceOperationsService {
@@ -55,7 +46,7 @@ export class WorkspaceOperationsService {
       SELECT *, 'incoming' AS direction FROM entity_links WHERE target_type = ? AND target_id = ?
     ) ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`)
       .all(entityType, entityId, entityType, entityId, page.limit, page.offset) as Array<Record<string, unknown>>;
-    const items = rows.map((row) => mapLink(row, row.direction as 'outgoing' | 'incoming'));
+    const items = rows.map((row) => mapLink(row, row['direction'] as 'outgoing' | 'incoming'));
     return { items, total, limit: page.limit, offset: page.offset, hasMore: page.offset + items.length < total };
   }
 
@@ -126,11 +117,15 @@ export class WorkspaceOperationsService {
     return getBlocker(this.db, id);
   }
 
-  listBlockersPage(input: { includeResolved?: boolean; limit?: number; offset?: number } = {}): PageResult<TaskBlockerRecord> {
+  listBlockersPage(input: { taskId?: string; includeResolved?: boolean; limit?: number; offset?: number } = {}): PageResult<TaskBlockerRecord> {
     const page = normalizePage(input);
-    const where = input.includeResolved ? '' : 'WHERE resolved_at IS NULL';
-    const total = Number((this.db.prepare(`SELECT count(*) AS total FROM task_blockers ${where}`).get() as { total: number }).total);
-    const items = (this.db.prepare(`SELECT * FROM task_blockers ${where} ORDER BY coalesce(follow_up_at, created_at) ASC, id ASC LIMIT ? OFFSET ?`).all(page.limit, page.offset) as Array<Record<string, unknown>>).map(mapBlocker);
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+    if (!input.includeResolved) clauses.push('resolved_at IS NULL');
+    if (input.taskId) { clauses.push('task_id = ?'); params.push(input.taskId); }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const total = Number((this.db.prepare(`SELECT count(*) AS total FROM task_blockers ${where}`).get(...params) as { total: number }).total);
+    const items = (this.db.prepare(`SELECT * FROM task_blockers ${where} ORDER BY coalesce(follow_up_at, created_at) ASC, id ASC LIMIT ? OFFSET ?`).all(...params, page.limit, page.offset) as Array<Record<string, unknown>>).map(mapBlocker);
     return { items, total, limit: page.limit, offset: page.offset, hasMore: page.offset + items.length < total };
   }
 
@@ -153,14 +148,18 @@ export class WorkspaceOperationsService {
     return getReminder(this.db, id);
   }
 
-  listRemindersPage(input: { status?: ReminderRecord['status']; limit?: number; offset?: number } = {}): PageResult<ReminderRecord> {
+  listRemindersPage(input: { entityType?: ReminderRecord['entityType']; entityId?: string; status?: ReminderRecord['status']; limit?: number; offset?: number } = {}): PageResult<ReminderRecord> {
     const page = normalizePage(input);
-    const where = input.status ? 'WHERE status = ?' : "WHERE status IN ('scheduled', 'snoozed', 'delivered')";
-    const parameters = input.status ? [input.status] : [];
+    const clauses = [input.status ? 'status = ?' : "status IN ('scheduled', 'snoozed', 'delivered')"];
+    const parameters: unknown[] = input.status ? [input.status] : [];
+    if (input.entityType) { clauses.push('entity_type = ?'); parameters.push(input.entityType); }
+    if (input.entityId) { clauses.push('entity_id = ?'); parameters.push(input.entityId); }
+    const where = `WHERE ${clauses.join(' AND ')}`;
     const total = Number((this.db.prepare(`SELECT count(*) AS total FROM reminders ${where}`).get(...parameters) as { total: number }).total);
     const items = (this.db.prepare(`SELECT * FROM reminders ${where} ORDER BY due_at ASC, id ASC LIMIT ? OFFSET ?`).all(...parameters, page.limit, page.offset) as Array<Record<string, unknown>>).map(mapReminder);
     return { items, total, limit: page.limit, offset: page.offset, hasMore: page.offset + items.length < total };
   }
+  resolveRecordSummaries(refs: Array<{ type: EntityType; id: string }>): Record<string, RecordSummary> { return resolveRecordSummaries(this.db, refs); }
 
   updateReminder(id: string, action: 'snooze' | 'dismiss' | 'reschedule' | 'cancel', dueAt?: string, snoozeMinutes: 15 | 60 | 240 | 1440 = 60): ReminderRecord {
     const current = this.db.prepare('SELECT * FROM reminders WHERE id = ?').get(id) as Record<string, unknown> | undefined;

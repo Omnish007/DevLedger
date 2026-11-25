@@ -26,7 +26,7 @@ export const pageRequest = z.object({
   includeArchived: z.boolean().optional(), includeCompleted: z.boolean().optional(), includeLocked: z.boolean().optional(),
 }).optional();
 export const operationsPageRequest = z.object({ limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().min(0).max(10_000_000).optional() }).optional();
-export const blockerPageRequest = operationsPageRequest.unwrap().extend({ includeResolved: z.boolean().optional() }).optional();
-export const reminderPageRequest = operationsPageRequest.unwrap().extend({ status: z.enum(['scheduled', 'delivered', 'snoozed', 'dismissed', 'cancelled']).optional() }).optional();
+export const blockerPageRequest = operationsPageRequest.unwrap().extend({ taskId: idInput.optional(), includeResolved: z.boolean().optional() }).optional();
+export const reminderPageRequest = operationsPageRequest.unwrap().extend({ entityType: z.enum(['task', 'project', 'contact', 'note']).optional(), entityId: idInput.optional(), status: z.enum(['scheduled', 'delivered', 'snoozed', 'dismissed', 'cancelled']).optional() }).optional();
 export const noInput = z.undefined();
 export const entityType = z.enum(['project', 'note', 'task', 'document', 'contact']);

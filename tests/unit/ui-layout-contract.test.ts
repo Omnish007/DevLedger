@@ -14,29 +14,31 @@ test('Notes workspace has bounded, pixel-based pane minimums and a compact-windo
   assert.doesNotMatch(notes, /max-w-\[1240px\]/);
 });
 
-test('Notes editing, protected-note, import/export and navigation-flush workflows remain wired', () => {
+test('Notes editing, protected-note, import/export and inspector workflows remain wired', () => {
   const notes = source('src/renderer/features/notes/NotesPage.tsx');
   for (const contract of [
     'onCreate', 'onUpdate', 'onSaveLocked', 'onLock', 'onUnlock', 'onDelete',
     'flushBeforeNavigation', 'importMarkdownFile', 'exportMarkdownFile',
-    'loadRelatedLinks', 'addRelatedRecord', 'removeRelatedRecord',
+    'NoteInspectorDrawer', 'createLinkedTaskFromNote', 'syncNoteReminder',
   ]) assert.ok(notes.includes(contract), `Missing Notes workflow contract: ${contract}`);
 });
 
-test('App shell preserves all main routes, quick capture and the command-palette shortcut', () => {
+test('App shell preserves unified workspace routes, global inbox, quick capture and command palette', () => {
   const shell = source('src/renderer/components/shared/AppShell.tsx');
-  for (const view of ['dashboard', 'projects', 'notes', 'tasks', 'documents', 'contacts', 'operations', 'search', 'settings']) {
+  for (const view of ['dashboard', 'projects', 'notes', 'tasks', 'documents', 'contacts', 'search', 'settings']) {
     assert.ok(shell.includes(`id: '${view}'`), `Missing navigation route: ${view}`);
   }
+  assert.doesNotMatch(shell, /id:\s*'operations'/);
+  assert.ok(shell.includes('NotificationsPopover'), 'Global Inbox bell belongs in top shell bar');
   assert.match(shell, /event\.metaKey \|\| event\.ctrlKey/);
   assert.match(shell, /setCommandOpen\(true\)/);
   assert.match(shell, /onQuickCapture/);
 });
 
 test('major workspace routes share the same page-heading component', () => {
-  for (const route of ['projects', 'contacts', 'tasks', 'documents', 'operations', 'search', 'settings']) {
+  for (const route of ['projects', 'contacts', 'tasks', 'documents', 'search', 'settings']) {
     const page = source(`src/renderer/features/${route}/${route[0]!.toUpperCase()}${route.slice(1)}Page.tsx`);
-    assert.ok(page.includes("@/components/shared/PageHeader"), `Missing shared PageHeader in ${route}`);
+    assert.ok(page.includes('@/components/shared/PageHeader'), `Missing shared PageHeader in ${route}`);
   }
   const dashboard = source('src/renderer/features/dashboard/DashboardPage.tsx');
   assert.match(dashboard, /title="Overview"/);

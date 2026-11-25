@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { TaskInput, TaskRecord, TaskStatus, PageRequest, PageResult } from '../../../shared/contracts.js';
-import { normalizePage } from '../../../domain/pagination.ts';
+import { normalizePage, escapeLikeQuery } from '../../../domain/pagination.ts';
 import { safeFtsQuery } from '../../../domain/validation.ts';
 import { elapsedMinutes } from '../../../domain/task-rules.ts';
 import { isValidDateOnly } from '../../../domain/date-only.ts';
@@ -12,17 +12,21 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
   listTasksPage(input: PageRequest = {}): PageResult<TaskRecord> {
     const { limit, offset, query } = normalizePage(input);
     const projectId = input.projectId ?? null;
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const titleLike = `%${escapeLikeQuery(normalizedQuery)}%`;
     const match = safeFtsQuery(query);
     const includeCompleted = input.includeCompleted !== false;
     const order = `COALESCE(due_date, date(due_at, 'localtime')) IS NULL,
       COALESCE(due_date, date(due_at, 'localtime')), due_date IS NULL, due_at, created_at`;
-    const where = `deleted_at IS NULL AND (? IS NULL OR project_id = ?)
-      AND (? = '' OR id IN (SELECT task_id FROM task_search WHERE task_search MATCH ?))
-      AND (? = 1 OR status NOT IN ('completed', 'cancelled'))`;
-    const params = [projectId, projectId, match, match, includeCompleted ? 1 : 0] as const;
+    const queryClause = normalizedQuery === ''
+      ? ''
+      : match
+        ? ` AND (id IN (SELECT task_id FROM task_search WHERE task_search MATCH ?) OR lower(title) LIKE ? ESCAPE '\\')`
+        : ` AND lower(title) LIKE ? ESCAPE '\\'`;
+    const where = `deleted_at IS NULL AND (? IS NULL OR project_id = ?)${queryClause} AND (? = 1 OR status NOT IN ('completed', 'cancelled'))`;
+    const queryParams = normalizedQuery === '' ? [] : match ? [match, titleLike] : [titleLike];
+    const params = [projectId, projectId, ...queryParams, includeCompleted ? 1 : 0] as const;
     const totalRow = this.db.prepare(`SELECT count(*) AS total FROM tasks WHERE ${where}`).get(...params) as { total: number };
-    // Page the matching records, then include only their ancestor chain so task trees
-    // remain structurally valid without loading every task in the workspace.
     const rows = this.db.prepare(`WITH RECURSIVE selected(id) AS (
         SELECT id FROM tasks WHERE ${where} ORDER BY ${order} LIMIT ? OFFSET ?
       ), ancestors(id) AS (
@@ -72,13 +76,11 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
   updateTask(id: string, input: Partial<TaskInput> & { status?: TaskStatus }): TaskRecord {
     const existing = this.db.prepare('SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL').get(id) as Record<string, unknown> | undefined;
     if (!existing) throw new Error('Task not found.');
-    const projectId = input.projectId ?? String(existing.project_id);
-    const parentId = input.parentId === undefined ? (existing.parent_id ? String(existing.parent_id) : null) : input.parentId;
+    const projectId = input.projectId ?? String(existing['project_id']);
+    const parentId = input.parentId === undefined ? (existing['parent_id'] ? String(existing['parent_id']) : null) : input.parentId;
     this.assertProjectExists(projectId);
     if (parentId) this.assertParent(parentId, projectId, id);
     if (parentId) {
-      // Walk only the proposed parent's ancestor chain. Loading every task in a large
-      // project just to validate one hierarchy edit makes task updates O(project size).
       const cycle = this.db.prepare(`WITH RECURSIVE ancestor_chain(id, parent_id) AS (
           SELECT id, parent_id FROM tasks WHERE id = ? AND deleted_at IS NULL
           UNION
@@ -92,17 +94,17 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
     }
 
     const dueWasChanged = input.dueAt !== undefined || input.dueDate !== undefined;
-    const nextDueAt = dueWasChanged ? (input.dueAt ?? null) : (existing.due_at ? String(existing.due_at) : null);
-    const nextDueDate = dueWasChanged ? (input.dueDate ?? null) : (existing.due_date ? String(existing.due_date) : null);
+    const nextDueAt = dueWasChanged ? (input.dueAt ?? null) : (existing['due_at'] ? String(existing['due_at']) : null);
+    const nextDueDate = dueWasChanged ? (input.dueDate ?? null) : (existing['due_date'] ? String(existing['due_date']) : null);
     this.validateTaskDueDate(nextDueAt, nextDueDate);
     const next = {
-      title: input.title?.trim() ?? String(existing.title),
-      description: input.description?.trim() ?? String(existing.description),
-      status: input.status ?? existing.status,
-      priority: input.priority ?? existing.priority,
+      title: input.title?.trim() ?? String(existing['title']),
+      description: input.description?.trim() ?? String(existing['description']),
+      status: input.status ?? existing['status'],
+      priority: input.priority ?? existing['priority'],
       dueAt: nextDueAt,
       dueDate: nextDueDate,
-      estimateMinutes: input.estimateMinutes === undefined ? existing.estimate_minutes : input.estimateMinutes,
+      estimateMinutes: input.estimateMinutes === undefined ? existing['estimate_minutes'] : input.estimateMinutes,
     };
     this.db.prepare(`UPDATE tasks SET project_id = ?, parent_id = ?, title = ?, description = ?, status = ?,
       priority = ?, due_at = ?, due_date = ?, estimate_minutes = ?, updated_at = ? WHERE id = ?`)
@@ -159,6 +161,8 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
   }
 
   heartbeatActiveTimer(at = nowIso()): void {
+    const state = this.db as unknown as { open?: boolean | (() => void); isOpen?: boolean };
+    if (state.open === false || state.isOpen === false) return;
     this.db.prepare('UPDATE time_entries SET heartbeat_at = ? WHERE is_active = 1 AND active_session_id = ?')
       .run(at, this.sessionId);
   }

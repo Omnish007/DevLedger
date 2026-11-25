@@ -52,9 +52,9 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
             WHERE ${baseFilter} ORDER BY n.updated_at DESC LIMIT ?`)
           .all(projectParam, projectParam, tagName, tagName, after, after, before, before, limit);
       results.push(...(rows as Array<Record<string, unknown>>).map((row) => {
-        const cleaned = stripHtmlToPlainText(String(row.excerpt ?? ''), { preserveMark: Boolean(match) });
-        const excerpt = (match ? cleaned : cleaned.slice(0, 180)) || stripHtmlToPlainText(String(row.fallback_content ?? '')).slice(0, 180);
-        return { id: String(row.id), type: 'note' as const, title: String(row.title), excerpt, projectId: row.project_id ? String(row.project_id) : null, updatedAt: String(row.updated_at) };
+        const cleaned = stripHtmlToPlainText(String(row['excerpt'] ?? ''), { preserveMark: Boolean(match) });
+        const excerpt = (match ? cleaned : cleaned.slice(0, 180)) || stripHtmlToPlainText(String(row['fallback_content'] ?? '')).slice(0, 180);
+        return { id: String(row['id']), type: 'note' as const, title: String(row['title']), excerpt, projectId: row['project_id'] ? String(row['project_id']) : null, updatedAt: String(row['updated_at']) };
       }));
     }
     if (types.has('task')) {
@@ -76,7 +76,7 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
             FROM task_search JOIN tasks t ON t.id = task_search.task_id WHERE ${ftsPredicate}t.deleted_at IS NULL ${projectPredicate} ${tagPredicate} ${datePredicate} AND ${statusFilter} ORDER BY score LIMIT ?`).all(...params)
         : this.db.prepare(`SELECT t.id, t.project_id, t.title, t.updated_at, substr(t.description, 1, 180) AS excerpt, 0 AS score FROM tasks t
             WHERE t.deleted_at IS NULL ${projectPredicate} ${tagPredicate} ${datePredicate} AND ${statusFilter} ORDER BY t.updated_at DESC LIMIT ?`).all(...params.slice(0, match ? params.length : params.length));
-      results.push(...(rows as Array<Record<string, unknown>>).map((row) => ({ id: String(row.id), type: 'task' as const, title: String(row.title), excerpt: String(row.excerpt), projectId: String(row.project_id), updatedAt: String(row.updated_at) })));
+      results.push(...(rows as Array<Record<string, unknown>>).map((row) => ({ id: String(row['id']), type: 'task' as const, title: String(row['title']), excerpt: String(row['excerpt']), projectId: String(row['project_id']), updatedAt: String(row['updated_at']) })));
     }
     if (types.has('document')) {
       const extensionPredicate = `AND (? IS NULL OR d.extension = ?)`;
@@ -92,7 +92,7 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
             FROM document_search JOIN documents d ON d.id = document_search.document_id WHERE ${ftsPredicate}${projectPredicate} ${tagPredicate} ${extensionPredicate} ${datePredicate} ORDER BY score LIMIT ?`).all(...params)
         : this.db.prepare(`SELECT d.id, d.project_id, d.title, d.updated_at, substr(d.extracted_text, 1, 180) AS excerpt, 0 AS score FROM documents d
             WHERE ${projectPredicate} ${tagPredicate} ${extensionPredicate} ${datePredicate} ORDER BY d.updated_at DESC LIMIT ?`).all(...params.slice(match ? 1 : 0));
-      results.push(...(rows as Array<Record<string, unknown>>).map((row) => ({ id: String(row.id), type: 'document' as const, title: String(row.title), excerpt: String(row.excerpt), projectId: row.project_id ? String(row.project_id) : null, updatedAt: String(row.updated_at) })));
+      results.push(...(rows as Array<Record<string, unknown>>).map((row) => ({ id: String(row['id']), type: 'document' as const, title: String(row['title']), excerpt: String(row['excerpt']), projectId: row['project_id'] ? String(row['project_id']) : null, updatedAt: String(row['updated_at']) })));
     }
     if (types.has('contact')) {
       const contactProjectPredicate = `AND (? IS NULL OR EXISTS (SELECT 1 FROM project_contacts pc WHERE pc.contact_id = c.id AND pc.project_id = ?))`;
@@ -113,9 +113,9 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
             FROM contacts c WHERE c.deleted_at IS NULL ${contactProjectPredicate} ${contactTagPredicate} ${contactDatePredicate}
             ORDER BY c.updated_at DESC LIMIT ?`).all(...params);
       results.push(...(rows as Array<Record<string, unknown>>).map((row) => ({
-        id: String(row.id), type: 'contact' as const, title: String(row.name),
-        excerpt: [String(row.role ?? ''), String(row.company ?? ''), String(row.excerpt ?? '')].filter(Boolean).join(' · ').slice(0, 360),
-        projectId: projectParam, updatedAt: String(row.updated_at),
+        id: String(row['id']), type: 'contact' as const, title: String(row['name']),
+        excerpt: [String(row['role'] ?? ''), String(row['company'] ?? ''), String(row['excerpt'] ?? '')].filter(Boolean).join(' · ').slice(0, 360),
+        projectId: projectParam, updatedAt: String(row['updated_at']),
       })));
     }
     if (types.has('project')) {
@@ -126,7 +126,7 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
         AND (? = '' OR p.name LIKE ? ESCAPE '\\' OR p.description LIKE ? ESCAPE '\\')
         ORDER BY p.updated_at DESC LIMIT ?`)
         .all(projectParam, projectParam, tagName, tagName, after, after, before, before, escapedQuery, `%${escapedQuery}%`, `%${escapedQuery}%`, limit) as Array<Record<string, unknown>>;
-      results.push(...rows.map((row) => ({ id: String(row.id), type: 'project' as const, title: String(row.name), excerpt: String(row.description).slice(0, 180), projectId: String(row.id), updatedAt: String(row.updated_at) })));
+      results.push(...rows.map((row) => ({ id: String(row['id']), type: 'project' as const, title: String(row['name']), excerpt: String(row['description']).slice(0, 180), projectId: String(row['id']), updatedAt: String(row['updated_at']) })));
     }
     return results.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
   }

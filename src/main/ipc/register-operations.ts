@@ -23,6 +23,7 @@ export function registerOperationsHandlers(register: IpcRegistrar, context: IpcH
   register('operations:reminders:create', z.tuple([z.enum(['task', 'project', 'contact', 'note']), idInput, z.string().datetime(), z.string().max(500).optional()]), ([type, id, dueAt, message]) => operations.createReminder(type, id, dueAt, message));
   register('operations:reminders:listPage', reminderPageRequest, (input) => operations.listRemindersPage(input ?? {}));
   register('operations:reminders:update', z.tuple([idInput, z.enum(['snooze', 'dismiss', 'reschedule', 'cancel']), z.string().datetime().optional(), z.union([z.literal(15), z.literal(60), z.literal(240), z.literal(1440)]).optional()]), ([id, action, dueAt, snoozeMinutes]) => operations.updateReminder(id, action, dueAt, snoozeMinutes));
+  register('operations:records:summaries', z.array(z.object({ type: entityType, id: idInput })).max(200), (refs) => operations.resolveRecordSummaries(refs));
   register('operations:time:listPage', z.tuple([idInput, operationsPageRequest]), ([taskId, input]) => operations.listTimeEntriesPage(taskId, input ?? {}));
   register('operations:time:add', z.tuple([idInput, z.string().datetime(), z.string().datetime(), z.string().max(1000).optional()]), ([taskId, start, end, note]) => operations.addManualTimeEntry(taskId, start, end, note));
   register('operations:time:update', z.tuple([idInput, z.string().datetime(), z.string().datetime(), z.string().max(1000).optional()]), ([entryId, start, end, note]) => operations.updateTimeEntry(entryId, start, end, note));

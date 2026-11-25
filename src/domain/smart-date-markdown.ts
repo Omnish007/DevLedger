@@ -1,4 +1,5 @@
 import { isValidDateOnly } from './date-only.ts';
+import type { SmartDateDisplayFormat } from './smart-date.ts';
 
 export interface SmartDateReference {
   date: string;
@@ -6,11 +7,19 @@ export interface SmartDateReference {
   isoUtc: string | null;
   timezone: string;
   source: string;
+  endDate?: string | null;
+  format?: SmartDateDisplayFormat;
+  isReminder?: boolean;
+  reminderId?: string | null;
 }
+
+const VALID_FORMATS = new Set<SmartDateDisplayFormat>(['relative', 'full', 'short', 'iso']);
 
 /** Validate that the displayed local date/time describes the stored UTC instant. */
 export function isValidSmartDateReference(reference: SmartDateReference): boolean {
   if (!isValidDateOnly(reference.date)) return false;
+  if (reference.endDate && (!isValidDateOnly(reference.endDate) || reference.endDate < reference.date)) return false;
+  if (reference.format && !VALID_FORMATS.has(reference.format)) return false;
   if (reference.source.length > 120 || reference.timezone.length > 100) return false;
   if (!reference.time && !reference.isoUtc) return true;
   if (!reference.time || !reference.isoUtc || !reference.timezone) return false;
@@ -26,8 +35,8 @@ export function isValidSmartDateReference(reference: SmartDateReference): boolea
       hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
     }).formatToParts(instant);
     const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    return `${values.year}-${values.month}-${values.day}` === reference.date
-      && `${values.hour}:${values.minute}` === reference.time;
+    return `${values['year']}-${values['month']}-${values['day']}` === reference.date
+      && `${values['hour']}:${values['minute']}` === reference.time;
   } catch {
     return false;
   }
@@ -43,6 +52,10 @@ export function serializeSmartDateMarkdown(reference: SmartDateReference): strin
   if (reference.time) params.set('time', reference.time);
   if (reference.isoUtc) params.set('utc', reference.isoUtc);
   if (reference.timezone) params.set('tz', reference.timezone);
+  if (reference.endDate) params.set('end', reference.endDate);
+  if (reference.format && reference.format !== 'relative') params.set('fmt', reference.format);
+  if (reference.isReminder) params.set('rem', '1');
+  if (reference.reminderId) params.set('remId', reference.reminderId);
   return `[${escapeMarkdownLabel(reference.source || reference.date)}](devledger-date:${encodeURIComponent(reference.date)}?${params.toString()})`;
 }
 
@@ -53,15 +66,17 @@ export function parseSmartDateMarkdownLink(href: string, text: string): SmartDat
     const [datePart, query = ''] = href.slice(prefix.length).split('?', 2);
     const date = decodeURIComponent(datePart ?? '');
     const params = new URLSearchParams(query);
-    const time = params.get('time');
-    const isoUtc = params.get('utc');
-    const timezone = params.get('tz') ?? '';
-    const reference = {
+    const formatParam = params.get('fmt') as SmartDateDisplayFormat | null;
+    const reference: SmartDateReference = {
       date,
-      time,
-      isoUtc,
-      timezone,
+      time: params.get('time'),
+      isoUtc: params.get('utc'),
+      timezone: params.get('tz') ?? '',
       source: text.slice(0, 120) || date,
+      ...(params.get('end') ? { endDate: params.get('end') } : {}),
+      ...(formatParam && VALID_FORMATS.has(formatParam) ? { format: formatParam } : {}),
+      ...(params.get('rem') === '1' ? { isReminder: true } : {}),
+      ...(params.get('remId') ? { reminderId: params.get('remId') } : {}),
     };
     return isValidSmartDateReference(reference) ? reference : null;
   } catch {

@@ -66,7 +66,7 @@ export class WorkspaceContactsService extends WorkspaceBase {
     const current = this.db.prepare('SELECT * FROM contacts WHERE id = ? AND deleted_at IS NULL').get(id) as Record<string, unknown> | undefined;
     if (!current) throw new Error('Contact not found.');
     if (input.projectId) this.assertProjectExists(input.projectId);
-    const next = { name: input.name?.trim() ?? String(current.name), role: input.role ?? String(current.role), company: input.company ?? String(current.company), email: input.email ?? String(current.email), phone: input.phone ?? String(current.phone), notes: input.notes ?? String(current.notes), customAttributes: input.customAttributes === undefined ? parseContactAttributes(current.custom_attributes_json) : normalizeContactAttributes(input.customAttributes) };
+    const next = { name: input.name?.trim() ?? String(current['name']), role: input.role ?? String(current['role']), company: input.company ?? String(current['company']), email: input.email ?? String(current['email']), phone: input.phone ?? String(current['phone']), notes: input.notes ?? String(current['notes']), customAttributes: input.customAttributes === undefined ? parseContactAttributes(current['custom_attributes_json']) : normalizeContactAttributes(input.customAttributes) };
     const update = this.db.transaction(() => {
       this.db.prepare('UPDATE contacts SET name = ?, role = ?, company = ?, email = ?, phone = ?, notes = ?, custom_attributes_json = ?, updated_at = ? WHERE id = ?')
         .run(next.name, next.role, next.company, next.email, next.phone, next.notes, JSON.stringify(next.customAttributes), nowIso(), id);

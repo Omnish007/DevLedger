@@ -62,7 +62,6 @@ test('navigates core workspace views and exposes accessible page headings', asyn
   const views = [
     { label: 'Documents', heading: 'Documents' },
     { label: 'Contacts', heading: 'Contacts' },
-    { label: 'Operations', heading: 'Workspace operations' },
     { label: 'Settings', heading: 'Settings' },
   ];
   for (const view of views) {
@@ -90,7 +89,7 @@ test('visible controls have computed accessible names and the window has a main 
   await expect(currentPage.getByRole('main')).toBeVisible();
   const visibleButtons = await currentPage.locator('button:visible').all();
   for (const button of visibleButtons) {
-    await expect(button).toHaveAccessibleName();
+    await expect(button).toHaveAccessibleName(/\S/);
   }
 });
 
@@ -110,16 +109,16 @@ test('keyboard focus can reach the workspace navigation', async () => {
 
 test('notification inbox is available and exposes its empty state', async () => {
   const currentPage = page!;
-  await currentPage.getByRole('button', { name: 'Operations', exact: true }).click();
-  await currentPage.getByRole('tab', { name: 'Inbox' }).click();
-  await expect(currentPage.getByRole('heading', { name: 'Notification inbox' })).toBeVisible();
-  await expect(currentPage.getByText(/No notifications in this filter/)).toBeVisible();
+  await currentPage.getByRole('button', { name: /Inbox notifications/i }).click();
+  await expect(currentPage.getByText('Inbox', { exact: true })).toBeVisible();
+  await expect(currentPage.getByText(/You’re all caught up/)).toBeVisible();
 });
 
 test('task creation validates required fields with an accessible message', async () => {
   const currentPage = page!;
   await currentPage.getByRole('button', { name: 'Tasks', exact: true }).click();
-  await currentPage.getByRole('button', { name: 'Create task' }).click();
+  await currentPage.getByRole('button', { name: 'New task', exact: true }).click();
+  await currentPage.getByRole('button', { name: 'Create task', exact: true }).click();
   await expect(currentPage.getByRole('alert').filter({ hasText: 'Enter a task title.' })).toBeVisible();
 });
 

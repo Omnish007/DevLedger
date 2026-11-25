@@ -53,10 +53,10 @@ export class WorkspaceProjectsService extends WorkspaceContactsService {
     const existing = this.db.prepare('SELECT * FROM projects WHERE id = ? AND deleted_at IS NULL').get(id) as Record<string, unknown> | undefined;
     if (!existing) throw new Error('Project not found.');
     const next = {
-      name: input.name?.trim() ?? String(existing.name),
-      description: input.description?.trim() ?? String(existing.description),
-      type: input.type ?? existing.type,
-      status: input.status ?? existing.status,
+      name: input.name?.trim() ?? String(existing['name']),
+      description: input.description?.trim() ?? String(existing['description']),
+      type: input.type ?? existing['type'],
+      status: input.status ?? existing['status'],
     };
     this.db.prepare(`UPDATE projects SET name = ?, description = ?, type = ?, status = ?, updated_at = ? WHERE id = ?`)
       .run(next.name, next.description, next.type, next.status, nowIso(), id);

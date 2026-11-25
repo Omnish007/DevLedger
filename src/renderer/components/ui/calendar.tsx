@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { DayPicker, getDefaultClassNames } from '@daypicker/react';
 import type { ButtonProps } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button';
@@ -15,6 +16,7 @@ type CalendarProps = React.ComponentProps<typeof DayPicker> & {
 function Calendar({
   className,
   classNames,
+  components,
   showOutsideDays = true,
   buttonVariant = 'ghost',
   ...props
@@ -32,23 +34,32 @@ function Calendar({
     >
       <DayPicker
         showOutsideDays={showOutsideDays}
+        components={{
+          Chevron: ({ orientation, className: iconClass }) => {
+            if (orientation === 'right') return <ChevronRight className={cn('size-4', iconClass)} />;
+            if (orientation === 'up') return <ChevronUp className={cn('size-4', iconClass)} />;
+            if (orientation === 'down') return <ChevronDown className={cn('size-3.5 opacity-70', iconClass)} />;
+            return <ChevronLeft className={cn('size-4', iconClass)} />;
+          },
+          ...components,
+        }}
         classNames={{
           ...defaults,
           ...classNames,
           root: cn(defaults.root, 'w-fit', classNames?.root),
-          months: cn(defaults.months, 'flex flex-col gap-4 sm:flex-row', classNames?.months),
-          month: cn(defaults.month, 'flex w-full flex-col gap-4', classNames?.month),
-          month_caption: cn(defaults.month_caption, 'relative flex h-8 items-center justify-center px-9', classNames?.month_caption),
-          caption_label: cn(defaults.caption_label, 'select-none text-sm font-medium', classNames?.caption_label),
-          dropdowns: cn(defaults.dropdowns, 'flex items-center gap-2', classNames?.dropdowns),
-          dropdown_root: cn(defaults.dropdown_root, 'relative inline-flex h-8 items-center rounded-md border border-input bg-background', classNames?.dropdown_root),
-          dropdown: cn(defaults.dropdown, 'h-full appearance-none bg-transparent px-2 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring', classNames?.dropdown),
+          months: cn(defaults.months, 'relative flex flex-col gap-4 sm:flex-row', classNames?.months),
+          month: cn(defaults.month, 'flex w-full flex-col gap-3', classNames?.month),
+          month_caption: cn(defaults.month_caption, 'flex h-8 items-center justify-center px-9', classNames?.month_caption),
+          caption_label: cn(defaults.caption_label, 'inline-flex select-none items-center gap-1 text-sm font-medium', classNames?.caption_label),
+          dropdowns: cn(defaults.dropdowns, 'inline-flex items-center gap-1.5', classNames?.dropdowns),
+          dropdown_root: cn(defaults.dropdown_root, 'relative inline-flex h-7 items-center rounded-md border border-input bg-background px-2 text-xs font-medium transition-colors hover:bg-accent/60', classNames?.dropdown_root),
+          dropdown: cn(defaults.dropdown, 'absolute inset-0 z-10 cursor-pointer opacity-0', classNames?.dropdown),
           months_dropdown: cn(defaults.months_dropdown, 'relative', classNames?.months_dropdown),
           years_dropdown: cn(defaults.years_dropdown, 'relative', classNames?.years_dropdown),
-          nav: cn(defaults.nav, 'absolute inset-x-3 top-3 flex items-center justify-between', classNames?.nav),
-          button_previous: cn(defaults.button_previous, navButton, 'size-8 p-0', classNames?.button_previous),
-          button_next: cn(defaults.button_next, navButton, 'size-8 p-0', classNames?.button_next),
-          chevron: cn(defaults.chevron, 'size-4 fill-none stroke-current stroke-2', classNames?.chevron),
+          nav: cn(defaults.nav, 'pointer-events-none absolute inset-x-0 top-0 z-20 flex h-8 items-center justify-between', classNames?.nav),
+          button_previous: cn(defaults.button_previous, navButton, 'pointer-events-auto relative z-20 size-8 p-0 text-muted-foreground hover:text-foreground', classNames?.button_previous),
+          button_next: cn(defaults.button_next, navButton, 'pointer-events-auto relative z-20 size-8 p-0 text-muted-foreground hover:text-foreground', classNames?.button_next),
+          chevron: cn(defaults.chevron, 'shrink-0', classNames?.chevron),
           month_grid: cn(defaults.month_grid, 'w-full border-collapse', classNames?.month_grid),
           weekdays: cn(defaults.weekdays, 'flex', classNames?.weekdays),
           weekday: cn(defaults.weekday, 'w-[var(--cell-size)] rounded-md text-center text-[0.7rem] font-medium text-muted-foreground', classNames?.weekday),

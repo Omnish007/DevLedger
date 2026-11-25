@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadRecordChoices, RECORD_PICKER_PAGE_SIZE } from '../../src/renderer/features/operations/record-search.ts';
+import { loadRecordChoices, RECORD_PICKER_PAGE_SIZE } from '../../src/renderer/components/shared/record-search.ts';
 
 type Api = Parameters<typeof loadRecordChoices>[0];
 

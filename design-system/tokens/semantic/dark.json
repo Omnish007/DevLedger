@@ -1,138 +1,36 @@
 {
-  "background": {
-    "$type": "color",
-    "$value": "oklch(0.16 0.012 258)"
-  },
-  "foreground": {
-    "$type": "color",
-    "$value": "oklch(0.93 0.006 258)"
-  },
-  "card": {
-    "$type": "color",
-    "$value": "oklch(0.195 0.014 258)"
-  },
-  "card-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.93 0.006 258)"
-  },
-  "popover": {
-    "$type": "color",
-    "$value": "oklch(0.215 0.016 258)"
-  },
-  "popover-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.93 0.006 258)"
-  },
-  "surface": {
-    "$type": "color",
-    "$value": "oklch(0.195 0.014 258)"
-  },
-  "surface-subtle": {
-    "$type": "color",
-    "$value": "oklch(0.22 0.016 258)"
-  },
-  "surface-hover": {
-    "$type": "color",
-    "$value": "oklch(0.255 0.022 258)"
-  },
-  "primary": {
-    "$type": "color",
-    "$value": "oklch(0.76 0.12 258)"
-  },
-  "primary-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.17 0.02 258)"
-  },
-  "secondary": {
-    "$type": "color",
-    "$value": "oklch(0.27 0.018 258)"
-  },
-  "secondary-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.91 0.008 258)"
-  },
-  "muted": {
-    "$type": "color",
-    "$value": "oklch(0.24 0.016 258)"
-  },
-  "muted-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.69 0.018 258)"
-  },
-  "accent": {
-    "$type": "color",
-    "$value": "oklch(0.28 0.035 258)"
-  },
-  "accent-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.93 0.008 258)"
-  },
-  "destructive": {
-    "$type": "color",
-    "$value": "oklch(0.68 0.17 25)"
-  },
-  "destructive-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.16 0.01 258)"
-  },
-  "border": {
-    "$type": "color",
-    "$value": "oklch(0.31 0.018 258)"
-  },
-  "input": {
-    "$type": "color",
-    "$value": "oklch(0.35 0.02 258)"
-  },
-  "ring": {
-    "$type": "color",
-    "$value": "oklch(0.68 0.12 258)"
-  },
-  "sidebar-background": {
-    "$type": "color",
-    "$value": "oklch(0.175 0.014 258)"
-  },
-  "sidebar-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.92 0.008 258)"
-  },
-  "sidebar-primary": {
-    "$type": "color",
-    "$value": "oklch(0.76 0.12 258)"
-  },
-  "sidebar-primary-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.17 0.02 258)"
-  },
-  "sidebar-accent": {
-    "$type": "color",
-    "$value": "oklch(0.28 0.035 258)"
-  },
-  "sidebar-accent-foreground": {
-    "$type": "color",
-    "$value": "oklch(0.93 0.008 258)"
-  },
-  "sidebar-border": {
-    "$type": "color",
-    "$value": "oklch(0.31 0.018 258)"
-  },
-  "sidebar-ring": {
-    "$type": "color",
-    "$value": "oklch(0.68 0.12 258)"
-  },
-  "success": {
-    "$type": "color",
-    "$value": "oklch(0.72 0.12 155)"
-  },
-  "warning": {
-    "$type": "color",
-    "$value": "oklch(0.78 0.13 75)"
-  },
-  "danger": {
-    "$type": "color",
-    "$value": "oklch(0.70 0.16 25)"
-  },
-  "info": {
-    "$type": "color",
-    "$value": "oklch(0.72 0.10 245)"
-  }
+  "background": { "$type": "color", "$value": "oklch(0.145 0.003 240)" },
+  "foreground": { "$type": "color", "$value": "oklch(0.93 0.003 80)" },
+  "card": { "$type": "color", "$value": "oklch(0.178 0.004 240)" },
+  "card-foreground": { "$type": "color", "$value": "oklch(0.93 0.003 80)" },
+  "popover": { "$type": "color", "$value": "oklch(0.195 0.004 240)" },
+  "popover-foreground": { "$type": "color", "$value": "oklch(0.93 0.003 80)" },
+  "surface": { "$type": "color", "$value": "oklch(0.178 0.004 240)" },
+  "surface-subtle": { "$type": "color", "$value": "oklch(0.21 0.004 240)" },
+  "surface-hover": { "$type": "color", "$value": "oklch(0.245 0.005 240)" },
+  "primary": { "$type": "color", "$value": "oklch(0.75 0.11 250)" },
+  "primary-foreground": { "$type": "color", "$value": "oklch(0.15 0.015 250)" },
+  "secondary": { "$type": "color", "$value": "oklch(0.24 0.004 240)" },
+  "secondary-foreground": { "$type": "color", "$value": "oklch(0.91 0.003 80)" },
+  "muted": { "$type": "color", "$value": "oklch(0.22 0.004 240)" },
+  "muted-foreground": { "$type": "color", "$value": "oklch(0.67 0.006 240)" },
+  "accent": { "$type": "color", "$value": "oklch(0.255 0.006 240)" },
+  "accent-foreground": { "$type": "color", "$value": "oklch(0.94 0.003 80)" },
+  "destructive": { "$type": "color", "$value": "oklch(0.67 0.17 25)" },
+  "destructive-foreground": { "$type": "color", "$value": "oklch(0.15 0.01 240)" },
+  "border": { "$type": "color", "$value": "oklch(0.275 0.005 240)" },
+  "input": { "$type": "color", "$value": "oklch(0.32 0.006 240)" },
+  "ring": { "$type": "color", "$value": "oklch(0.68 0.11 250)" },
+  "sidebar-background": { "$type": "color", "$value": "oklch(0.16 0.003 240)" },
+  "sidebar-foreground": { "$type": "color", "$value": "oklch(0.91 0.003 80)" },
+  "sidebar-primary": { "$type": "color", "$value": "oklch(0.75 0.11 250)" },
+  "sidebar-primary-foreground": { "$type": "color", "$value": "oklch(0.15 0.015 250)" },
+  "sidebar-accent": { "$type": "color", "$value": "oklch(0.235 0.006 240)" },
+  "sidebar-accent-foreground": { "$type": "color", "$value": "oklch(0.94 0.003 80)" },
+  "sidebar-border": { "$type": "color", "$value": "oklch(0.265 0.005 240)" },
+  "sidebar-ring": { "$type": "color", "$value": "oklch(0.68 0.11 250)" },
+  "success": { "$type": "color", "$value": "oklch(0.72 0.12 155)" },
+  "warning": { "$type": "color", "$value": "oklch(0.78 0.13 75)" },
+  "danger": { "$type": "color", "$value": "oklch(0.70 0.16 25)" },
+  "info": { "$type": "color", "$value": "oklch(0.72 0.10 245)" }
 }

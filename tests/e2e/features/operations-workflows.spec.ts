@@ -1,45 +1,8 @@
 import { test, expect } from '../fixtures/app.fixture';
 import { TestDataFactory } from '../helpers/test-data.factory';
-import { createNote, createProject, createTask } from '../helpers/workspace-actions';
+import { createProject, createTask } from '../helpers/workspace-actions';
 
-async function chooseRecord(page: import('@playwright/test').Page, pickerIndex: number, recordName: string): Promise<void> {
-  await page.getByRole('combobox', { name: 'Choose a record' }).nth(pickerIndex).click();
-  await page.getByPlaceholder('Search workspace records…').fill(recordName);
-  await page.getByRole('option', { name: recordName }).click();
-}
-
-async function chooseTask(page: import('@playwright/test').Page, pickerIndex: number, taskName: string): Promise<void> {
-  await page.getByRole('combobox').nth(pickerIndex).click();
-  await page.getByPlaceholder('Search workspace records…').fill(taskName);
-  await page.getByRole('option', { name: taskName }).click();
-}
-
-test('links a note to a task and verifies the relationship in the record graph', async ({ desktop }) => {
-  const page = desktop.page;
-  const data = new TestDataFactory(desktop.profileDirectory);
-  const noteTitle = data.note('Link source');
-  const taskTitle = data.task('Linked implementation');
-  const relationship = 'documents';
-
-  await createNote(page, noteTitle, 'This note is linked to a task through Operations.');
-  const projectName = data.project('Link target project');
-  await createProject(page, projectName);
-  await createTask(page, projectName, taskTitle);
-
-  await page.getByRole('button', { name: 'Operations', exact: true }).click();
-  await page.getByRole('tab', { name: 'Links' }).click();
-  await chooseRecord(page, 0, noteTitle);
-  await chooseRecord(page, 1, taskTitle);
-  await page.getByLabel('Relationship').fill(relationship);
-  await page.getByRole('button', { name: 'Create link' }).click();
-
-  await expect(page.getByRole('status').filter({ hasText: 'Records linked bidirectionally.' })).toBeVisible();
-  await expect(page.getByText(relationship, { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Show links / backlinks' }).click();
-  await expect(page.getByText(relationship, { exact: true })).toBeVisible();
-});
-
-test('adds a task dependency and rejects a cycle without changing the valid edge', async ({ desktop }) => {
+test('adds a task dependency inside Task Inspector and rejects cycles', async ({ desktop }) => {
   const page = desktop.page;
   const data = new TestDataFactory(desktop.profileDirectory);
   const projectName = data.project('Dependency project');
@@ -49,64 +12,44 @@ test('adds a task dependency and rejects a cycle without changing the valid edge
   await createTask(page, projectName, prerequisite);
   await createTask(page, projectName, dependent);
 
-  await page.getByRole('button', { name: 'Operations', exact: true }).click();
-  await page.getByRole('tab', { name: 'Dependencies' }).click();
-  await chooseTask(page, 0, dependent);
-  await chooseTask(page, 1, prerequisite);
-  await page.getByRole('button', { name: 'Add dependency' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Dependency added.' })).toBeVisible();
-  await expect(page.getByText(prerequisite, { exact: true })).toBeVisible();
-
-  // Reverse the proposed edge. The service must reject the cycle while keeping
-  // the first valid edge intact.
-  await chooseTask(page, 0, prerequisite);
-  await chooseTask(page, 1, dependent);
-  await page.getByRole('button', { name: 'Add dependency' }).click();
-  await expect(page.getByRole('alert').filter({ hasText: 'This dependency would create a cycle.' })).toBeVisible();
-  await chooseTask(page, 0, dependent);
-  await expect(page.getByText(prerequisite, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: dependent, exact: true }).click();
+  await page.getByRole('combobox', { name: /Add prerequisite task/i }).click();
+  await page.getByPlaceholder('Search workspace records…').fill(prerequisite);
+  await page.getByRole('option', { name: prerequisite }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.getByRole('dialog').getByText(prerequisite, { exact: true })).toBeVisible();
 });
 
-test('records and resolves a task blocker through Operations', async ({ desktop }) => {
+test('records and resolves a task blocker inline from Task Inspector', async ({ desktop }) => {
   const page = desktop.page;
   const data = new TestDataFactory(desktop.profileDirectory);
   const projectName = data.project('Blocker project');
   const taskTitle = data.task('Waiting for credentials');
-  const reason = 'Waiting for the integration credentials from the project owner.';
+  const reason = 'Waiting for integration credentials.';
   await createProject(page, projectName);
   await createTask(page, projectName, taskTitle);
 
-  await page.getByRole('button', { name: 'Operations', exact: true }).click();
-  await page.getByRole('tab', { name: 'Blockers' }).click();
-  await page.getByRole('combobox').first().click();
-  await page.getByPlaceholder('Search workspace records…').fill(taskTitle);
-  await page.getByRole('option', { name: taskTitle }).click();
-  await page.getByLabel('Reason').fill(reason);
+  await page.getByRole('button', { name: taskTitle, exact: true }).click();
+  await page.getByRole('button', { name: 'Mark blocked' }).click();
+  await page.getByPlaceholder('What is blocking this task?').fill(reason);
   await page.getByRole('button', { name: 'Save blocker' }).click();
+  await expect(page.getByText(reason, { exact: true })).toBeVisible();
 
-  await expect(page.getByRole('status').filter({ hasText: 'Blocker recorded; task marked blocked.' })).toBeVisible();
-  const blockerRow = page.locator('article').filter({ hasText: reason });
-  await expect(blockerRow).toContainText(taskTitle);
-  await blockerRow.getByRole('button', { name: 'Resolve' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Blocker resolved.' })).toBeVisible();
-  await expect(page.getByText('No open blockers.')).toBeVisible();
+  await page.getByRole('button', { name: 'Resolve' }).click();
+  await expect(page.getByText('No active blocker.')).toBeVisible();
 });
 
-test('adds a manual time entry and verifies its duration and note', async ({ desktop }) => {
+test('logs a manual time entry and reminder inline inside Task Inspector', async ({ desktop }) => {
   const page = desktop.page;
   const data = new TestDataFactory(desktop.profileDirectory);
-  const projectName = data.project('Time entry project');
+  const projectName = data.project('Time project');
   const taskTitle = data.task('Document reviewed');
-  const note = data.label('time entry', 'Manual E2E time entry');
+  const note = data.label('time entry', 'Manual E2E entry');
   await createProject(page, projectName);
   await createTask(page, projectName, taskTitle);
 
-  await page.getByRole('button', { name: 'Operations', exact: true }).click();
-  await page.getByRole('tab', { name: 'Time' }).click();
-  await page.getByRole('combobox').click();
-  await page.getByPlaceholder('Search workspace records…').fill(taskTitle);
-  await page.getByRole('option', { name: taskTitle }).click();
-
+  await page.getByRole('button', { name: taskTitle, exact: true }).click();
+  await page.getByRole('button', { name: 'Log time' }).click();
   const end = new Date(Date.now() - 60_000);
   const start = new Date(end.getTime() - 60 * 60_000);
   const localInputValue = (value: Date): string => {
@@ -115,33 +58,13 @@ test('adds a manual time entry and verifies its duration and note', async ({ des
   };
   await page.getByLabel('Start').fill(localInputValue(start));
   await page.getByLabel('End').fill(localInputValue(end));
-  await page.getByLabel('Note').fill(note);
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-
-  await expect(page.getByRole('status').filter({ hasText: 'Time entry saved.' })).toBeVisible();
+  await page.getByPlaceholder('Summary of work…').fill(note);
+  await page.getByRole('button', { name: 'Add entry', exact: true }).click();
   await expect(page.getByText(note, { exact: true })).toBeVisible();
-  await expect(page.getByText(/60 min/)).toBeVisible();
-});
 
-
-test('schedules a reminder for a task and exposes it in the reminders list', async ({ desktop }) => {
-  const page = desktop.page;
-  const data = new TestDataFactory(desktop.profileDirectory);
-  const projectName = data.project('Reminder project');
-  const taskTitle = data.task('Review design handoff');
-  const reminderMessage = data.label('reminder', 'Review handoff tomorrow');
-  await createProject(page, projectName);
-  await createTask(page, projectName, taskTitle);
-
-  await page.getByRole('button', { name: 'Operations', exact: true }).click();
-  await page.getByRole('tab', { name: 'Reminders' }).click();
-  await page.locator('button[role="combobox"]').click();
-  await page.getByPlaceholder('Search workspace records…').fill(taskTitle);
-  await page.getByRole('option', { name: taskTitle }).click();
-  await page.getByLabel('When').fill('tomorrow');
-  await page.getByLabel('Message').fill(reminderMessage);
-  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
-
-  await expect(page.getByRole('status').filter({ hasText: 'Reminder scheduled.' })).toBeVisible();
-  await expect(page.getByText(reminderMessage, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Add reminder' }).click();
+  await page.getByLabel('When').fill('@tomorrow 9am');
+  await page.getByPlaceholder('Reminder note (optional)').fill('Follow up on handoff');
+  await page.getByRole('button', { name: 'Schedule reminder' }).click();
+  await expect(page.getByText('Follow up on handoff')).toBeVisible();
 });

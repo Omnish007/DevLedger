@@ -4,7 +4,7 @@ import type { EntityType } from '@shared/contracts';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import { cn, friendlyError } from '@/lib/utils';
 import { loadRecordChoices, RECORD_PICKER_PAGE_SIZE, type RecordChoice, type RecordSearchOptions } from './record-search';
 
 type RemoteRecordPickerProps = {
@@ -15,10 +15,10 @@ type RemoteRecordPickerProps = {
   searchPlaceholder?: string;
   disabled?: boolean;
   className?: string;
-  projectId?: string | null;
-  includeCompleted?: boolean;
-  excludeId?: string | null;
-  selectedLabel?: string;
+  projectId?: string | null | undefined;
+  includeCompleted?: boolean | undefined;
+  excludeId?: string | null | undefined;
+  selectedLabel?: string | undefined;
   onChoiceChange?: (choice: RecordChoice | null) => void;
 };
 
@@ -66,7 +66,7 @@ export function RemoteRecordPicker({ entityType, value, onValueChange, placehold
       }).catch((caught: unknown) => {
         if (active && requestId.current === currentRequest) {
           setChoices([]);
-          setError(caught instanceof Error ? caught.message : 'Records could not be searched.');
+          setError(friendlyError(caught, 'Records could not be searched.'));
         }
       }).finally(() => {
         if (active && requestId.current === currentRequest) setLoading(false);

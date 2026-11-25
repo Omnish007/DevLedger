@@ -58,8 +58,15 @@ export function createAtSuggestionRenderer() {
       button.setAttribute('aria-selected', String(index === activeIndex));
       button.className = `flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-xs transition-colors ${index === activeIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/60'}`;
       const left = document.createElement('span');
-      left.className = 'truncate font-medium';
-      left.textContent = item.kind === 'date' ? `◷ ${item.label}` : `@${item.label}`;
+      left.className = 'inline-flex min-w-0 items-center gap-1.5 truncate font-medium';
+      const iconText = item.kind === 'date' ? (item.attrs.isReminder ? '🔔' : '📅') : '@';
+      const glyph = document.createElement('span');
+      glyph.className = `shrink-0 text-[11px] ${item.kind === 'date' && item.attrs.isReminder ? 'text-warning' : 'text-muted-foreground'}`;
+      glyph.textContent = iconText;
+      const text = document.createElement('span');
+      text.className = 'truncate';
+      text.textContent = item.label;
+      left.append(glyph, text);
       const right = document.createElement('span');
       right.className = 'shrink-0 text-[10px] text-muted-foreground';
       right.textContent = item.detail;

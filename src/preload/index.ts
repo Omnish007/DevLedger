@@ -120,6 +120,7 @@ const api: DevLedgerApi = {
     createReminder: (type, id, dueAt, message) => invoke('operations:reminders:create', [type, id, dueAt, message]),
     listRemindersPage: (input) => invoke('operations:reminders:listPage', input),
     updateReminder: (id, action, dueAt, snoozeMinutes) => invoke('operations:reminders:update', [id, action, dueAt, snoozeMinutes]),
+    resolveRecordSummaries: (refs) => invoke('operations:records:summaries', refs),
     listTimeEntriesPage: (taskId, input) => invoke('operations:time:listPage', [taskId, input]),
     addManualTimeEntry: (taskId, startedAt, endedAt, note) => invoke('operations:time:add', [taskId, startedAt, endedAt, note]),
     updateTimeEntry: (entryId, startedAt, endedAt, note) => invoke('operations:time:update', [entryId, startedAt, endedAt, note]),

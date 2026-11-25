@@ -1,13 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 
 const ROUTES = [
-  { label: 'Overview', heading: 'A clear view of your work.' },
+  { label: 'Overview', heading: 'Overview' },
   { label: 'Projects', heading: 'Projects' },
   { label: 'Notes', heading: 'Notes' },
   { label: 'Tasks', heading: 'Tasks' },
   { label: 'Documents', heading: 'Documents' },
   { label: 'Contacts', heading: 'Contacts' },
-  { label: 'Operations', heading: 'Operations' },
   { label: 'Search', heading: 'Search' },
   { label: 'Settings', heading: 'Settings' },
 ] as const;

@@ -139,7 +139,9 @@ async function initialize(): Promise<void> {
   void deliverDueReminders();
   reminderInterval = setInterval(() => { void deliverDueReminders(); }, 60_000);
   reminderInterval.unref();
-  timerHeartbeatInterval = setInterval(() => workspaceService?.heartbeatActiveTimer(), 15_000);
+  timerHeartbeatInterval = setInterval(() => {
+    if (!isShuttingDown && database?.open) workspaceService?.heartbeatActiveTimer();
+  }, 15_000);
   timerHeartbeatInterval.unref();
   powerMonitor.on('resume', deliverDueReminders);
   powerMonitor.on('lock-screen', lockVaultForScreenLock);
@@ -169,9 +171,10 @@ if (hasSingleInstanceLock) {
 }
 
 app.on('before-quit', (event) => {
+  if (shutdownRestoreCheckComplete) return;
   automaticBackups?.stop();
   if (backupInterval) clearInterval(backupInterval);
-  workspaceService?.heartbeatActiveTimer();
+  if (!isShuttingDown && database?.open) workspaceService?.heartbeatActiveTimer();
   if (!shutdownAfterBackup && automaticBackups?.isBusy) {
     event.preventDefault();
     if (!shutdownScheduled) {
@@ -186,6 +189,7 @@ app.on('before-quit', (event) => {
   if (!shutdownRestoreCheckComplete) {
     event.preventDefault();
     isShuttingDown = true;
+    if (timerHeartbeatInterval) clearInterval(timerHeartbeatInterval);
     if (!shutdownRestoreCheckScheduled) {
       shutdownRestoreCheckScheduled = true;
       void (async () => {
@@ -201,6 +205,7 @@ app.on('before-quit', (event) => {
         powerMonitor.removeListener('lock-screen', lockVaultForScreenLock);
         await backgroundJobs?.stop();
         await documentWorkerSupervisor.stop();
+        workspaceService = null;
         if (database?.open) {
           database.pragma('wal_checkpoint(TRUNCATE)');
           database.close();

@@ -5,10 +5,10 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 
-test('Operations uses one accessible Radix Tabs root and a matching active tab panel', () => {
-  const source = readFileSync(join(root, 'src/renderer/features/operations/OperationsPage.tsx'), 'utf8');
+test('ProjectDetailSheet uses one accessible Radix Tabs root and a matching active tab panel', () => {
+  const source = readFileSync(join(root, 'src/renderer/features/projects/ProjectDetailSheet.tsx'), 'utf8');
   assert.match(source, /<Tabs value=\{tab\} onValueChange=/);
-  assert.match(source, /<TabsContent value=\{tab\}/);
+  assert.match(source, /<TabsContent value=/);
   assert.match(source, /import \{ Tabs, TabsContent, TabsList, TabsTrigger \}/);
 });
 
@@ -17,8 +17,8 @@ test('sidebar collapse state is saved through SQLite-backed settings', () => {
   const main = readFileSync(join(root, 'src/renderer/main.tsx'), 'utf8');
   const workspace = readFileSync(join(root, 'src/main/services/workspace/dashboard.ts'), 'utf8');
   assert.match(shell, /open=\{sidebarOpen\} onOpenChange=\{onSidebarOpenChange\}/);
-  assert.match(main, /settings\.sidebarOpen !== false/);
-  assert.match(main, /changeSetting\('sidebarOpen', open\)/);
+  assert.match(main, /settings\['sidebarOpen'\] !== false/);
+  assert.match(main, /settings\.set\('sidebarOpen', open\)/);
   assert.match(workspace, /setSetting\(key: string, value: unknown\)/);
 });
 
@@ -37,17 +37,24 @@ test('the control catalogue exercises shared form, feedback and selection primit
 });
 
 test('feature screens use the shared native select styling instead of ad hoc browser select styles', () => {
-  const featureFiles = [
-    'documents/DocumentsPage.tsx',
-    'notes/NotesPage.tsx',
-    'operations/OperationsTagsLinksTab.tsx',
-    'operations/OperationsTimeScheduleTab.tsx',
-    'tasks/TaskCreateDialog.tsx',
-    'tasks/TaskEditDialog.tsx',
+  const nativeSelectFiles = [
+    'src/renderer/components/shared/RecordConnectionsPanel.tsx',
+    'src/renderer/features/notes/SmartDateChipView.tsx',
+    'src/renderer/features/notes/SmartDateInsert.tsx',
+    'src/renderer/features/projects/ProjectDetailSheet.tsx',
+    'src/renderer/features/settings/SettingsPage.tsx',
+    'src/renderer/features/settings/SettingsVaultTab.tsx',
+    'src/renderer/features/tasks/TaskCreateDialog.tsx',
+    'src/renderer/features/tasks/TaskEditDialog.tsx',
+    'src/renderer/features/tasks/TaskInspectorSheet.tsx',
   ];
-  const remotePickerFiles = ['capture/QuickCapturePage.tsx', 'search/SearchPage.tsx', 'documents/DocumentsPage.tsx'];
-  for (const file of [...featureFiles, ...remotePickerFiles]) {
-    const source = readFileSync(join(root, 'src/renderer/features', file), 'utf8');
+  const remotePickerFiles = [
+    'src/renderer/features/capture/QuickCapturePage.tsx',
+    'src/renderer/features/search/SearchPage.tsx',
+    'src/renderer/features/documents/DocumentsPage.tsx',
+  ];
+  for (const file of [...nativeSelectFiles, ...remotePickerFiles]) {
+    const source = readFileSync(join(root, file), 'utf8');
     assert.doesNotMatch(source, /<\/?select(?:\s|>)/, `${file} should not use a raw select element`);
     const expected = remotePickerFiles.includes(file) ? /import \{ RemoteRecordPicker \}/ : /import \{ NativeSelect, NativeSelectOption \}/;
     assert.match(source, expected, `${file} should use a shared selection component`);

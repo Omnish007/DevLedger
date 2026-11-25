@@ -62,14 +62,14 @@ export class WorkspaceNotesService extends WorkspaceProjectsService {
     const existing = this.db.prepare('SELECT * FROM notes WHERE id = ? AND deleted_at IS NULL AND locked = 0').get(id) as Record<string, unknown> | undefined;
     if (!existing) throw new Error('Note not found or note is locked.');
     if (input.projectId) this.assertProjectExists(input.projectId);
-    const title = input.title?.trim() ?? String(existing.title);
-    const content = input.content ?? String(existing.content);
-    const projectId = input.projectId === undefined ? existing.project_id : input.projectId;
-    const version = Number(existing.content_version);
+    const title = input.title?.trim() ?? String(existing['title']);
+    const content = input.content ?? String(existing['content']);
+    const projectId = input.projectId === undefined ? existing['project_id'] : input.projectId;
+    const version = Number(existing['content_version']);
     const now = nowIso();
     const update = this.db.transaction(() => {
       this.db.prepare(`INSERT INTO note_versions (id, note_id, content_version, title, content, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)`).run(randomUUID(), id, version, existing.title, existing.content, now);
+        VALUES (?, ?, ?, ?, ?, ?)`).run(randomUUID(), id, version, existing['title'], existing['content'], now);
       const result = this.db.prepare(`UPDATE notes SET title = ?, content = ?, project_id = ?,
         content_version = content_version + 1, updated_at = ? WHERE id = ? AND content_version = ?`)
         .run(title, content, projectId ?? null, now, id, version);
