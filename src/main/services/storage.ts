@@ -16,7 +16,7 @@ import { normalizeObjectRelativePath } from './object-paths.ts';
 export class DocumentStorageService {
   private readonly db: Database.Database;
   private readonly dataDirectory: string;
-  private readonly getVaultKey?: () => Buffer;
+  private readonly getVaultKey: (() => Buffer) | undefined;
   private readonly decryptedTemporaryFiles = new Set<string>();
   private readonly temporaryCleanupTimers = new Map<string, NodeJS.Timeout>();
 
@@ -184,29 +184,29 @@ export class DocumentStorageService {
     const row = this.db.prepare(`SELECT object_relative_path, sha256, stored_sha256, size_bytes, is_encrypted, encryption_meta, extension
       FROM documents WHERE id = ? AND deleted_at IS NULL`).get(id) as Record<string, unknown> | undefined;
     if (!row) throw new Error('Document not found.');
-    const objectPath = resolve(this.dataDirectory, String(row.object_relative_path));
+    const objectPath = resolve(this.dataDirectory, String(row['object_relative_path']));
     if (!isPathInside(resolve(this.dataDirectory, 'objects'), objectPath)) throw new Error('Stored document path failed validation.');
-    const storedHash = row.stored_sha256 ? String(row.stored_sha256) : String(row.sha256);
+    const storedHash = row['stored_sha256'] ? String(row['stored_sha256']) : String(row['sha256']);
     if (await sha256File(objectPath) !== storedHash) throw new Error('The stored document failed its SHA-256 integrity check.');
-    if (Number(row.is_encrypted) !== 1) return { path: objectPath, temporary: false };
+    if (Number(row['is_encrypted']) !== 1) return { path: objectPath, temporary: false };
     if (!this.getVaultKey) throw new Error('Protected document decryption is unavailable.');
-    if (!row.encryption_meta) throw new Error('Protected document encryption metadata is missing.');
-    const meta = JSON.parse(String(row.encryption_meta)) as { version: number; algorithm: string; nonce: string; tag: string; wrappedKey: WrappedAttachmentKey; plaintextSha256: string; plaintextBytes: number };
-    if (meta.version !== 2 || meta.algorithm !== 'aes-256-gcm' || meta.plaintextSha256 !== String(row.sha256) || meta.plaintextBytes !== Number(row.size_bytes)) throw new Error('This protected document uses unsupported or inconsistent encryption metadata.');
+    if (!row['encryption_meta']) throw new Error('Protected document encryption metadata is missing.');
+    const meta = JSON.parse(String(row['encryption_meta'])) as { version: number; algorithm: string; nonce: string; tag: string; wrappedKey: WrappedAttachmentKey; plaintextSha256: string; plaintextBytes: number };
+    if (meta.version !== 2 || meta.algorithm !== 'aes-256-gcm' || meta.plaintextSha256 !== String(row['sha256']) || meta.plaintextBytes !== Number(row['size_bytes'])) throw new Error('This protected document uses unsupported or inconsistent encryption metadata.');
     const masterKey = this.getVaultKey();
     let dataKey: Buffer | null = null;
     const root = join(temporaryDirectory, 'devledger-protected-documents');
-    const output = join(root, `${randomUUID()}${String(row.extension)}`);
+    const output = join(root, `${randomUUID()}${String(row['extension'])}`);
     try {
       await mkdir(root, { recursive: true, mode: 0o700 });
       await chmod(root, 0o700);
-      dataKey = unwrapAttachmentKey(masterKey, meta.wrappedKey, id, String(row.sha256));
+      dataKey = unwrapAttachmentKey(masterKey, meta.wrappedKey, id, String(row['sha256']));
       const decipher = createDecipheriv('aes-256-gcm', dataKey, Buffer.from(meta.nonce, 'base64'));
-      decipher.setAAD(Buffer.from(`northstar-protected-document-data-v2:${id}:${String(row.sha256)}`, 'utf8'));
+      decipher.setAAD(Buffer.from(`northstar-protected-document-data-v2:${id}:${String(row['sha256'])}`, 'utf8'));
       decipher.setAuthTag(Buffer.from(meta.tag, 'base64'));
       await pipeline(createReadStream(objectPath), decipher, createWriteStream(output, { flags: 'wx', mode: 0o600 }));
       const outputInfo = await stat(output);
-      if (outputInfo.size !== Number(row.size_bytes) || await sha256File(output) !== String(row.sha256)) {
+      if (outputInfo.size !== Number(row['size_bytes']) || await sha256File(output) !== String(row['sha256'])) {
         throw new Error('The decrypted document failed its size or integrity check.');
       }
       this.decryptedTemporaryFiles.add(output);

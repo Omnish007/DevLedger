@@ -50,7 +50,7 @@ export function SettingsPage(props: Props) {
 
   return (
     <div className="workspace-page page-settings mx-auto space-y-5">
-      <PageHeader title="Settings" description="Appearance, shortcuts, encryption vault, backups, local AI and maintenance." />
+      <PageHeader title="Settings" />
       <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
         <nav aria-label="Settings categories" className="flex gap-1 overflow-x-auto md:flex-col">
           {([
@@ -112,8 +112,8 @@ export function SettingsPage(props: Props) {
           {section === 'backups' && <SettingsBackupTab settings={props.settings} onSettingChange={props.onSettingChange} onCreateBackup={props.onCreateBackup} onRestoreBackup={props.onRestoreBackup} onActivateRestoreCopy={props.onActivateRestoreCopy} onGetRestoreActivationStatus={props.onGetRestoreActivationStatus} onRollbackRestoreActivation={props.onRollbackRestoreActivation} onCommitRestoreActivation={props.onCommitRestoreActivation} onChooseExternalBackupDestination={props.onChooseExternalBackupDestination} onClearExternalBackupDestination={props.onClearExternalBackupDestination} onChooseOfflineBackupDestination={props.onChooseOfflineBackupDestination} onClearOfflineBackupDestination={props.onClearOfflineBackupDestination} />}
           {section === 'ai' && (
             <section className="workspace-surface space-y-4 p-5 text-xs">
-              <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Optional local AI · Ollama</h3><Badge variant="outline">127.0.0.1 only</Badge></div>
-              <p className="text-muted-foreground">Used optionally on Search when enabled. FTS5 works without Ollama.</p>
+              <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Local AI (Ollama)</h3><Badge variant="outline">127.0.0.1</Badge></div>
+              <p className="text-muted-foreground">Optional local inference for semantic ranking and search summaries.</p>
               <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                 <Input aria-label="Text generation model" value={chatModel} onChange={(e) => setChatModel(e.target.value)} maxLength={128} />
                 <Button size="sm" variant="outline" disabled={saving || !chatModel.trim()} onClick={() => void updateSetting('ai.chatModel', chatModel.trim())}>Save chat model</Button>

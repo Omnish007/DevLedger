@@ -15,8 +15,8 @@ import { hasStagedRestore, promoteStagedRestore } from './services/restore-activ
 
 const APP_ID = 'com.devledger.desktop';
 // Isolated user data for Playwright only; this cannot be enabled in packaged builds.
-if (!app.isPackaged && process.env.DEVLEDGER_E2E === '1' && process.env.DEVLEDGER_TEST_USER_DATA) {
-  app.setPath('userData', resolve(process.env.DEVLEDGER_TEST_USER_DATA));
+if (!app.isPackaged && process.env['DEVLEDGER_E2E'] === '1' && process.env['DEVLEDGER_TEST_USER_DATA']) {
+  app.setPath('userData', resolve(process.env['DEVLEDGER_TEST_USER_DATA']));
 }
 app.setAppUserModelId(APP_ID);
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -82,7 +82,7 @@ async function initialize(): Promise<void> {
   app.setAppUserModelId(APP_ID);
   Menu.setApplicationMenu(null);
   const dataDirectory = app.getPath('userData');
-  const hasCustomTestData = !app.isPackaged && process.env.DEVLEDGER_E2E === '1' && Boolean(process.env.DEVLEDGER_TEST_USER_DATA);
+  const hasCustomTestData = !app.isPackaged && process.env['DEVLEDGER_E2E'] === '1' && Boolean(process.env['DEVLEDGER_TEST_USER_DATA']);
   if (!hasCustomTestData) {
     const migration = await migrateLegacyUserDataDirectory(app.getPath('appData'), dataDirectory);
     if (migration === 'migrated') console.info('[DevLedger] Existing workspace data was moved to the new application data folder.');

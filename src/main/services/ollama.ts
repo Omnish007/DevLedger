@@ -51,7 +51,7 @@ export class OllamaService {
       const response = await fetch(`${LOCAL_BASE}/api/tags`, { signal: AbortSignal.timeout(3_000) });
       if (!response.ok) throw new Error(`Ollama returned HTTP ${response.status}.`);
       const payload = asObject(await response.json());
-      const models = Array.isArray(payload.models) ? payload.models.flatMap((entry) => {
+      const models = Array.isArray(payload['models']) ? payload['models'].flatMap((entry) => {
         if (!entry || typeof entry !== 'object' || !('name' in entry) || typeof entry.name !== 'string') return [];
         return [entry.name];
       }) : [];
@@ -109,12 +109,12 @@ export class OllamaService {
     let payload: Record<string, unknown>;
     try { payload = asObject(JSON.parse(responseText)); }
     catch { throw new Error('Ollama returned an invalid response envelope.'); }
-    if (typeof payload.response !== 'string' || payload.response.length > 16_000) throw new Error('Ollama did not return a bounded summary response.');
+    if (typeof payload['response'] !== 'string' || payload['response'].length > 16_000) throw new Error('Ollama did not return a bounded summary response.');
     let generated: Record<string, unknown>;
-    try { generated = asObject(JSON.parse(payload.response)); }
+    try { generated = asObject(JSON.parse(payload['response'])); }
     catch { throw new Error('Ollama returned an invalid summary format. Try another local text-generation model.'); }
-    const summary = typeof generated.summary === 'string' ? generated.summary.trim().slice(0, 8_000) : '';
-    const rawCitations = Array.isArray(generated.citations) ? generated.citations : [];
+    const summary = typeof generated['summary'] === 'string' ? generated['summary'].trim().slice(0, 8_000) : '';
+    const rawCitations = Array.isArray(generated['citations']) ? generated['citations'] : [];
     const allowedIds = new Set(sources.map((source) => source.id));
     const citationIds = [...new Set(rawCitations.filter((id): id is string => typeof id === 'string' && allowedIds.has(id)))].slice(0, 8);
     if (!summary) throw new Error('Ollama returned an empty summary.');

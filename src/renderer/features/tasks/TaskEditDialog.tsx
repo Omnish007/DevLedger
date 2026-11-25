@@ -29,17 +29,17 @@ export function TaskEditDialog({ task, form, busy, error, selectedParentLabel, o
       <DialogContent className="w-[min(94vw,640px)] p-6">
         <DialogHeader>
           <DialogTitle>Edit task</DialogTitle>
-          <DialogDescription>Update details, schedule, estimate and status for this task.</DialogDescription>
+          <DialogDescription>Update task details.</DialogDescription>
         </DialogHeader>
         {task && (
           <form onSubmit={onSave} noValidate className="space-y-4">
             <div className="space-y-2.5">
-              <label className="block space-y-1 text-xs font-medium">
+              <label className="block space-y-1.5 text-xs font-medium">
                 <span>Title</span>
                 <Input {...form.register('title')} maxLength={240} className="h-10 text-sm font-medium" aria-invalid={Boolean(form.formState.errors.title)} />
                 {form.formState.errors.title && <p role="alert" className="text-[11px] text-danger">{form.formState.errors.title.message}</p>}
               </label>
-              <label className="block space-y-1 text-xs font-medium">
+              <label className="block space-y-1.5 text-xs font-medium">
                 <span>Description <span className="font-normal text-muted-foreground">(optional)</span></span>
                 <Textarea {...form.register('description')} rows={3} maxLength={20_000} />
                 {form.formState.errors.description && <p role="alert" className="text-[11px] text-danger">{form.formState.errors.description.message}</p>}
@@ -47,13 +47,13 @@ export function TaskEditDialog({ task, form, busy, error, selectedParentLabel, o
             </div>
 
             <div className="grid gap-3 border-t border-border pt-3.5 sm:grid-cols-2">
-              <label className="space-y-1.5 text-xs font-medium">
+              <label className="block space-y-1.5 text-xs font-medium">
                 <span>Status</span>
                 <NativeSelect {...form.register('status')} className="h-9 w-full text-xs">
                   {statuses.map((item) => <NativeSelectOption key={item.value} value={item.value}>{item.label}</NativeSelectOption>)}
                 </NativeSelect>
               </label>
-              <label className="space-y-1.5 text-xs font-medium">
+              <label className="block space-y-1.5 text-xs font-medium">
                 <span>Priority</span>
                 <NativeSelect {...form.register('priority')} className="h-9 w-full text-xs">
                   <NativeSelectOption value="low">Low</NativeSelectOption>
@@ -73,7 +73,7 @@ export function TaskEditDialog({ task, form, busy, error, selectedParentLabel, o
                 {form.formState.errors.dueAt && <p role="alert" className="mt-1 text-[11px] text-danger">{form.formState.errors.dueAt.message}</p>}
               </div>
 
-              <label className="space-y-1.5 text-xs font-medium">
+              <label className="block space-y-1.5 text-xs font-medium">
                 <span>Estimate <span className="font-normal text-muted-foreground">(optional)</span></span>
                 <div className="relative">
                   <Input type="number" min="0" max="525600" {...form.register('estimate')} className="pr-11" aria-invalid={Boolean(form.formState.errors.estimate)} />

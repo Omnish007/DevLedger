@@ -110,10 +110,10 @@ export function AppShell({
 
           <SidebarFooter className="px-2.5 pb-3 pt-2 group-data-[state=collapsed]/sidebar-provider:px-2">
             <SidebarSeparator className="mb-2.5 group-data-[state=collapsed]/sidebar-provider:mx-0" />
-            <Button variant="outline" title="Quick capture" className="h-8 w-full justify-start gap-2 text-xs group-data-[state=collapsed]/sidebar-provider:mx-auto group-data-[state=collapsed]/sidebar-provider:size-8 group-data-[state=collapsed]/sidebar-provider:justify-center group-data-[state=collapsed]/sidebar-provider:p-0" onClick={onQuickCapture}>
-              <Plus className="size-3.5" />
-              <span className="flex-1 text-left group-data-[state=collapsed]/sidebar-provider:sr-only">Quick capture</span>
-              <Kbd className="group-data-[state=collapsed]/sidebar-provider:hidden">Ctrl ⇧ Space</Kbd>
+            <Button variant="outline" title="Quick capture (Ctrl+Shift+Space)" className="h-8 w-full justify-start gap-2 px-2.5 text-xs group-data-[state=collapsed]/sidebar-provider:mx-auto group-data-[state=collapsed]/sidebar-provider:size-8 group-data-[state=collapsed]/sidebar-provider:justify-center group-data-[state=collapsed]/sidebar-provider:p-0" onClick={onQuickCapture}>
+              <Plus className="size-3.5 shrink-0" />
+              <span className="flex-1 truncate text-left group-data-[state=collapsed]/sidebar-provider:sr-only">Quick capture</span>
+              <Kbd className="px-1 text-[10px] tracking-tight group-data-[state=collapsed]/sidebar-provider:hidden">Ctrl⇧Space</Kbd>
             </Button>
           </SidebarFooter>
         </Sidebar>
@@ -128,18 +128,14 @@ export function AppShell({
                 </Button>
               )}
             </div>
-            <div className="window-no-drag flex shrink-0 items-center gap-1">
-              <Button variant="outline" size="sm" className="h-8 gap-2 px-2.5 text-xs" onClick={() => setCommandOpen(true)} aria-label="Open command menu">
-                <Search className="size-3.5 text-muted-foreground" />
-                <span className="hidden text-muted-foreground sm:inline">Jump or search…</span>
+            <div className="window-no-drag flex shrink-0 items-center gap-1.5">
+              <Button variant="outline" size="sm" className="h-8 gap-2 px-2.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => setCommandOpen(true)} aria-label="Open command menu">
+                <Search className="size-3.5" />
+                <span className="hidden sm:inline">Search workspace…</span>
                 <Kbd className="ml-1">Ctrl K</Kbd>
               </Button>
               <NotificationsPopover onNavigateTarget={onNavigateTarget} />
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2.5 text-xs" onClick={onQuickCapture}>
-                <Plus className="size-3.5" />
-                <span className="hidden md:inline">Capture</span>
-              </Button>
-              <Button variant="ghost" size="icon" className="size-8" aria-label="Refresh workspace" onClick={onRefresh}>
+              <Button variant="ghost" size="icon" className="size-8" title="Refresh workspace" aria-label="Refresh workspace" onClick={onRefresh}>
                 <RefreshCw className="size-3.5" />
               </Button>
             </div>

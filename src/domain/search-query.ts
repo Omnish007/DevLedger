@@ -1,12 +1,12 @@
 export interface ParsedSearchQuery {
   text: string;
-  project?: string;
-  tag?: string;
-  entityType?: 'project' | 'note' | 'task' | 'document' | 'contact';
-  extension?: string;
-  status?: 'blocked' | 'overdue' | 'completed' | 'in_progress';
-  after?: string;
-  before?: string;
+  project?: string | undefined;
+  tag?: string | undefined;
+  entityType?: 'project' | 'note' | 'task' | 'document' | 'contact' | undefined;
+  extension?: string | undefined;
+  status?: 'blocked' | 'overdue' | 'completed' | 'in_progress' | undefined;
+  after?: string | undefined;
+  before?: string | undefined;
 }
 
 function validDate(value: string): boolean {

@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { constants as fsConstants, createReadStream, createWriteStream } from 'node:fs';
-import { basename, dirname, relative, resolve, sep } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { lstat, mkdir, open, rm } from 'node:fs/promises';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type Database from 'better-sqlite3';
+import { stripControlCharacters } from '../../domain/validation.ts';
 import type { StreamedFile } from './project-export-streams.ts';
 import { pagedExportRows } from './project-export-streams.ts';
 
@@ -17,14 +18,14 @@ export function inside(parent: string, candidate: string): boolean {
 }
 
 export function safeFilename(value: string): string {
-  return value.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\.\.+/g, '_').slice(0, 140) || 'document';
+  return stripControlCharacters(value, '_').replace(/[\\/:*?"<>|]/g, '_').replace(/\.\.+/g, '_').slice(0, 140) || 'document';
 }
 
 export function fileHash(path: string, signal?: AbortSignal): Promise<string> {
   return new Promise((resolveHash, reject) => {
     const hash = createHash('sha256');
     const input = createReadStream(path, signal ? { signal } : {});
-    input.on('data', (chunk: Buffer) => hash.update(chunk));
+    input.on('data', (chunk: string | Buffer) => hash.update(chunk));
     input.on('error', reject);
     input.on('end', () => resolveHash(hash.digest('hex')));
   });

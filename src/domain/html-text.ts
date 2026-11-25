@@ -27,6 +27,9 @@ export function stripHtmlToPlainText(value: string, options: { preserveMark?: bo
   if (options.preserveMark) {
     text = text.replace(/<mark>/gi, MARK_OPEN).replace(/<\/mark>/gi, MARK_CLOSE);
   }
+  // Preserve punctuation adjacency around inline tags while separating adjacent blocks cleanly.
+  text = text.replace(/<\/(?:p|div|li|tr|th|td|blockquote|h[1-6]|pre)>|<br\s*\/?>/gi, ' ');
+  text = text.replace(/<\/?(?:a|span|strong|b|em|i|u|code|input|label)(?:\s[^<>]*?)?\/?>/gi, '');
   // Strip truncated HTML tags immediately preceding an FTS5 ellipsis separator (` … `).
   text = text.replace(/<\/?[a-zA-Z][a-zA-Z0-9:-]*(?:\s+[^<>…]*)?(?=\s*…)/g, ' ');
   // Match tag names beginning with an ASCII letter or '/'/'!' so math like `a < b` is untouched.
@@ -38,5 +41,5 @@ export function stripHtmlToPlainText(value: string, options: { preserveMark?: bo
     text = text.replace(new RegExp(`${MARK_OPEN}([\\s\\S]*?)${MARK_CLOSE}`, 'g'), '<mark>$1</mark>');
     text = text.replaceAll(MARK_OPEN, '').replaceAll(MARK_CLOSE, '');
   }
-  return text.replace(/\s+/g, ' ').trim();
+  return text.replace(/\s+([.,;:!?])/g, '$1').replace(/\s+/g, ' ').trim();
 }

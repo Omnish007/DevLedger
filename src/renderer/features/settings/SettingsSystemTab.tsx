@@ -7,6 +7,18 @@ import { Progress } from '@/components/ui/progress';
 import { PageControls } from '@/components/shared/PageControls';
 import { formatDate, formatRelative, friendlyError } from '@/lib/utils';
 
+const JOB_LABELS: Record<string, string> = {
+  'search.rebuild': 'Search index rebuild',
+  'storage.audit': 'Storage integrity audit',
+  'maintenance.optimize': 'Database optimization',
+  'document.extract': 'Document text extraction',
+  'project.export': 'Project export',
+  'project.import': 'Project import',
+  'semantic.index': 'Semantic index build',
+  'ai.summarize': 'AI summary',
+  'notifications.deliver': 'Reminder delivery',
+};
+
 export function SettingsSystemTab() {
   const [activityOffset, setActivityOffset] = useState(0);
   const [jobsOffset, setJobsOffset] = useState(0);
@@ -74,7 +86,7 @@ export function SettingsSystemTab() {
               return (
                 <div key={job.id} className="space-y-1.5 px-3.5 py-2.5 text-xs">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate font-medium">{job.kind} · {job.targetType}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{JOB_LABELS[job.kind] ?? job.kind}</span>
                     <Badge variant={job.status === 'succeeded' ? 'success' : job.status === 'failed' ? 'destructive' : job.status === 'running' ? 'warning' : 'secondary'}>{job.status}</Badge>
                     <span className="text-muted-foreground">Attempt {job.attempts}/{job.maxAttempts}</span>
                     {(job.status === 'queued' || job.status === 'running') && (
@@ -106,7 +118,7 @@ export function SettingsSystemTab() {
               <div key={item.id} className="flex items-start justify-between gap-3 py-2.5 text-xs">
                 <div className="min-w-0">
                   <p className="font-medium">{item.summary}</p>
-                  <p className="text-muted-foreground">{item.entityType} · {item.eventType}</p>
+                  <p className="text-muted-foreground capitalize">{item.entityType} · {item.eventType.replaceAll('_', ' ')}</p>
                 </div>
                 <time className="shrink-0 text-muted-foreground">{formatRelative(item.createdAt)}</time>
               </div>

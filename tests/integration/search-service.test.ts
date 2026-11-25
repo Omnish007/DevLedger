@@ -65,7 +65,7 @@ test('contacts are indexed, searchable and scoped by project', () => {
     const workspace = new WorkspaceService(db as never);
     const all = workspace.search({ query: 'type:contact Acme Labs', limit: 30 });
     assert.deepEqual(all.map((result) => `${result.type}:${result.id}`), ['contact:c-1']);
-    const byProject = workspace.search({ query: 'type:contact sandbox p:\"Retail POS\"', limit: 30 });
+    const byProject = workspace.search({ query: 'type:contact sandbox p:"Retail POS"', limit: 30 });
     assert.deepEqual(byProject.map((result) => result.id), ['c-1']);
     db.prepare('UPDATE contacts SET deleted_at = ?, updated_at = ? WHERE id = ?').run(new Date().toISOString(), new Date().toISOString(), 'c-1');
     assert.deepEqual(workspace.search({ query: 'type:contact Acme Labs', limit: 30 }), []);

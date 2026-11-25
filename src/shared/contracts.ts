@@ -6,14 +6,14 @@ export type TaskStatus = 'not_started' | 'in_progress' | 'blocked' | 'waiting' |
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type DocumentStatus = 'queued' | 'extracting' | 'ocr_required' | 'indexed' | 'failed' | 'needs_attention';
 
-export interface PageRequest { limit?: number; offset?: number; query?: string; projectId?: string | null; includeArchived?: boolean; includeCompleted?: boolean; includeLocked?: boolean; }
+export interface PageRequest { limit?: number | undefined; offset?: number | undefined; query?: string | undefined; projectId?: string | null | undefined; includeArchived?: boolean | undefined; includeCompleted?: boolean | undefined; includeLocked?: boolean | undefined; }
 export interface PageResult<T> { items: T[]; total: number; limit: number; offset: number; hasMore: boolean; }
 
 export interface ContactRecord {
   id: string; name: string; role: string; company: string; email: string; phone: string; notes: string; customAttributes: Record<string, string>; projectIds: string[]; createdAt: string; updatedAt: string;
 }
 
-export interface ContactInput { name: string; role?: string; company?: string; email?: string; phone?: string; notes?: string; customAttributes?: Record<string, string>; projectId?: string | null; }
+export interface ContactInput { name: string; role?: string | undefined; company?: string | undefined; email?: string | undefined; phone?: string | undefined; notes?: string | undefined; customAttributes?: Record<string, string> | undefined; projectId?: string | null | undefined; }
 
 export interface ProjectImportResult { projectId: string; projectName: string; lockedNotesSkipped: number; imported: { contacts: number; notes: number; tasks: number; documents: number; tags: number; links: number; timeEntries: number; reminders: number }; }
 
@@ -97,32 +97,32 @@ export interface DashboardSummary {
 
 export interface ProjectInput {
   name: string;
-  description?: string;
+  description?: string | undefined;
   type: ProjectType;
 }
 
 export interface NoteInput {
-  projectId?: string | null;
+  projectId?: string | null | undefined;
   title: string;
   content: string;
 }
 
 export interface TaskInput {
   projectId: string;
-  parentId?: string | null;
+  parentId?: string | null | undefined;
   title: string;
-  description?: string;
-  priority?: TaskPriority;
-  dueAt?: string | null;
-  dueDate?: string | null;
-  estimateMinutes?: number | null;
+  description?: string | undefined;
+  priority?: TaskPriority | undefined;
+  dueAt?: string | null | undefined;
+  dueDate?: string | null | undefined;
+  estimateMinutes?: number | null | undefined;
 }
 
 export interface SearchInput {
   query: string;
-  projectId?: string | null;
-  types?: Array<SearchResult['type']>;
-  limit?: number;
+  projectId?: string | null | undefined;
+  types?: Array<SearchResult['type']> | undefined;
+  limit?: number | undefined;
 }
 
 export interface ImportResult {
@@ -178,7 +178,7 @@ export interface DevLedgerApi {
     listPage(input?: PageRequest): Promise<PageResult<ProjectRecord>>;
     getNames(ids: string[]): Promise<Record<string, string>>;
     create(input: ProjectInput): Promise<ProjectRecord>;
-    update(id: string, input: Partial<ProjectInput> & { status?: ProjectStatus }): Promise<ProjectRecord>;
+    update(id: string, input: Partial<ProjectInput> & { status?: ProjectStatus | undefined }): Promise<ProjectRecord>;
     archive(id: string): Promise<void>;
     restore(id: string): Promise<ProjectRecord>;
     export(id: string): Promise<string | null>;
@@ -198,7 +198,7 @@ export interface DevLedgerApi {
     listPage(input?: PageRequest): Promise<PageResult<TaskRecord>>;
     getTitles(ids: string[]): Promise<Record<string, string>>;
     create(input: TaskInput): Promise<TaskRecord>;
-    update(id: string, input: Partial<TaskInput> & { status?: TaskStatus }): Promise<TaskRecord>;
+    update(id: string, input: Partial<TaskInput> & { status?: TaskStatus | undefined }): Promise<TaskRecord>;
     remove(id: string): Promise<void>;
     startTimer(taskId: string): Promise<string>;
     stopTimer(taskId: string): Promise<number>;
@@ -221,9 +221,9 @@ export interface DevLedgerApi {
     listTagsPage(input?: PageRequest): Promise<PageResult<TagRecord>>; createTag(name: string, color?: string): Promise<TagRecord>; deleteTag(tagId: string): Promise<void>;
     listEntityTags(type: EntityType, id: string): Promise<TagRecord[]>; assignTag(type: EntityType, id: string, tagId: string): Promise<void>; unassignTag(type: EntityType, id: string, tagId: string): Promise<void>;
     createLink(sourceType: EntityType, sourceId: string, targetType: EntityType, targetId: string, relationship?: string): Promise<EntityLinkRecord>; listLinksPage(type: EntityType, id: string, input?: PageRequest): Promise<PageResult<EntityLinkRecord>>; removeLink(linkId: string): Promise<void>;
-    addDependency(taskId: string, dependsOnTaskId: string): Promise<void>; removeDependency(taskId: string, dependsOnTaskId: string): Promise<void>; listDependencies(taskId: string, input?: { dependsOn?: PageRequest; blocks?: PageRequest }): Promise<{ dependsOn: PageResult<string>; blocks: PageResult<string> }>;
-    createBlocker(taskId: string, reason: string, waitingContactId: string | null, followUpAt: string | null): Promise<TaskBlockerRecord>; listBlockersPage(input?: { taskId?: string; includeResolved?: boolean; limit?: number; offset?: number }): Promise<PageResult<TaskBlockerRecord>>; resolveBlocker(id: string, resolutionNote?: string): Promise<TaskBlockerRecord>;
-    createReminder(type: ReminderRecord['entityType'], id: string, dueAt: string, message?: string): Promise<ReminderRecord>; listRemindersPage(input?: { entityType?: ReminderRecord['entityType']; entityId?: string; status?: ReminderRecord['status']; limit?: number; offset?: number }): Promise<PageResult<ReminderRecord>>; updateReminder(id: string, action: 'snooze' | 'dismiss' | 'reschedule' | 'cancel', dueAt?: string, snoozeMinutes?: 15 | 60 | 240 | 1440): Promise<ReminderRecord>;
+    addDependency(taskId: string, dependsOnTaskId: string): Promise<void>; removeDependency(taskId: string, dependsOnTaskId: string): Promise<void>; listDependencies(taskId: string, input?: { dependsOn?: PageRequest | undefined; blocks?: PageRequest | undefined }): Promise<{ dependsOn: PageResult<string>; blocks: PageResult<string> }>;
+    createBlocker(taskId: string, reason: string, waitingContactId: string | null, followUpAt: string | null): Promise<TaskBlockerRecord>; listBlockersPage(input?: { taskId?: string | undefined; includeResolved?: boolean | undefined; limit?: number | undefined; offset?: number | undefined }): Promise<PageResult<TaskBlockerRecord>>; resolveBlocker(id: string, resolutionNote?: string): Promise<TaskBlockerRecord>;
+    createReminder(type: ReminderRecord['entityType'], id: string, dueAt: string, message?: string): Promise<ReminderRecord>; listRemindersPage(input?: { entityType?: ReminderRecord['entityType'] | undefined; entityId?: string | undefined; status?: ReminderRecord['status'] | undefined; limit?: number | undefined; offset?: number | undefined }): Promise<PageResult<ReminderRecord>>; updateReminder(id: string, action: 'snooze' | 'dismiss' | 'reschedule' | 'cancel', dueAt?: string, snoozeMinutes?: 15 | 60 | 240 | 1440): Promise<ReminderRecord>;
     resolveRecordSummaries(refs: Array<{ type: EntityType; id: string }>): Promise<Record<string, RecordSummary>>;
     listTimeEntriesPage(taskId: string, input?: PageRequest): Promise<PageResult<TimeEntryRecord>>; addManualTimeEntry(taskId: string, startedAt: string, endedAt: string, note?: string): Promise<TimeEntryRecord>; updateTimeEntry(entryId: string, startedAt: string, endedAt: string, note?: string): Promise<TimeEntryRecord>; deleteTimeEntry(entryId: string): Promise<void>;
     listActivityPage(input?: PageRequest): Promise<PageResult<ActivityRecord>>; listJobsPage(input?: PageRequest): Promise<PageResult<BackgroundJobRecord>>; enqueueJob(kind: 'search.rebuild' | 'storage.audit' | 'maintenance.optimize'): Promise<BackgroundJobRecord>; cancelJob(id: string): Promise<void>;

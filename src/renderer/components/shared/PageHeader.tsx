@@ -2,15 +2,15 @@ import type { ReactNode } from 'react';
 
 type PageHeaderProps = {
   title: string;
-  description?: string;
-  eyebrow?: string;
-  actions?: ReactNode;
+  description?: string | undefined;
+  eyebrow?: string | undefined;
+  actions?: ReactNode | undefined;
 };
 
 export function PageHeader({ title, description, eyebrow, actions }: PageHeaderProps) {
   return (
     <header className="workspace-page-header">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 space-y-0.5">
         {eyebrow && <p className="workspace-page-eyebrow">{eyebrow}</p>}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h1 className="workspace-page-title">{title}</h1>

@@ -23,11 +23,11 @@ const now = () => new Date().toISOString();
 
 function mapNotification(row: Row): InboxNotification {
   return {
-    id: String(row.id), reminderId: row.reminder_id ? String(row.reminder_id) : null,
-    entityType: row.entity_type as InboxNotification['entityType'], entityId: row.entity_id ? String(row.entity_id) : null,
-    kind: row.kind as InboxNotification['kind'], title: String(row.title), body: String(row.body),
-    status: row.status as InboxNotification['status'], createdAt: String(row.created_at), deliveredAt: String(row.delivered_at),
-    readAt: row.read_at ? String(row.read_at) : null, dismissedAt: row.dismissed_at ? String(row.dismissed_at) : null,
+    id: String(row['id']), reminderId: row['reminder_id'] ? String(row['reminder_id']) : null,
+    entityType: row['entity_type'] as InboxNotification['entityType'], entityId: row['entity_id'] ? String(row['entity_id']) : null,
+    kind: row['kind'] as InboxNotification['kind'], title: String(row['title']), body: String(row['body']),
+    status: row['status'] as InboxNotification['status'], createdAt: String(row['created_at']), deliveredAt: String(row['delivered_at']),
+    readAt: row['read_at'] ? String(row['read_at']) : null, dismissedAt: row['dismissed_at'] ? String(row['dismissed_at']) : null,
   };
 }
 
@@ -45,14 +45,14 @@ export class NotificationInboxService {
       const due = this.db.prepare("SELECT * FROM reminders WHERE status IN ('scheduled', 'snoozed') AND due_at <= ? ORDER BY due_at ASC, id ASC LIMIT ?").all(at, limit) as Row[];
       const created: string[] = [];
       for (const reminder of due) {
-        const reminderId = String(reminder.id);
-        const dueAt = String(reminder.due_at);
+        const reminderId = String(reminder['id']);
+        const dueAt = String(reminder['due_at']);
         const key = `reminder:${reminderId}:${dueAt}`;
-        const entityType = String(reminder.entity_type) as keyof typeof entityTables;
-        const entityId = String(reminder.entity_id);
+        const entityType = String(reminder['entity_type']) as keyof typeof entityTables;
+        const entityId = String(reminder['entity_id']);
         const entityTitle = this.getEntityTitle(entityType, entityId);
         const title = 'Reminder due';
-        const body = String(reminder.message || `${entityTitle} needs your attention.`).slice(0, 1000);
+        const body = String(reminder['message'] || `${entityTitle} needs your attention.`).slice(0, 1000);
         const result = this.db.prepare(`INSERT OR IGNORE INTO notifications
           (id, idempotency_key, reminder_id, entity_type, entity_id, kind, title, body, status, created_at, delivered_at)
           VALUES (?, ?, ?, ?, ?, 'reminder', ?, ?, 'unread', ?, ?)`)

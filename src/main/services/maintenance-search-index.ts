@@ -14,7 +14,7 @@ function withImmediateTransaction(db: Database.Database, work: () => void): void
   }
 }
 
-function rebuildTriggerNames(spec: SearchIndexRebuildSpec): string[] {
+function rebuildTriggerNames(spec: SearchIndexRebuildSpec): [string, string, string] {
   const prefix = `${spec.sourceTable}_search_rebuild`;
   return [`${prefix}_insert`, `${prefix}_update`, `${prefix}_delete`];
 }
@@ -78,7 +78,7 @@ async function rebuildSearchIndex(db: Database.Database, spec: SearchIndexRebuil
         }
       });
 
-      lastId = rows[rows.length - 1].id ?? lastId;
+      lastId = rows[rows.length - 1]?.id ?? lastId;
       scanned += rows.length;
       // Stage-level progress avoids an up-front full-table COUNT scan; scanned is
       // an exact live count and the percentage advances when an index is swapped.

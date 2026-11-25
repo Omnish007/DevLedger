@@ -18,7 +18,7 @@ function hashFile(filePath: string, signal: AbortSignal): Promise<string> {
     const cleanup = () => signal.removeEventListener('abort', abort);
     const abort = () => stream.destroy(signal.reason instanceof Error ? signal.reason : new Error('Storage audit cancelled.'));
     signal.addEventListener('abort', abort, { once: true });
-    stream.on('data', (chunk: Buffer) => hash.update(chunk));
+    stream.on('data', (chunk: string | Buffer) => hash.update(chunk));
     stream.on('error', (error) => { cleanup(); reject(error); });
     stream.on('end', () => { cleanup(); resolveHash(hash.digest('hex')); });
   });

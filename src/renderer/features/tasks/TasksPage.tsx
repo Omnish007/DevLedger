@@ -23,7 +23,7 @@ import { orderVisibleTasks, type OrderedTaskRow } from './task-tree';
 
 const taskItemKey = (entry: OrderedTaskRow): string => entry.task.id;
 const toDateTimeLocal = (value: Date) => new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-type TaskViewTab = 'active' | 'in_progress' | 'blocked' | 'completed';
+type TaskViewTab = 'active' | 'in_progress' | 'waiting' | 'blocked' | 'completed';
 
 interface Props {
   focusTaskId?: string | undefined;
@@ -172,7 +172,7 @@ export function TasksPage({
 
   return (
     <div className="workspace-page page-tasks mx-auto space-y-4">
-      <PageHeader title="Tasks" description="Click any task to manage blockers, dependencies, time logs, tags and reminders." actions={<Button size="sm" onClick={openCreateModal}><Plus className="size-3.5" />New task</Button>} />
+      <PageHeader title="Tasks" description={pageTotal ? `${pageTotal} ${pageTotal === 1 ? 'task' : 'tasks'}` : undefined} actions={<Button size="sm" onClick={openCreateModal}><Plus className="size-3.5" />New task</Button>} />
       {error && <Alert variant="destructive" className="py-2"><AlertDescription>{error}</AlertDescription></Alert>}
       {activeTimer && <div className={`task-timer flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5 ${activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay ? 'border-warning/50 bg-warning/5' : 'border-border'}`}><span className="size-2 shrink-0 rounded-full bg-primary" /><div className="min-w-0 flex-1 text-xs"><button type="button" onClick={() => setInspectedTaskId(activeTimer.taskId)} className="font-medium hover:underline">{activeTimer.recoveryRequired ? 'Interrupted timer needs review' : 'Timer running'} · {pageTasks.find((t) => t.id === activeTimer.taskId)?.title ?? 'Task'}</button><p className="font-mono text-sm font-semibold tabular-nums">{elapsedLabel}</p></div><Button size="sm" variant="outline" disabled={activeTimer.recoveryRequired} onClick={() => void stopActiveTimer(activeTimer.taskId)}><Square className="size-3.5" />Stop timer</Button></div>}
       {activeTimer?.recoveryRequired && <Alert className="border-warning/50 bg-warning/5"><AlertDescription className="space-y-3 text-xs"><p className="font-semibold">Confirm interrupted work session</p><Input type="datetime-local" value={recoveryEndAt} onChange={(e) => setRecoveryEndAt(e.target.value)} max={toDateTimeLocal(new Date())} min={toDateTimeLocal(new Date(activeTimer.startedAt))} className="max-w-xs" /><div className="flex gap-2"><Button size="sm" onClick={() => void recoverTimer('stop')} disabled={!recoveryEndAt}>Save confirmed time</Button><Button size="sm" variant="outline" onClick={() => void recoverTimer('resume')}>Continue from now</Button><Button size="sm" variant="ghost" className="text-danger" onClick={() => void recoverTimer('discard')}>Discard</Button></div></AlertDescription></Alert>}
@@ -180,7 +180,7 @@ export function TasksPage({
       <div className="workspace-toolbar justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <div className="inline-flex rounded-md border border-border bg-card p-0.5 text-xs">
-            {([['active', 'Active'], ['in_progress', 'In progress'], ['blocked', 'Blocked'], ['completed', 'Completed']] as const).map(([key, label]) => (
+            {([['active', 'Active'], ['in_progress', 'In progress'], ['waiting', 'Waiting'], ['blocked', 'Blocked'], ['completed', 'Completed']] as const).map(([key, label]) => (
               <button key={key} type="button" onClick={() => { setPageOffset(0); setViewTab(key); }} className={`rounded px-2.5 py-1 font-medium transition-colors ${viewTab === key ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>
             ))}
           </div>

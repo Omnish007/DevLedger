@@ -10,13 +10,13 @@ interface State {
 
 /** Keeps a failed lazy screen or render subtree recoverable instead of blanking the app. */
 export class RendererErrorBoundary extends Component<Props, State> {
-  state: State = { error: null };
+  override state: State = { error: null };
 
   static getDerivedStateFromError(error: unknown): State {
     return { error: error instanceof Error ? error : new Error('An unexpected renderer error occurred.') };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[DevLedger] Renderer error boundary:', error.message, info.componentStack);
   }
 
@@ -24,7 +24,7 @@ export class RendererErrorBoundary extends Component<Props, State> {
     this.setState({ error: null });
   };
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.error) {
       return (
         <main className="grid min-h-full place-items-center bg-background p-6" role="alert">

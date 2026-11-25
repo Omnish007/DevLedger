@@ -1,3 +1,5 @@
+import { hasControlCharacters } from './validation.ts';
+
 export interface ContactMentionReference { id: string; label: string; }
 
 function escapeMarkdownLabel(value: string): string {
@@ -16,7 +18,7 @@ export function parseContactMentionMarkdownLink(href: string, text: string): Con
   try {
     const id = decodeURIComponent(href.slice(prefix.length));
     const label = text.replace(/^@/, '').trim();
-    if (!id || id.length > 128 || /[\u0000-\u001f\u007f]/.test(id)) return null;
+    if (!id || id.length > 128 || hasControlCharacters(id)) return null;
     return { id, label: label.slice(0, 120) || id };
   } catch {
     return null;

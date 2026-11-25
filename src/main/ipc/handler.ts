@@ -1,13 +1,13 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { performance } from 'node:perf_hooks';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { isTrustedRendererFrame } from './trust.ts';
 import type { IpcRegistrar } from './contracts.ts';
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
   const frame = event.senderFrame;
   if (!frame) throw new Error('IPC is only available to the top-level application document.');
-  const trusted = isTrustedRendererFrame(frame, process.env.ELECTRON_RENDERER_URL, [
+  const trusted = isTrustedRendererFrame(frame, process.env['ELECTRON_RENDERER_URL'], [
     join(process.cwd(), 'out/renderer/index.html'),
     join(__dirname, '../renderer/index.html'),
   ]);

@@ -1,26 +1,22 @@
 import { useState } from 'react';
-import type { DateRange } from '@daypicker/react';
+import type { DateRange as DayPickerDateRange } from '@daypicker/react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Calendar } from './calendar';
 
 const meta = { title: 'Forms/Calendar', component: Calendar, parameters: { layout: 'centered' } } satisfies Meta<typeof Calendar>;
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj;
 
-export const SingleDate: Story = {
-  render: () => {
-    const [date, setDate] = useState<Date | undefined>(new Date());
-    return <Calendar mode="single" selected={date} onSelect={setDate} />;
-  },
-};
+function SingleDateDemo() {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  return <Calendar mode="single" selected={date} onSelect={setDate} />;
+}
 
-export const DateRange: Story = {
-  render: () => {
-    const [range, setRange] = useState<DateRange | undefined>();
-    return <Calendar mode="range" selected={range} onSelect={setRange} numberOfMonths={2} />;
-  },
-};
+function DateRangeDemo() {
+  const [range, setRange] = useState<DayPickerDateRange | undefined>();
+  return <Calendar mode="range" selected={range} onSelect={setRange} numberOfMonths={2} />;
+}
 
-export const MonthAndYearNavigation: Story = {
-  render: () => <Calendar mode="single" captionLayout="dropdown" startMonth={new Date(2020, 0)} endMonth={new Date(2035, 11)} />,
-};
+export const SingleDate: Story = { render: () => <SingleDateDemo /> };
+export const DateRange: Story = { render: () => <DateRangeDemo /> };
+export const MonthAndYearNavigation: Story = { render: () => <Calendar mode="single" captionLayout="dropdown" startMonth={new Date(2020, 0)} endMonth={new Date(2035, 11)} /> };

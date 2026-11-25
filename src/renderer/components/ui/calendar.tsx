@@ -61,8 +61,8 @@ function Calendar({
           button_next: cn(defaults.button_next, navButton, 'pointer-events-auto relative z-20 size-8 p-0 text-muted-foreground hover:text-foreground', classNames?.button_next),
           chevron: cn(defaults.chevron, 'shrink-0', classNames?.chevron),
           month_grid: cn(defaults.month_grid, 'w-full border-collapse', classNames?.month_grid),
-          weekdays: cn(defaults.weekdays, 'flex', classNames?.weekdays),
-          weekday: cn(defaults.weekday, 'w-[var(--cell-size)] rounded-md text-center text-[0.7rem] font-medium text-muted-foreground', classNames?.weekday),
+          weekdays: cn(defaults.weekdays, 'flex w-full', classNames?.weekdays),
+          weekday: cn(defaults.weekday, 'w-[var(--cell-size)] flex-1 rounded-md text-center text-[0.7rem] font-medium text-muted-foreground', classNames?.weekday),
           week: cn(defaults.week, 'mt-1 flex w-full', classNames?.week),
           day: cn(defaults.day, 'relative h-[var(--cell-size)] w-[var(--cell-size)] flex-1 p-0 text-center text-sm', classNames?.day),
           day_button: cn(

@@ -73,7 +73,7 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
     return task;
   }
 
-  updateTask(id: string, input: Partial<TaskInput> & { status?: TaskStatus }): TaskRecord {
+  updateTask(id: string, input: Partial<TaskInput> & { status?: TaskStatus | undefined }): TaskRecord {
     const existing = this.db.prepare('SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL').get(id) as Record<string, unknown> | undefined;
     if (!existing) throw new Error('Task not found.');
     const projectId = input.projectId ?? String(existing['project_id']);

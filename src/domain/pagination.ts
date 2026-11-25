@@ -3,7 +3,7 @@ export const MAX_PAGE_SIZE = 200;
 
 export interface NormalizedPage { limit: number; offset: number; query: string; }
 
-export function normalizePage(input: { limit?: number; offset?: number; query?: string } = {}): NormalizedPage {
+export function normalizePage(input: { limit?: number | undefined; offset?: number | undefined; query?: string | undefined } = {}): NormalizedPage {
   const requestedLimit = Number.isFinite(input.limit) ? Math.trunc(input.limit!) : DEFAULT_PAGE_SIZE;
   const requestedOffset = Number.isFinite(input.offset) ? Math.trunc(input.offset!) : 0;
   return {

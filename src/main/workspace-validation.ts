@@ -1,5 +1,5 @@
 import { lstat } from 'node:fs/promises';
-import { join, relative, resolve, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import type Database from 'better-sqlite3';
 import { normalizeObjectRelativePath } from './services/object-paths.ts';
 

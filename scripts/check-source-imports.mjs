@@ -1,6 +1,6 @@
 import { builtinModules } from 'node:module';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { extname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 const root = process.cwd();
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));

@@ -1,9 +1,10 @@
 import { PageHeader } from '@/components/shared/PageHeader';
-import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, FileText, FolderKanban, ListTodo, NotebookPen, Search as SearchIcon, Sparkles, Users } from 'lucide-react';
-import type { AiSummary, OllamaStatus, SearchResult } from '@shared/contracts';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, FileText, FolderKanban, HelpCircle, ListTodo, NotebookPen, Search as SearchIcon, Sparkles, Users } from 'lucide-react';
+import type { AiSummary, EntityType, OllamaStatus, SearchResult } from '@shared/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { formatRelative, friendlyError } from '@/lib/utils';
 import { stripHtmlToPlainText } from '@domain/html-text';
@@ -19,16 +20,29 @@ type Props = {
   onSummarize: (query: string, projectId?: string | null) => Promise<AiSummary>;
 };
 const icon = { project: FolderKanban, note: NotebookPen, task: ListTodo, document: FileText, contact: Users };
+const TYPE_FILTERS: Array<{ id: 'all' | EntityType; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'note', label: 'Notes' },
+  { id: 'task', label: 'Tasks' },
+  { id: 'project', label: 'Projects' },
+  { id: 'document', label: 'Documents' },
+  { id: 'contact', label: 'Contacts' },
+];
 
 export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus, onSummarize }: Props) {
   const [query, setQuery] = useState('');
   const [projectId, setProjectId] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | EntityType>('all');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [projectNames, setProjectNames] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const pageCount = Math.max(1, Math.ceil(results.length / pageSize));
-  const visibleResults = results.slice((page - 1) * pageSize, page * pageSize);
+  const filteredResults = useMemo(
+    () => (typeFilter === 'all' ? results : results.filter((item) => item.type === typeFilter)),
+    [results, typeFilter],
+  );
+  const pageCount = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+  const visibleResults = filteredResults.slice((page - 1) * pageSize, page * pageSize);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState('');
@@ -127,30 +141,67 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
     ));
   }
 
-  return <div className="workspace-page page-search mx-auto space-y-6">
-    <PageHeader title="Search" description="Search projects, notes, tasks, contacts and indexed documents. AI is optional and never required for search." />
-    <p className="text-xs text-muted-foreground">Query filters: <code>p:"Project name"</code> · <code>#tag</code> · <code>type:pdf</code> · <code>is:blocked</code> · <code>after:YYYY-MM-DD</code> · <code>before:YYYY-MM-DD</code></p>
-    <form onSubmit={(event) => void search(event)} className="search-command"><InputGroup className="h-11 min-w-0 flex-1"><InputGroupAddon><SearchIcon className="size-4"/></InputGroupAddon><InputGroupInput autoFocus aria-label="Search workspace" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a decision, error message, task or document…" className="h-11 text-sm"/></InputGroup><RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(value) => setProjectId(value || 'all')} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="h-11 w-52" /><Button type="submit" className="h-11 px-5" disabled={busy || !query.trim()}>{busy ? 'Searching…' : 'Search'}</Button></form>
-    <div className="search-options">
-      <section className="search-option" aria-label="Semantic search options">
-        <label className="flex min-w-0 items-center gap-2 text-xs font-medium"><Switch checked={semanticEnabled} onCheckedChange={toggleSemantic} size="sm"/> <span>Include local semantic matches</span> <Badge variant="outline">Optional</Badge></label>
-        {semanticEnabled && <Badge variant={semanticError ? 'warning' : 'secondary'}>{semanticBusy ? 'Finding related concepts…' : semanticError ? 'Index required' : 'Local embeddings'}</Badge>}
-        <p className="text-[11px] leading-relaxed text-muted-foreground">Semantic matching uses the local Ollama embedding model configured and indexed in Settings. Locked notes are excluded. FTS5 results appear first and remain usable when semantic search is off or unavailable.</p>
-      </section>
-      <section className="search-option" aria-label="AI summary options">
-        <label className="flex min-w-0 items-center gap-2 text-xs font-medium"><Switch checked={aiEnabled} onCheckedChange={toggleAi} size="sm"/> <Sparkles className="size-3.5 shrink-0 text-muted-foreground"/> <span>Generate an AI summary</span> <Badge variant="outline">Off by default</Badge></label>
-        {aiEnabled && <Button size="sm" variant="outline" disabled={!searched || !results.length || aiBusy} onClick={() => void requestSummary()}>{aiBusy ? 'Summarizing…' : 'Generate summary'}</Button>}
-        <p className="text-[11px] leading-relaxed text-muted-foreground">When enabled, only matching unlocked search excerpts are sent to your local Ollama service at 127.0.0.1. The model cannot change workspace records.</p>
-      </section>
+  return <div className="workspace-page page-search mx-auto space-y-5">
+    <PageHeader
+      title="Search"
+      actions={(
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-muted-foreground">
+              <HelpCircle className="size-3.5" />Query syntax
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 space-y-2 p-3 text-xs">
+            <p className="font-semibold">Supported query filters</p>
+            <div className="grid grid-cols-2 gap-1.5 text-muted-foreground">
+              <div><code className="text-foreground">p:"Name"</code> Project</div>
+              <div><code className="text-foreground">#tag</code> Tag</div>
+              <div><code className="text-foreground">type:note</code> Type</div>
+              <div><code className="text-foreground">type:pdf</code> Extension</div>
+              <div><code className="text-foreground">is:blocked</code> Task state</div>
+              <div><code className="text-foreground">after:YYYY-MM-DD</code> Date</div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    />
+    <form onSubmit={(event) => void search(event)} className="search-command"><InputGroup className="h-11 min-w-0 flex-1"><InputGroupAddon><SearchIcon className="size-4"/></InputGroupAddon><InputGroupInput autoFocus aria-label="Search workspace" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes, tasks, projects, contacts or documents…" className="h-11 text-sm"/></InputGroup><RemoteRecordPicker entityType="project" value={projectId === 'all' ? '' : projectId} onValueChange={(value) => setProjectId(value || 'all')} placeholder="All projects" selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]} className="h-11 w-52" /><Button type="submit" className="h-11 px-5" disabled={busy || !query.trim()}>{busy ? 'Searching…' : 'Search'}</Button></form>
+
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-xs">
+      <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Filter results by record type">
+        {TYPE_FILTERS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => { setTypeFilter(item.id); setPage(1); }}
+            className={`rounded-md px-2.5 py-1 font-medium transition-colors ${typeFilter === item.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex cursor-pointer items-center gap-2 font-medium" title="Re-rank with local Ollama embeddings configured in Settings (locked notes excluded)">
+          <Switch checked={semanticEnabled} onCheckedChange={toggleSemantic} size="sm" />
+          <span>Semantic</span>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 font-medium" title="Summarize top unlocked matches locally via Ollama">
+          <Switch checked={aiEnabled} onCheckedChange={toggleAi} size="sm" />
+          <Sparkles className="size-3.5 text-muted-foreground" />
+          <span>AI summary</span>
+        </label>
+        {aiEnabled && <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" disabled={!searched || !results.length || aiBusy} onClick={() => void requestSummary()}>{aiBusy ? 'Summarizing…' : 'Summarize'}</Button>}
+      </div>
     </div>
+
     {error && <p role="alert" className="text-xs text-danger">{error}</p>}
     {semanticError && <p role="alert" className="text-xs text-warning">{semanticError}</p>}
     {aiError && <div role="alert" className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-xs"><AlertCircle className="mt-0.5 size-4 shrink-0 text-warning"/><span>{aiError}</span></div>}
     {aiEnabled && aiSummary && <section className="workspace-surface p-5"><div className="mb-2 flex items-center gap-2"><Sparkles className="size-4 text-muted-foreground"/><h3 className="text-sm font-semibold">Evidence summary</h3><Badge variant="secondary">{aiSummary.model}</Badge>{aiSummary.cached && <Badge variant="outline">Cached</Badge>}</div><p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">{aiSummary.summary}</p><div className="mt-4 border-t border-border pt-3"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Source records</p><div className="flex flex-wrap gap-2">{aiSummary.citations.map((source) => <button key={`${source.type}:${source.id}`} type="button" onClick={() => onOpenResult(source)} className="rounded-md border border-border px-2.5 py-1.5 text-[11px] hover:bg-surface-hover">{source.title}</button>)}</div></div></section>}
-    {searched && <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">{busy ? 'Searching local indexes…' : semanticBusy ? 'Ranking local semantic matches…' : `${results.length} result${results.length === 1 ? '' : 's'}`}</p><Badge variant="outline">SQLite FTS5 · AI not required</Badge></div>}
-    <div className="workspace-surface search-results divide-y divide-border">{visibleResults.map((result) => { const Icon = icon[result.type]; return <article key={`${result.type}:${result.id}`} className="search-result flex gap-3 px-4 py-4"><div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-surface-subtle text-muted-foreground"><Icon className="size-4"/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => onOpenResult(result)} className="truncate text-left text-sm font-semibold hover:underline">{result.title}</button><Badge variant="secondary">{result.type}</Badge></div><p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{renderExcerpt(result.excerpt)}</p><p className="mt-2 text-xs text-muted-foreground">{projectNames[result.projectId ?? ''] ?? 'Workspace'} · {formatRelative(result.updatedAt)}</p></div></article>; })}
-      {searched && !busy && !results.length && !error && <div className="py-14 text-center"><SearchIcon className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">No matching results</p><p className="mt-1 text-xs text-muted-foreground">Try a shorter phrase, a code identifier or a different project scope.</p></div>}
-      {!searched && <div className="py-14 text-center"><SearchIcon className="mx-auto mb-3 size-6 text-muted-foreground"/><p className="text-sm font-medium">Search your project memory</p><p className="mt-1 text-xs text-muted-foreground">Exact terms are useful for stack traces, identifiers, configuration names and decisions.</p></div>}
+    {searched && <div className="flex items-center justify-between text-xs text-muted-foreground"><p>{busy ? 'Searching…' : semanticBusy ? 'Ranking semantic matches…' : `${filteredResults.length} result${filteredResults.length === 1 ? '' : 's'}`}</p>{semanticEnabled && !semanticBusy && !semanticError && <Badge variant="secondary">Semantic</Badge>}</div>}
+    <div className="workspace-surface search-results divide-y divide-border">{visibleResults.map((result) => { const Icon = icon[result.type]; return <article key={`${result.type}:${result.id}`} className="search-result flex gap-3 px-4 py-3.5"><div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-surface-subtle text-muted-foreground"><Icon className="size-4"/></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => onOpenResult(result)} className="truncate text-left text-sm font-semibold hover:underline">{result.title}</button><Badge variant="secondary" className="capitalize">{result.type}</Badge></div><p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{renderExcerpt(result.excerpt)}</p><p className="mt-1.5 text-[11px] text-muted-foreground">{projectNames[result.projectId ?? ''] ?? 'Workspace'} · {formatRelative(result.updatedAt)}</p></div></article>; })}
+      {searched && !busy && !filteredResults.length && !error && <div className="py-14 text-center"><SearchIcon className="mx-auto mb-3 size-5 text-muted-foreground"/><p className="text-sm font-medium">No matching results</p><p className="mt-1 text-xs text-muted-foreground">Try different keywords or clear filters.</p></div>}
+      {!searched && <div className="py-14 text-center"><SearchIcon className="mx-auto mb-3 size-5 text-muted-foreground"/><p className="text-sm font-medium">Search across DevLedger</p><p className="mt-1 text-xs text-muted-foreground">Find notes, tasks, projects, contacts and indexed documents.</p></div>}
     </div>
     {searched && pageCount > 1 && <Pagination><PaginationContent><PaginationItem><PaginationPrevious href="#results" aria-disabled={page === 1} className={page === 1 ? 'pointer-events-none opacity-40' : undefined} onClick={(event) => { event.preventDefault(); setPage((current) => Math.max(1, current - 1)); }}/></PaginationItem>{Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => <PaginationItem key={pageNumber}><PaginationLink href="#results" isActive={pageNumber === page} onClick={(event) => { event.preventDefault(); setPage(pageNumber); }}>{pageNumber}</PaginationLink></PaginationItem>)}<PaginationItem><PaginationNext href="#results" aria-disabled={page === pageCount} className={page === pageCount ? 'pointer-events-none opacity-40' : undefined} onClick={(event) => { event.preventDefault(); setPage((current) => Math.min(pageCount, current + 1)); }}/></PaginationItem></PaginationContent></Pagination>}
   </div>;

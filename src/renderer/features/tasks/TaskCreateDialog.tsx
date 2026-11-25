@@ -42,11 +42,11 @@ export function TaskCreateDialog({
       <DialogContent className="w-[min(94vw,640px)] p-6">
         <DialogHeader>
           <DialogTitle>New task</DialogTitle>
-          <DialogDescription>Capture the task title and context. Due schedule, estimate and hierarchy stay optional.</DialogDescription>
+          <DialogDescription>Add a task to your project.</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           <div className="space-y-2.5">
-            <label className="block space-y-1 text-xs font-medium">
+            <label className="block space-y-1.5 text-xs font-medium">
               <span>Title</span>
               <Input
                 autoFocus
@@ -58,7 +58,7 @@ export function TaskCreateDialog({
               />
               {form.formState.errors.title && <p className="text-[11px] text-danger" role="alert">{form.formState.errors.title.message}</p>}
             </label>
-            <label className="block space-y-1 text-xs font-medium">
+            <label className="block space-y-1.5 text-xs font-medium">
               <span>Description <span className="font-normal text-muted-foreground">(optional)</span></span>
               <Textarea aria-label="Task description" {...form.register('description')} placeholder="Add context, links or acceptance notes…" rows={3} />
               {form.formState.errors.description && <p className="text-[11px] text-danger" role="alert">{form.formState.errors.description.message}</p>}
@@ -79,12 +79,12 @@ export function TaskCreateDialog({
               {form.formState.errors.projectId && <p className="text-[11px] text-danger" role="alert">{form.formState.errors.projectId.message}</p>}
             </div>
 
-            <label className="space-y-1.5 text-xs font-medium">
+            <label className="block space-y-1.5 text-xs font-medium">
               <span>Priority</span>
               <NativeSelect aria-label="Priority" {...form.register('priority')} className="h-9 w-full text-xs">
-                <NativeSelectOption value="low">Low priority</NativeSelectOption>
-                <NativeSelectOption value="medium">Medium priority</NativeSelectOption>
-                <NativeSelectOption value="high">High priority</NativeSelectOption>
+                <NativeSelectOption value="low">Low</NativeSelectOption>
+                <NativeSelectOption value="medium">Medium</NativeSelectOption>
+                <NativeSelectOption value="high">High</NativeSelectOption>
                 <NativeSelectOption value="urgent">Urgent</NativeSelectOption>
               </NativeSelect>
             </label>
@@ -99,7 +99,7 @@ export function TaskCreateDialog({
               {form.formState.errors.dueAt && <p className="mt-1 text-[11px] text-danger" role="alert">{form.formState.errors.dueAt.message}</p>}
             </div>
 
-            <label className="space-y-1.5 text-xs font-medium">
+            <label className="block space-y-1.5 text-xs font-medium">
               <span>Estimate <span className="font-normal text-muted-foreground">(optional)</span></span>
               <div className="relative">
                 <Input type="number" min="0" max="525600" {...form.register('estimate')} placeholder="e.g. 45" className="pr-11" aria-invalid={Boolean(form.formState.errors.estimate)} />

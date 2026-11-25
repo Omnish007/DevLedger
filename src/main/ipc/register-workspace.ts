@@ -1,6 +1,6 @@
 import { BrowserWindow, dialog } from 'electron';
 import { z } from 'zod';
-import type { AppMetadata, ContactInput, NoteInput, PageRequest, ProjectInput, TaskInput } from '../../shared/contracts.ts';
+import type { AppMetadata, ContactInput, NoteInput, PageRequest, ProjectInput, ProjectStatus, TaskInput, TaskStatus } from '../../shared/contracts.ts';
 import type { IpcHandlerContext, IpcRegistrar } from './contracts.ts';
 import { contactInput, idInput, noInput, noteInput, noteUpdate, pageRequest, projectInput, projectUpdate, taskInput, taskUpdate } from './schemas.ts';
 import { isQuickCaptureShortcut } from '../../domain/keyboard-shortcuts.ts';
@@ -21,10 +21,10 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
   register('contacts:listPage', pageRequest, (input) => workspace.listContactsPage((input ?? {}) as PageRequest));
   register('contacts:get', idInput, (id) => workspace.getContactById(id));
   register('contacts:create', contactInput, (input) => workspace.createContact(input as ContactInput));
-  register('contacts:update', z.tuple([idInput, contactInput.partial()]), ([id, input]) => workspace.updateContact(id, input));
+  register('contacts:update', z.tuple([idInput, contactInput.partial()]), ([id, input]) => workspace.updateContact(id, input as Partial<ContactInput>));
   register('contacts:remove', idInput, (id) => workspace.removeContact(id));
   register('projects:create', projectInput, (input) => workspace.createProject(input as ProjectInput));
-  register('projects:update', z.tuple([idInput, projectUpdate]), ([id, input]) => workspace.updateProject(id, input));
+  register('projects:update', z.tuple([idInput, projectUpdate]), ([id, input]) => workspace.updateProject(id, input as Partial<ProjectInput> & { status?: ProjectStatus | undefined }));
   register('projects:archive', idInput, (id) => workspace.archiveProject(id));
   register('projects:restore', idInput, (id) => workspace.restoreProject(id));
   register('projects:export', idInput, async (id, event) => {
@@ -51,7 +51,7 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
   register('notes:unlock', idInput, (id) => vault.unlockNote(id));
   register('notes:saveLocked', z.tuple([idInput, z.object({ title: z.string().max(240), content: z.string().max(2_000_000), projectId: z.string().uuid().nullable() })]), ([id, input]) => vault.saveLockedNote(id, input));
   register('notes:create', noteInput, (input) => workspace.createNote(input as NoteInput));
-  register('notes:update', z.tuple([idInput, noteUpdate]), ([id, input]) => workspace.updateNote(id, input));
+  register('notes:update', z.tuple([idInput, noteUpdate]), ([id, input]) => workspace.updateNote(id, input as Partial<NoteInput>));
   register('notes:remove', idInput, (id) => workspace.removeNote(id));
   register('capture:save', noteInput, (input, event) => {
     const note = workspace.createNote(input as NoteInput);
@@ -64,7 +64,7 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
   register('tasks:listPage', pageRequest, (input) => workspace.listTasksPage((input ?? {}) as PageRequest));
   register('tasks:getTitles', z.array(idInput).max(200), (ids) => workspace.getTaskTitles(ids));
   register('tasks:create', taskInput, (input) => workspace.createTask(input as TaskInput));
-  register('tasks:update', z.tuple([idInput, taskUpdate]), ([id, input]) => workspace.updateTask(id, input));
+  register('tasks:update', z.tuple([idInput, taskUpdate]), ([id, input]) => workspace.updateTask(id, input as Partial<TaskInput> & { status?: TaskStatus | undefined }));
   register('tasks:remove', idInput, (id) => workspace.removeTask(id));
   register('tasks:startTimer', idInput, (id) => workspace.startTimer(id));
   register('tasks:stopTimer', idInput, (id) => workspace.stopTimer(id));

@@ -57,12 +57,12 @@ export function validateBackupHeaderV2(value: unknown): BackupHeaderV2 {
     const wrapped = item as Record<string, unknown>;
     return ['salt', 'nonce', 'ciphertext', 'tag'].every((key) => typeof wrapped[key] === 'string' && (wrapped[key] as string).length <= 256);
   };
-  if (record.version !== 2 || typeof record.backupId !== 'string' || !/^[0-9a-f-]{36}$/i.test(record.backupId)
-    || typeof record.dataNonce !== 'string' || Buffer.from(record.dataNonce, 'base64').length !== 12
-    || !isWrapped(record.passphrase) || !isWrapped(record.recovery)) {
+  if (record['version'] !== 2 || typeof record['backupId'] !== 'string' || !/^[0-9a-f-]{36}$/i.test(record['backupId'])
+    || typeof record['dataNonce'] !== 'string' || Buffer.from(record['dataNonce'], 'base64').length !== 12
+    || !isWrapped(record['passphrase']) || !isWrapped(record['recovery'])) {
     throw new Error('This backup uses an unsupported or damaged encryption header.');
   }
-  for (const item of [record.passphrase, record.recovery] as WrappedDataKey[]) {
+  for (const item of [record['passphrase'], record['recovery']] as WrappedDataKey[]) {
     if (Buffer.from(item.salt, 'base64').length !== 16 || Buffer.from(item.nonce, 'base64').length !== 12
       || Buffer.from(item.ciphertext, 'base64').length !== 32 || Buffer.from(item.tag, 'base64').length !== 16) {
       throw new Error('The backup encryption key envelope is invalid.');

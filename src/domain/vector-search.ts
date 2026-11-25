@@ -12,7 +12,13 @@ export interface RankedResult<T extends RankedEntity> {
 export function splitIntoChunks(value: string, targetWords = 400, overlapWords = 60): string[] {
   if (!Number.isInteger(targetWords) || targetWords < 40 || targetWords > 2_000) throw new Error('Chunk size must be between 40 and 2,000 words.');
   if (!Number.isInteger(overlapWords) || overlapWords < 0 || overlapWords >= targetWords) throw new Error('Chunk overlap must be smaller than the chunk size.');
-  const normalized = value.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ' ').trim();
+  const cleaned = [...value.replace(/\r\n?/g, '\n')]
+    .map((ch) => {
+      const code = ch.charCodeAt(0);
+      return (code <= 0x08 || code === 0x0b || code === 0x0c || (code >= 0x0e && code <= 0x1f)) ? ' ' : ch;
+    })
+    .join('');
+  const normalized = cleaned.trim();
   if (!normalized) return [];
   const paragraphs = normalized.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const chunks: string[] = [];

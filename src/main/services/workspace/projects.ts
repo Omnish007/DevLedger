@@ -49,7 +49,7 @@ export class WorkspaceProjectsService extends WorkspaceContactsService {
     return project;
   }
 
-  updateProject(id: string, input: Partial<ProjectInput> & { status?: ProjectStatus }): ProjectRecord {
+  updateProject(id: string, input: Partial<ProjectInput> & { status?: ProjectStatus | undefined }): ProjectRecord {
     const existing = this.db.prepare('SELECT * FROM projects WHERE id = ? AND deleted_at IS NULL').get(id) as Record<string, unknown> | undefined;
     if (!existing) throw new Error('Project not found.');
     const next = {

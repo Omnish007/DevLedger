@@ -3,16 +3,25 @@ import { test, expect } from '../fixtures/app.fixture';
 test('launches a fresh isolated workspace and initializes the main window @smoke', async ({ desktop }) => {
   const actualUserData = await desktop.application.evaluate(({ app }) => app.getPath('userData'));
   expect(actualUserData).toBe(desktop.profileDirectory);
-  await expect(desktop.page.getByRole('heading', { name: 'A clear view of your work.' })).toBeVisible();
+  await expect(desktop.page.getByRole('heading', { name: 'Overview' })).toBeVisible();
   await expect(desktop.page.getByRole('main')).toBeVisible();
-  await expect(desktop.page.getByText('No active projects yet')).toBeVisible();
+  await expect(desktop.page.getByText('No active projects yet.')).toBeVisible();
   expect(desktop.diagnostics.pageErrors).toEqual([]);
 });
 
 test('keeps Electron privileges in the main process and exposes only the narrow preload API', async ({ desktop }) => {
   const preferences = await desktop.application.evaluate(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed());
-    const value = window?.webContents.getLastWebPreferences();
+    const webContents = window?.webContents as unknown as {
+      getLastWebPreferences?: () => {
+        nodeIntegration?: boolean;
+        contextIsolation?: boolean;
+        sandbox?: boolean;
+        webSecurity?: boolean;
+        allowRunningInsecureContent?: boolean;
+      };
+    } | undefined;
+    const value = webContents?.getLastWebPreferences?.();
     return value ? {
       nodeIntegration: value.nodeIntegration,
       contextIsolation: value.contextIsolation,

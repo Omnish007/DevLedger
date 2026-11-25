@@ -47,11 +47,10 @@ export const test = base.extend<{ desktop: DesktopHarness }>({
 
     const profileDirectory = await mkdtemp(resolve(tmpdir(), `${PROFILE_PREFIX}${process.pid}-`));
     const diagnostics: DesktopDiagnostics = { pageErrors: [], consoleErrors: [], mainProcessStderr: [], rendererCrashes: [] };
-    let application: ElectronApplication | null = null;
-    let page: Page | null = null;
+    let state: { application: ElectronApplication | null; page: Page | null } = { application: null, page: null };
 
     const launch = async (): Promise<void> => {
-      application = await electron.launch({
+      const application = await electron.launch({
         // Keep Electron's production security model intact during tests; never pass --no-sandbox.
         args: [PROJECT_ROOT],
         env: {
@@ -62,32 +61,32 @@ export const test = base.extend<{ desktop: DesktopHarness }>({
         timeout: 45_000,
       });
       application.process().stderr?.on('data', (chunk: Buffer) => diagnostics.mainProcessStderr.push(chunk.toString()));
-      page = await application.firstWindow();
+      const page = await application.firstWindow();
+      state = { application, page };
       page.on('crash', () => diagnostics.rendererCrashes.push('The Electron renderer process crashed.'));
       page.on('pageerror', (error) => diagnostics.pageErrors.push(error.stack ?? error.message));
       page.on('console', (message) => {
         if (message.type() === 'error') diagnostics.consoleErrors.push(message.text());
       });
       await page.waitForLoadState('domcontentloaded');
-      await expect(page.getByRole('heading', { name: 'A clear view of your work.' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
       await expect(page.getByRole('main')).toBeVisible();
     };
 
     const harness: DesktopHarness = {
       get application() {
-        if (!application) throw new Error('Electron application is not running.');
-        return application;
+        if (!state.application) throw new Error('Electron application is not running.');
+        return state.application;
       },
       get page() {
-        if (!page) throw new Error('Electron renderer page is not available.');
-        return page;
+        if (!state.page) throw new Error('Electron renderer page is not available.');
+        return state.page;
       },
       profileDirectory,
       diagnostics,
       async restart() {
-        if (application) await application.close();
-        application = null;
-        page = null;
+        if (state.application) await state.application.close();
+        state = { application: null, page: null };
         await launch();
       },
     };
@@ -98,10 +97,9 @@ export const test = base.extend<{ desktop: DesktopHarness }>({
       expect(diagnostics.pageErrors, 'No unhandled renderer exceptions should occur during this scenario.').toEqual([]);
       expect(diagnostics.rendererCrashes, 'The renderer must remain alive for the complete scenario.').toEqual([]);
     } finally {
-      await attachFailureEvidence(testInfo, page, diagnostics);
-      if (application) await application.close().catch(() => undefined);
-      application = null;
-      page = null;
+      await attachFailureEvidence(testInfo, state.page, diagnostics);
+      if (state.application) await state.application.close().catch(() => undefined);
+      state = { application: null, page: null };
 
       // Cleanup is limited to the unique directory created by mkdtemp for this test.
       const resolvedProfile = resolve(profileDirectory);

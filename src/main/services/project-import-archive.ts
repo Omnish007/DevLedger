@@ -60,7 +60,7 @@ export async function extractProjectArchive(
   }
 
   const manifestValue = asProjectImportRow(await readSafeJsonFile(join(staging, 'manifest.json'), MAX_PROJECT_MANIFEST_BYTES));
-  if (!isSupportedProjectExportFormat(manifestValue.format) || manifestValue.version !== 1 || !Array.isArray(manifestValue.files)) throw new Error('This is not a supported DevLedger project export.');
+  if (!isSupportedProjectExportFormat(manifestValue['format']) || manifestValue['version'] !== 1 || !Array.isArray(manifestValue['files'])) throw new Error('This is not a supported DevLedger project export.');
   const manifest = manifestValue as unknown as ProjectManifest;
   if (typeof manifest.projectId !== 'string' || !manifest.projectId) throw new Error('The project archive has no source project identifier.');
   const expected = new Set<string>(['manifest.json']);
@@ -76,7 +76,7 @@ export async function extractProjectArchive(
   if (expected.size !== extracted.size || [...extracted].some((path) => !expected.has(path))) throw new Error('Archive contents do not match the project manifest.');
   signal?.throwIfAborted();
   const exportData = asProjectImportRow(await readSafeJsonFile(join(staging, 'project.json'), MAX_PROJECT_DATA_JSON_BYTES));
-  if (importText(asProjectImportRow(exportData.project).id) !== manifest.projectId) throw new Error('The manifest and exported project do not match.');
+  if (importText(asProjectImportRow(exportData['project'])['id']) !== manifest.projectId) throw new Error('The manifest and exported project do not match.');
   return exportData;
 }
 

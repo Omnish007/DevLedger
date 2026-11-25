@@ -34,10 +34,10 @@ export interface BackgroundJobRow {
 }
 
 export interface EnqueueJobOptions {
-  priority?: number;
-  maxAttempts?: number;
-  idempotencyKey?: string;
-  payload?: Record<string, unknown>;
+  priority?: number | undefined;
+  maxAttempts?: number | undefined;
+  idempotencyKey?: string | undefined;
+  payload?: Record<string, unknown> | undefined;
 }
 
 function timestamp(): string { return new Date().toISOString(); }

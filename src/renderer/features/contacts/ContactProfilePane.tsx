@@ -49,17 +49,17 @@ export function ContactProfilePane({
           <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"><Mail className="size-3" />Email</p>
           {contact.email
             ? <a href={`mailto:${contact.email}`} className="mt-1 block truncate font-medium text-foreground hover:underline">{contact.email}</a>
-            : <p className="mt-1 text-muted-foreground">Not added</p>}
+            : <p className="mt-1 text-muted-foreground">—</p>}
         </div>
         <div className="rounded-lg border border-border bg-surface-subtle/50 px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"><Phone className="size-3" />Phone</p>
           {contact.phone
             ? <a href={`tel:${contact.phone}`} className="mt-1 block truncate font-medium text-foreground hover:underline">{contact.phone}</a>
-            : <p className="mt-1 text-muted-foreground">Not added</p>}
+            : <p className="mt-1 text-muted-foreground">—</p>}
         </div>
         <div className="rounded-lg border border-border bg-surface-subtle/50 px-3 py-2.5">
           <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"><Building2 className="size-3" />Company</p>
-          <p className={`mt-1 truncate ${contact.company ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{contact.company || 'Not specified'}</p>
+          <p className={`mt-1 truncate ${contact.company ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{contact.company || '—'}</p>
         </div>
       </div>
 

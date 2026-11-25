@@ -81,7 +81,7 @@ export class WorkspaceOperationsService {
     this.db.prepare('DELETE FROM task_dependencies WHERE task_id = ? AND depends_on_task_id = ?').run(taskId, dependsOnTaskId);
   }
 
-  listDependencies(taskId: string, input: { dependsOn?: PageRequest; blocks?: PageRequest } = {}): {
+  listDependencies(taskId: string, input: { dependsOn?: PageRequest | undefined; blocks?: PageRequest | undefined } = {}): {
     dependsOn: PageResult<string>;
     blocks: PageResult<string>;
   } {
@@ -117,7 +117,7 @@ export class WorkspaceOperationsService {
     return getBlocker(this.db, id);
   }
 
-  listBlockersPage(input: { taskId?: string; includeResolved?: boolean; limit?: number; offset?: number } = {}): PageResult<TaskBlockerRecord> {
+  listBlockersPage(input: { taskId?: string | undefined; includeResolved?: boolean | undefined; limit?: number | undefined; offset?: number | undefined } = {}): PageResult<TaskBlockerRecord> {
     const page = normalizePage(input);
     const clauses: string[] = [];
     const params: unknown[] = [];
@@ -148,7 +148,7 @@ export class WorkspaceOperationsService {
     return getReminder(this.db, id);
   }
 
-  listRemindersPage(input: { entityType?: ReminderRecord['entityType']; entityId?: string; status?: ReminderRecord['status']; limit?: number; offset?: number } = {}): PageResult<ReminderRecord> {
+  listRemindersPage(input: { entityType?: ReminderRecord['entityType'] | undefined; entityId?: string | undefined; status?: ReminderRecord['status'] | undefined; limit?: number | undefined; offset?: number | undefined } = {}): PageResult<ReminderRecord> {
     const page = normalizePage(input);
     const clauses = [input.status ? 'status = ?' : "status IN ('scheduled', 'snoozed', 'delivered')"];
     const parameters: unknown[] = input.status ? [input.status] : [];

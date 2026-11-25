@@ -141,18 +141,18 @@ export class SemanticSearchService {
     `).iterate(...params, ...selectedIds) as Iterable<Record<string, unknown>>;
     const best = new Map<string, { result: SearchResult; score: number }>();
     for (const row of rows) {
-      if (Number(row.dimensions) !== queryVector.length) continue;
+      if (Number(row['dimensions']) !== queryVector.length) continue;
       let vector: number[];
-      try { vector = JSON.parse(String(row.vector_json)) as number[]; } catch { continue; }
+      try { vector = JSON.parse(String(row['vector_json'])) as number[]; } catch { continue; }
       const score = cosineSimilarity(queryVector, vector);
       if (!Number.isFinite(score)) continue;
-      const type = String(row.source_type) as SearchResult['type'];
-      const id = String(row.source_id);
+      const type = String(row['source_type']) as SearchResult['type'];
+      const id = String(row['source_id']);
       const key = `${type}:${id}`;
       if ((best.get(key)?.score ?? Number.NEGATIVE_INFINITY) >= score) continue;
       best.set(key, {
         score,
-        result: { id, type, title: String(row.title), excerpt: String(row.excerpt), projectId: row.project_id ? String(row.project_id) : null, updatedAt: String(row.source_updated_at) },
+        result: { id, type, title: String(row['title']), excerpt: String(row['excerpt']), projectId: row['project_id'] ? String(row['project_id']) : null, updatedAt: String(row['source_updated_at']) },
       });
     }
     return [...best.values()].sort((a, b) => b.score - a.score).slice(0, 40).map((item) => item.result);

@@ -7,7 +7,7 @@ import type Database from 'better-sqlite3';
 import { createProjectImportStaging, extractProjectArchive, removeProjectImportStaging } from './project-import-archive.ts';
 import { writeProjectRecords } from './project-import-writer.ts';
 import {
-  asProjectImportRow as row, asProjectImportRows as rows, importText as text, importNumber as number,
+  asProjectImportRow as row, asProjectImportRows as rows, importText as text,
   safeArchivePath, isInside, sha256File as sha256, pathExists as exists, assertAcyclicImportEdges as assertAcyclic,
 } from './project-import-helpers.ts';
 
@@ -50,42 +50,42 @@ export async function importProjectSnapshot(
   onProgress?: (progress: Record<string, unknown>) => void,
 ): Promise<ProjectImportResult> {
   signal?.throwIfAborted();
-  const sourceProject = row(exportData.project);
-  const sourceProjectId = text(sourceProject.id);
-  if (!sourceProjectId || !text(sourceProject.name).trim()) throw new Error('Project details are incomplete.');
+  const sourceProject = row(exportData['project']);
+  const sourceProjectId = text(sourceProject['id']);
+  if (!sourceProjectId || !text(sourceProject['name']).trim()) throw new Error('Project details are incomplete.');
 
-  const contacts = rows(exportData.contacts);
-  const projectContacts = rows(exportData.projectContacts);
-  const notes = rows(exportData.notes);
-  const tasks = rows(exportData.tasks);
-  const documents = rows(exportData.documents);
-  const tags = rows(exportData.tags);
-  const entityTags = rows(exportData.entityTags);
-  const links = rows(exportData.links);
-  const dependencies = rows(exportData.taskDependencies);
-  const timeEntries = rows(exportData.timeEntries);
-  const blockers = rows(exportData.blockers);
-  const reminders = rows(exportData.reminders);
-  const activity = rows(exportData.activity);
-  const versions = rows(exportData.noteVersions);
-  const attachments = rows(exportData.attachments);
+  const contacts = rows(exportData['contacts']);
+  const projectContacts = rows(exportData['projectContacts']);
+  const notes = rows(exportData['notes']);
+  const tasks = rows(exportData['tasks']);
+  const documents = rows(exportData['documents']);
+  const tags = rows(exportData['tags']);
+  const entityTags = rows(exportData['entityTags']);
+  const links = rows(exportData['links']);
+  const dependencies = rows(exportData['taskDependencies']);
+  const timeEntries = rows(exportData['timeEntries']);
+  const blockers = rows(exportData['blockers']);
+  const reminders = rows(exportData['reminders']);
+  const activity = rows(exportData['activity']);
+  const versions = rows(exportData['noteVersions']);
+  const attachments = rows(exportData['attachments']);
 
-  const lockedNotesSkipped = notes.filter((item) => Boolean(item.locked)).length;
-  const normalNotes = notes.filter((item) => !Boolean(item.locked));
-  const taskIds = new Set(tasks.map((item) => text(item.id)).filter(Boolean));
+  const lockedNotesSkipped = notes.filter((item) => Boolean(item['locked'])).length;
+  const normalNotes = notes.filter((item) => !item['locked']);
+  const taskIds = new Set(tasks.map((item) => text(item['id'])).filter(Boolean));
   const parentEdges = new Map<string, string[]>();
   const dependencyEdges = new Map<string, string[]>();
   for (const task of tasks) {
-    const id = text(task.id);
+    const id = text(task['id']);
     if (!id) throw new Error('The project archive contains a task without an identifier.');
-    const parentId = task.parent_id ? text(task.parent_id) : '';
+    const parentId = task['parent_id'] ? text(task['parent_id']) : '';
     if (parentId && !taskIds.has(parentId)) throw new Error('A task refers to a parent task outside the project archive.');
     parentEdges.set(id, parentId ? [parentId] : []);
     dependencyEdges.set(id, []);
   }
   for (const dependency of dependencies) {
-    const taskId = text(dependency.task_id);
-    const dependsOn = text(dependency.depends_on_task_id);
+    const taskId = text(dependency['task_id']);
+    const dependsOn = text(dependency['depends_on_task_id']);
     if (!taskIds.has(taskId) || !taskIds.has(dependsOn)) throw new Error('A task dependency refers outside the project archive.');
     dependencyEdges.get(taskId)!.push(dependsOn);
   }
@@ -94,16 +94,16 @@ export async function importProjectSnapshot(
 
   const sourceIdsByType = new Map<string, Set<string>>([
     ['project', new Set([sourceProjectId])],
-    ['contact', new Set(contacts.map((item) => text(item.id)))],
-    ['note', new Set(normalNotes.map((item) => text(item.id)))],
+    ['contact', new Set(contacts.map((item) => text(item['id'])))],
+    ['note', new Set(normalNotes.map((item) => text(item['id'])))],
     ['task', taskIds],
-    ['document', new Set(documents.map((item) => text(item.id)))],
+    ['document', new Set(documents.map((item) => text(item['id'])))],
   ]);
   const idMap = new Map<string, string>();
   idMap.set(sourceProjectId, randomUUID());
   for (const collection of [contacts, normalNotes, tasks, documents]) {
     for (const item of collection) {
-      const sourceId = text(item.id);
+      const sourceId = text(item['id']);
       if (!sourceId) throw new Error('The project archive contains a record without an identifier.');
       if (idMap.has(sourceId)) throw new Error('The project archive contains colliding record identifiers.');
       idMap.set(sourceId, randomUUID());
@@ -113,22 +113,22 @@ export async function importProjectSnapshot(
   const tagIdMap = new Map<string, string>();
   const importedObjects: string[] = [];
   const objectDirectory = join(dataDirectory, 'objects');
-  const attachmentById = new Map(attachments.map((item) => [text(item.id), text(item.path)]));
+  const attachmentById = new Map(attachments.map((item) => [text(item['id']), text(item['path'])]));
   const documentObjects = new Map<string, string>();
   try {
     for (const [documentIndex, document] of documents.entries()) {
       signal?.throwIfAborted();
-      const sourceId = text(document.id);
+      const sourceId = text(document['id']);
       const archiveRelative = attachmentById.get(sourceId);
-      const objectHash = text(document.sha256);
+      const objectHash = text(document['sha256']);
       if (!archiveRelative || !safeArchivePath(archiveRelative) || !/^([a-f0-9]{64})$/.test(objectHash)) {
-        throw new Error(`Document ${text(document.original_name, sourceId)} has no valid attachment reference.`);
+        throw new Error(`Document ${text(document['original_name'], sourceId)} has no valid attachment reference.`);
       }
       const sourcePath = resolve(extractedRoot, archiveRelative);
       if (!isInside(extractedRoot, sourcePath)) throw new Error('An attachment path is unsafe.');
       const sourceInfo = await lstat(sourcePath);
       if (!sourceInfo.isFile() || sourceInfo.isSymbolicLink() || await sha256(sourcePath, signal) !== objectHash) {
-        throw new Error(`Attachment integrity check failed for ${text(document.original_name, sourceId)}.`);
+        throw new Error(`Attachment integrity check failed for ${text(document['original_name'], sourceId)}.`);
       }
       const relativeObject = join('objects', objectHash.slice(0, 2), objectHash);
       const destination = resolve(dataDirectory, relativeObject);
@@ -170,7 +170,7 @@ export async function importProjectSnapshot(
 
     return {
       projectId: idMap.get(sourceProjectId)!,
-      projectName: `${text(sourceProject.name).trim()} (Imported)`.slice(0, 160),
+      projectName: `${text(sourceProject['name']).trim()} (Imported)`.slice(0, 160),
       lockedNotesSkipped,
       imported: {
         contacts: contacts.length,

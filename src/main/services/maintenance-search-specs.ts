@@ -23,7 +23,7 @@ export const SEARCH_INDEX_REBUILDS: SearchIndexRebuildSpec[] = [
     initializeSql: "INSERT INTO note_search_rebuild(note_search_rebuild, rank) VALUES('secure-delete', 1);",
     selectSql: `SELECT id, coalesce(project_id, '') AS project_id, title, content
       FROM notes WHERE locked = 0 AND deleted_at IS NULL AND id > ? ORDER BY id LIMIT ?`,
-    selectValues: (row) => [row.id, row.project_id, row.title, row.content],
+    selectValues: (row) => [row.id, row['project_id'], row['title'], row['content']],
     insertNewSql: `INSERT INTO note_search_rebuild(note_id, project_id, title, content)
       SELECT new.id, coalesce(new.project_id, ''), new.title, new.content
       WHERE new.locked = 0 AND new.deleted_at IS NULL;`,
@@ -43,7 +43,7 @@ export const SEARCH_INDEX_REBUILDS: SearchIndexRebuildSpec[] = [
     initializeSql: "INSERT INTO task_search_rebuild(task_search_rebuild, rank) VALUES('secure-delete', 1);",
     selectSql: `SELECT id, project_id, title, description
       FROM tasks WHERE deleted_at IS NULL AND id > ? ORDER BY id LIMIT ?`,
-    selectValues: (row) => [row.id, row.project_id, row.title, row.description],
+    selectValues: (row) => [row.id, row['project_id'], row['title'], row['description']],
     insertNewSql: `INSERT INTO task_search_rebuild(task_id, project_id, title, description)
       SELECT new.id, new.project_id, new.title, new.description WHERE new.deleted_at IS NULL;`,
     sourceTriggers: [
@@ -61,7 +61,7 @@ export const SEARCH_INDEX_REBUILDS: SearchIndexRebuildSpec[] = [
     createSql: "CREATE VIRTUAL TABLE contact_search_rebuild USING fts5(contact_id UNINDEXED, name, company, role, email, phone, notes, custom_attributes, tokenize='unicode61 remove_diacritics 2');",
     selectSql: `SELECT id, name, company, role, email, phone, notes, custom_attributes_json AS custom_attributes
       FROM contacts WHERE deleted_at IS NULL AND id > ? ORDER BY id LIMIT ?`,
-    selectValues: (row) => [row.id, row.name, row.company, row.role, row.email, row.phone, row.notes, row.custom_attributes],
+    selectValues: (row) => [row.id, row['name'], row['company'], row['role'], row['email'], row['phone'], row['notes'], row['custom_attributes']],
     insertNewSql: `INSERT INTO contact_search_rebuild(contact_id, name, company, role, email, phone, notes, custom_attributes)
       SELECT new.id, new.name, new.company, new.role, new.email, new.phone, new.notes, new.custom_attributes_json
       WHERE new.deleted_at IS NULL;`,
@@ -83,7 +83,7 @@ export const SEARCH_INDEX_REBUILDS: SearchIndexRebuildSpec[] = [
     initializeSql: "INSERT INTO document_search_rebuild(document_search_rebuild, rank) VALUES('secure-delete', 1);",
     selectSql: `SELECT id, coalesce(project_id, '') AS project_id, title, extracted_text AS content
       FROM documents WHERE status = 'indexed' AND deleted_at IS NULL AND is_encrypted = 0 AND id > ? ORDER BY id LIMIT ?`,
-    selectValues: (row) => [row.id, row.project_id, row.title, row.content],
+    selectValues: (row) => [row.id, row['project_id'], row['title'], row['content']],
     insertNewSql: `INSERT INTO document_search_rebuild(document_id, project_id, title, content)
       SELECT new.id, coalesce(new.project_id, ''), new.title, new.extracted_text
       WHERE new.status = 'indexed' AND new.deleted_at IS NULL AND new.is_encrypted = 0;`,
@@ -102,7 +102,7 @@ export const SEARCH_INDEX_REBUILDS: SearchIndexRebuildSpec[] = [
     columns: ['chunk_id', 'title', 'content'],
     createSql: "CREATE VIRTUAL TABLE semantic_chunk_search_rebuild USING fts5(chunk_id UNINDEXED, title, content, tokenize='unicode61 remove_diacritics 2');",
     selectSql: 'SELECT id, title, content FROM semantic_chunks WHERE id > ? ORDER BY id LIMIT ?',
-    selectValues: (row) => [row.id, row.title, row.content],
+    selectValues: (row) => [row.id, row['title'], row['content']],
     insertNewSql: `INSERT INTO semantic_chunk_search_rebuild(chunk_id, title, content)
       VALUES(new.id, new.title, new.content);`,
     sourceTriggers: [

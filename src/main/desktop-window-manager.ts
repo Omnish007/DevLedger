@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, nativeTheme, shell } from 'electron';
+import { BrowserWindow, globalShortcut, nativeTheme, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
@@ -82,7 +82,7 @@ export class DesktopWindowManager {
       let allowed = false;
       try {
         const incoming = new URL(url);
-        const devUrl = process.env.ELECTRON_RENDERER_URL;
+        const devUrl = process.env['ELECTRON_RENDERER_URL'];
         if (devUrl) {
           const expected = new URL(devUrl);
           allowed = incoming.origin === expected.origin && (incoming.pathname === '/' || incoming.pathname === '/index.html');
@@ -92,8 +92,8 @@ export class DesktopWindowManager {
       } catch { allowed = false; }
       if (!allowed) event.preventDefault();
     });
-    if (process.env.ELECTRON_RENDERER_URL) {
-      const url = capture ? `${process.env.ELECTRON_RENDERER_URL}?capture=1` : process.env.ELECTRON_RENDERER_URL;
+    if (process.env['ELECTRON_RENDERER_URL']) {
+      const url = capture ? `${process.env['ELECTRON_RENDERER_URL']}?capture=1` : process.env['ELECTRON_RENDERER_URL'];
       void window.loadURL(url);
     } else {
       void window.loadFile(join(__dirname, '../renderer/index.html'), { query: capture ? { capture: '1' } : {} });

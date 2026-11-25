@@ -1,5 +1,4 @@
 import { safeStorage } from 'electron';
-import type Database from 'better-sqlite3';
 import type { BackgroundJobRunner } from '../services/background-jobs.ts';
 import { WorkspaceService } from '../services/workspace.ts';
 import { DocumentStorageService } from '../services/storage.ts';
@@ -45,17 +44,17 @@ export function registerIpcHandlers(dependencies: IpcDependencies): {
   jobs.register('semantic.index', async (_payload, context) => ollama.indexLocalKnowledge(context.signal, context.progress));
   jobs.register('ai.summarize', async (payload, context) => {
     context.throwIfCancelled();
-    return ollama.summarize(typeof payload.query === 'string' ? payload.query : '', typeof payload.projectId === 'string' ? payload.projectId : null, context.signal);
+    return ollama.summarize(typeof payload['query'] === 'string' ? payload['query'] : '', typeof payload['projectId'] === 'string' ? payload['projectId'] : null, context.signal);
   });
   jobs.register('project.export', async (payload, context) => {
     context.throwIfCancelled();
-    if (typeof payload.projectId !== 'string' || typeof payload.targetPath !== 'string') throw new Error('Invalid project export job payload.');
-    return projectExports.exportProject(payload.projectId, payload.targetPath, context.signal, context.progress);
+    if (typeof payload['projectId'] !== 'string' || typeof payload['targetPath'] !== 'string') throw new Error('Invalid project export job payload.');
+    return projectExports.exportProject(payload['projectId'], payload['targetPath'], context.signal, context.progress);
   });
   jobs.register('project.import', async (payload, context) => {
     context.throwIfCancelled();
-    if (typeof payload.archivePath !== 'string') throw new Error('Invalid project import job payload.');
-    return projectImports.importProjectArchive(payload.archivePath, context.signal, context.progress);
+    if (typeof payload['archivePath'] !== 'string') throw new Error('Invalid project import job payload.');
+    return projectImports.importProjectArchive(payload['archivePath'], context.signal, context.progress);
   });
   jobs.register('search.rebuild', async (_payload, context) => rebuildLocalSearchIndexes(dependencies.db, context));
   jobs.register('storage.audit', async (_payload, context) => auditLocalDocumentStorage(dependencies.db, dependencies.dataDirectory, context));

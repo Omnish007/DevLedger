@@ -1,8 +1,26 @@
+export function stripControlCharacters(value: string, replaceWith = '', includeDelete = false): string {
+  let result = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    const isAsciiControl = code <= 0x1f || (includeDelete && code === 0x7f);
+    result += isAsciiControl ? replaceWith : value[index]!;
+  }
+  return result;
+}
+
+export function hasControlCharacters(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
+
 export function normalizeSearchTerms(query: string): string[] {
   return query
     .trim()
     .split(/\s+/)
-    .map((part) => part.replace(/[\u0000-\u001f]/g, '').trim())
+    .map((part) => stripControlCharacters(part).trim())
     .filter(Boolean)
     .slice(0, 12);
 }
@@ -14,6 +32,6 @@ export function safeFtsQuery(query: string): string {
 }
 
 export function safeDisplayName(value: string, maxLength = 180): string {
-  const name = value.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  const name = stripControlCharacters(value, '', true).trim();
   return name.slice(0, maxLength);
 }

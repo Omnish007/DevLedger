@@ -1,6 +1,5 @@
 import { randomBytes, randomUUID, createCipheriv, createDecipheriv } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import type { NoteRecord } from '../../shared/contracts.js';
 
 const VAULT_AAD = Buffer.from('northstar-vault-master-key-v1');
 const NOTE_AAD_PREFIX = 'northstar-protected-note-v1:';
@@ -155,7 +154,7 @@ export class VaultService {
     const key = this.requireUnlocked();
     const row = this.db.prepare('SELECT * FROM notes WHERE id = ? AND deleted_at IS NULL AND locked = 0').get(noteId) as Record<string, unknown> | undefined;
     if (!row) throw new Error('The note is missing or already locked.');
-    const plaintext = Buffer.from(JSON.stringify({ title: String(row.title), content: String(row.content), projectId: row.project_id ? String(row.project_id) : null }), 'utf8');
+    const plaintext = Buffer.from(JSON.stringify({ title: String(row['title']), content: String(row['content']), projectId: row['project_id'] ? String(row['project_id']) : null }), 'utf8');
     let encrypted: EncryptedValue;
     try { encrypted = encrypt(key, plaintext, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`)); }
     finally { plaintext.fill(0); }
@@ -177,15 +176,15 @@ export class VaultService {
   unlockNote(noteId: string): ProtectedNote {
     const key = this.requireUnlocked();
     const row = this.db.prepare('SELECT * FROM notes WHERE id = ? AND deleted_at IS NULL AND locked = 1').get(noteId) as Record<string, unknown> | undefined;
-    if (!row || !row.encrypted_payload || !row.encryption_meta) throw new Error('Locked note not found.');
-    const meta = JSON.parse(String(row.encryption_meta)) as { nonce: string; tag: string; version: number };
+    if (!row || !row['encrypted_payload'] || !row['encryption_meta']) throw new Error('Locked note not found.');
+    const meta = JSON.parse(String(row['encryption_meta'])) as { nonce: string; tag: string; version: number };
     if (meta.version !== 1) throw new Error('This protected note uses an unsupported encryption version.');
-    const encrypted: EncryptedValue = { nonce: meta.nonce, tag: meta.tag, ciphertext: Buffer.from(row.encrypted_payload as Buffer).toString('base64') };
+    const encrypted: EncryptedValue = { nonce: meta.nonce, tag: meta.tag, ciphertext: Buffer.from(row['encrypted_payload'] as Buffer).toString('base64') };
     const plain = decrypt(key, encrypted, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
     try {
       const parsed = JSON.parse(plain.toString('utf8')) as { title: string; content: string; projectId: string | null };
       return { id: noteId, title: parsed.title, content: parsed.content, projectId: parsed.projectId,
-        createdAt: String(row.created_at), updatedAt: String(row.updated_at), locked: true };
+        createdAt: String(row['created_at']), updatedAt: String(row['updated_at']), locked: true };
     } finally { plain.fill(0); }
   }
 

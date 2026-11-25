@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
 import type { NoteRecord, ProjectRecord, TaskRecord, TaskStatus } from '../../../shared/contracts.js';
+import { stripControlCharacters } from '../../../domain/validation.ts';
 
 export function nowIso(): string {
   return new Date().toISOString();
@@ -19,7 +20,7 @@ export function normalizeContactAttributes(value: unknown): Record<string, strin
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const result: Record<string, string> = {};
   for (const [rawKey, rawValue] of Object.entries(value as Record<string, unknown>).slice(0, 20)) {
-    const key = rawKey.trim().replace(/[\u0000-\u001f]/g, '').slice(0, 40);
+    const key = stripControlCharacters(rawKey.trim()).slice(0, 40);
     if (!key || typeof rawValue !== 'string') continue;
     result[key] = rawValue.trim().slice(0, 500);
   }
@@ -28,45 +29,45 @@ export function normalizeContactAttributes(value: unknown): Record<string, strin
 
 export function mapProject(row: Record<string, unknown>): ProjectRecord {
   return {
-    id: String(row.id),
-    name: String(row.name),
-    description: String(row.description ?? ''),
-    type: row.type as ProjectRecord['type'],
-    status: row.status as ProjectRecord['status'],
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-    taskCount: Number(row.task_count ?? 0),
-    openTaskCount: Number(row.open_task_count ?? 0),
-    noteCount: Number(row.note_count ?? 0),
+    id: String(row['id']),
+    name: String(row['name']),
+    description: String(row['description'] ?? ''),
+    type: row['type'] as ProjectRecord['type'],
+    status: row['status'] as ProjectRecord['status'],
+    createdAt: String(row['created_at']),
+    updatedAt: String(row['updated_at']),
+    taskCount: Number(row['task_count'] ?? 0),
+    openTaskCount: Number(row['open_task_count'] ?? 0),
+    noteCount: Number(row['note_count'] ?? 0),
   };
 }
 
 export function mapNote(row: Record<string, unknown>): NoteRecord {
   return {
-    id: String(row.id),
-    projectId: row.project_id ? String(row.project_id) : null,
-    title: String(row.title),
-    content: String(row.content),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-    locked: Boolean(row.locked),
+    id: String(row['id']),
+    projectId: row['project_id'] ? String(row['project_id']) : null,
+    title: String(row['title']),
+    content: String(row['content']),
+    createdAt: String(row['created_at']),
+    updatedAt: String(row['updated_at']),
+    locked: Boolean(row['locked']),
   };
 }
 
 export function mapTask(row: Record<string, unknown>): TaskRecord {
   return {
-    id: String(row.id),
-    projectId: String(row.project_id),
-    parentId: row.parent_id ? String(row.parent_id) : null,
-    title: String(row.title),
-    description: String(row.description ?? ''),
-    status: row.status as TaskStatus,
-    priority: row.priority as TaskRecord['priority'],
-    dueAt: row.due_at ? String(row.due_at) : null,
-    dueDate: row.due_date ? String(row.due_date) : null,
-    estimateMinutes: row.estimate_minutes === null ? null : Number(row.estimate_minutes),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
+    id: String(row['id']),
+    projectId: String(row['project_id']),
+    parentId: row['parent_id'] ? String(row['parent_id']) : null,
+    title: String(row['title']),
+    description: String(row['description'] ?? ''),
+    status: row['status'] as TaskStatus,
+    priority: row['priority'] as TaskRecord['priority'],
+    dueAt: row['due_at'] ? String(row['due_at']) : null,
+    dueDate: row['due_date'] ? String(row['due_date']) : null,
+    estimateMinutes: row['estimate_minutes'] === null ? null : Number(row['estimate_minutes']),
+    createdAt: String(row['created_at']),
+    updatedAt: String(row['updated_at']),
   };
 }
 export class WorkspaceBase {

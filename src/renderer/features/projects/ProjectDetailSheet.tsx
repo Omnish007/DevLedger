@@ -53,7 +53,7 @@ export function ProjectDetailSheet({ project, onClose, onStatusChange, onNavigat
             <SheetHeader className="pr-6">
               <div className="flex items-center gap-2 text-xs text-muted-foreground"><FolderKanban className="size-3.5" /><span>{project.type === 'greenfield' ? 'Greenfield project' : 'Ongoing project'}</span></div>
               <SheetTitle className="text-lg">{project.name}</SheetTitle>
-              <SheetDescription>{project.description || 'No project description.'}</SheetDescription>
+              <SheetDescription className={project.description ? undefined : 'sr-only'}>{project.description || 'Project workspace hub'}</SheetDescription>
             </SheetHeader>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-3 text-xs">
@@ -94,7 +94,7 @@ export function ProjectDetailSheet({ project, onClose, onStatusChange, onNavigat
 
               <TabsContent value="contacts" className="space-y-2">
                 <div className="flex justify-end"><Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => jump({ view: 'contacts', projectId: project.id })}>Open in Contacts <ArrowUpRight className="size-3" /></Button></div>
-                {contacts.length ? <div className="divide-y divide-border rounded-md border border-border">{contacts.map((contact) => <button key={contact.id} type="button" onClick={() => jump({ view: 'contacts', recordId: contact.id, projectId: project.id })} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-hover"><Users className="size-3.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate font-medium">{contact.name}</span><span className="text-muted-foreground">{contact.role.replaceAll('_', ' ')}</span></button>)}</div> : <p className="py-6 text-center text-xs text-muted-foreground">No contacts assigned to this project.</p>}
+                {contacts.length ? <div className="divide-y divide-border rounded-md border border-border">{contacts.map((contact) => <button key={contact.id} type="button" onClick={() => jump({ view: 'contacts', recordId: contact.id, projectId: project.id })} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-hover"><Users className="size-3.5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate font-medium">{contact.name}</span><span className="capitalize text-muted-foreground">{contact.role.replaceAll('_', ' ')}</span></button>)}</div> : <p className="py-6 text-center text-xs text-muted-foreground">No contacts assigned to this project.</p>}
               </TabsContent>
 
               <TabsContent value="links">

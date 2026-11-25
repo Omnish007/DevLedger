@@ -19,5 +19,5 @@ export function listActivityPage(db: Database.Database, input: PageRequest = {})
 }
 
 function mapActivity(row: Record<string, unknown>): ActivityRecord {
-  return { id: String(row.id), entityType: String(row.entity_type), entityId: String(row.entity_id), eventType: String(row.event_type), summary: String(row.summary), createdAt: String(row.created_at) };
+  return { id: String(row['id']), entityType: String(row['entity_type']), entityId: String(row['entity_id']), eventType: String(row['event_type']), summary: String(row['summary']), createdAt: String(row['created_at']) };
 }

@@ -87,7 +87,7 @@ export function ProjectsPage({ focusId, onConsumeFocus, onCreate, onUpdate, onAr
 
   return (
     <div className="workspace-page page-projects mx-auto space-y-5">
-      <PageHeader title="Projects" description="Click any project to inspect its tasks, notes, documents, contacts and links." actions={<><Button variant="outline" size="sm" onClick={() => void runPageAction(onImport, 'Project archive could not be imported.')}><Upload className="size-3.5" />Import archive</Button><Button size="sm" onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-3.5" />New project</Button></>} />
+      <PageHeader title="Projects" description={total ? `${total} ${total === 1 ? 'project' : 'projects'}` : undefined} actions={<><Button variant="outline" size="sm" onClick={() => void runPageAction(onImport, 'Project archive could not be imported.')}><Upload className="size-3.5" />Import archive</Button><Button size="sm" onClick={() => { resetForm(); setOpen(true); }}><Plus className="size-3.5" />New project</Button></>} />
       {pageError && <div role="alert" className="rounded-md border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-xs text-danger">{pageError}</div>}
 
       <div className="workspace-toolbar">
@@ -101,7 +101,7 @@ export function ProjectsPage({ focusId, onConsumeFocus, onCreate, onUpdate, onAr
       {loading || pageLoading ? <p className="py-12 text-center text-xs text-muted-foreground">Loading projects…</p> : pageRows.length ? (
         <div className="workspace-surface overflow-x-auto">
           <Table className="min-w-[48rem]">
-            <TableHeader className="bg-surface-subtle"><TableRow><TableHead>Project</TableHead><TableHead>Type</TableHead><TableHead>Open tasks</TableHead><TableHead>Notes</TableHead><TableHead>Updated</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+            <TableHeader className="bg-surface-subtle"><TableRow><TableHead>Project</TableHead><TableHead>Status</TableHead><TableHead>Type</TableHead><TableHead>Open tasks</TableHead><TableHead>Notes</TableHead><TableHead>Updated</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
             <TableBody>
               {pageRows.map((project) => (
                 <TableRow key={project.id} className="cursor-pointer" onClick={() => setSelectedProject(project)}>
@@ -114,7 +114,8 @@ export function ProjectsPage({ focusId, onConsumeFocus, onCreate, onUpdate, onAr
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell><Badge variant="outline">{project.type === 'greenfield' ? 'Greenfield' : 'Ongoing'}</Badge></TableCell>
+                  <TableCell><Badge variant={project.status === 'on_hold' ? 'warning' : project.status === 'active' ? 'secondary' : 'outline'} className="capitalize">{project.status.replaceAll('_', ' ')}</Badge></TableCell>
+                  <TableCell><span className="text-xs text-muted-foreground">{project.type === 'greenfield' ? 'Greenfield' : 'Ongoing'}</span></TableCell>
                   <TableCell className="tabular-nums">{project.openTaskCount}</TableCell>
                   <TableCell className="tabular-nums">{project.noteCount}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{formatDate(project.updatedAt)}</TableCell>

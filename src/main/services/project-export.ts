@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import { Transform } from 'node:stream';
-import { access, mkdir, open, rename, rm, stat, mkdtemp, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
-import { pipeline } from 'node:stream/promises';
+import { access, lstat, mkdir, open, rename, rm, stat, mkdtemp, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import archiver from 'archiver';
 import type Database from 'better-sqlite3';
 import type { AttachmentEntry, ProjectRow } from './project-export-data.ts';
@@ -61,13 +60,13 @@ export class ProjectExportService {
       for await (const document of projectExportRows(snapshotDb, projectId, 'documents', signal)) {
         signal?.throwIfAborted();
         documentCount += 1;
-        const relativeObject = normalizeObjectRelativePath(String(document.object_relative_path));
+        const relativeObject = normalizeObjectRelativePath(String(document['object_relative_path']));
         const sourcePath = resolve(this.dataDirectory, relativeObject);
         await assertRegularObjectPath(objectRoot, sourcePath);
-        const archivePath = `attachments/${String(documentCount).padStart(6, '0')}_${safeFilename(String(document.id))}_${safeFilename(String(document.original_name))}`;
+        const archivePath = `attachments/${String(documentCount).padStart(6, '0')}_${safeFilename(String(document['id']))}_${safeFilename(String(document['original_name']))}`;
         const stagedPath = join(payloadRoot, ...archivePath.split('/'));
-        const measured = await copyVerifiedObject(sourcePath, stagedPath, String(document.sha256), signal);
-        attachments.push({ id: String(document.id), path: archivePath, filePath: stagedPath, ...measured });
+        const measured = await copyVerifiedObject(sourcePath, stagedPath, String(document['sha256']), signal);
+        attachments.push({ id: String(document['id']), path: archivePath, filePath: stagedPath, ...measured });
         const progress = exportDocumentCount > 0 ? documentCount / exportDocumentCount : 1;
         onProgress?.({ phase: 'collecting-attachments', completed: documentCount, total: exportDocumentCount, percent: 10 + Math.round(progress * 25) });
       }
@@ -82,7 +81,7 @@ export class ProjectExportService {
       const addCsv = async (path: string, table: 'tasks' | 'time_entries', kind: 'tasks' | 'timeEntries') => {
         signal?.throwIfAborted();
         const filePath = join(payloadRoot, ...path.split('/'));
-        const measured = await writeCsvFile(filePath, projectExportTableHeaders(snapshotDb!), projectExportRows(snapshotDb!, projectId, kind, signal), signal);
+        const measured = await writeCsvFile(filePath, projectExportTableHeaders(snapshotDb!, table), projectExportRows(snapshotDb!, projectId, kind, signal), signal);
         archiveEntries.push({ path, filePath, ...measured });
       };
       const rows = (kind: string) => projectExportRows(snapshotDb!, projectId, kind, signal);

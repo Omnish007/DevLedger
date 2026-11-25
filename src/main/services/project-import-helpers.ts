@@ -29,7 +29,7 @@ export async function sha256File(path: string, signal?: AbortSignal): Promise<st
   return new Promise((resolveHash, reject) => {
     const hash = createHash('sha256');
     const input = createReadStream(path, signal ? { signal } : {});
-    input.on('data', (chunk: Buffer) => hash.update(chunk));
+    input.on('data', (chunk: string | Buffer) => hash.update(chunk));
     input.once('error', reject);
     input.once('end', () => resolveHash(hash.digest('hex')));
   });

@@ -79,22 +79,22 @@ export function TaskInspectorSheet({
                 </button>
               </div>
               <SheetTitle className="text-lg leading-snug">{task.title}</SheetTitle>
-              <SheetDescription>{task.description || 'No description provided.'}</SheetDescription>
+              <SheetDescription className={task.description ? undefined : 'sr-only'}>{task.description || 'Task inspector details'}</SheetDescription>
             </SheetHeader>
 
             {error && <p role="alert" className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">{error}</p>}
 
             <div className="grid grid-cols-2 gap-3 border-t border-border pt-4 text-xs">
-              <label className="space-y-1 font-medium">
-                <span className="text-muted-foreground">Status</span>
+              <label className="block space-y-1.5 font-medium">
+                <span className="block text-muted-foreground">Status</span>
                 <NativeSelect value={task.status} onChange={(e) => void onUpdate(task.id, { status: e.target.value as TaskStatus }).then(refreshBoth)} className="h-8 w-full text-xs">
                   {statuses.map((item) => <NativeSelectOption key={item.value} value={item.value}>{item.label}</NativeSelectOption>)}
                 </NativeSelect>
               </label>
-              <label className="space-y-1 font-medium">
-                <span className="text-muted-foreground">Priority</span>
+              <label className="block space-y-1.5 font-medium">
+                <span className="block text-muted-foreground">Priority</span>
                 <NativeSelect value={task.priority} onChange={(e) => void onUpdate(task.id, { priority: e.target.value as TaskRecord['priority'] }).then(refreshBoth)} className="h-8 w-full text-xs">
-                  {(['low', 'medium', 'high', 'urgent'] as const).map((level) => <NativeSelectOption key={level} value={level}>{level}</NativeSelectOption>)}
+                  {(['low', 'medium', 'high', 'urgent'] as const).map((level) => <NativeSelectOption key={level} value={level}>{`${level[0]!.toUpperCase()}${level.slice(1)}`}</NativeSelectOption>)}
                 </NativeSelect>
               </label>
               <div className="text-muted-foreground">Due: <span className="text-foreground">{task.dueDate || task.dueAt ? formatDate(task.dueDate ?? task.dueAt) : 'None'}</span></div>
@@ -127,7 +127,7 @@ export function TaskInspectorSheet({
                     {group.list.map((id) => (
                       <div key={id} className="flex items-center gap-2 px-2.5 py-1.5">
                         <button type="button" className="min-w-0 flex-1 truncate text-left font-medium hover:underline" onClick={() => onNavigate({ view: 'tasks', recordId: id, projectId: task.projectId })}>
-                          {taskTitles[id] ?? `Task ${id.slice(0, 8)}`}
+                          {taskTitles[id] ?? 'Linked task'}
                         </button>
                         <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => void group.onRemoveDep(id).then(loadDetails)}>Remove</Button>
                       </div>

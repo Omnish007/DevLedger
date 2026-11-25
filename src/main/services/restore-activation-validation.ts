@@ -91,7 +91,7 @@ async function sha256File(path: string): Promise<string> {
   return new Promise((resolveHash, reject) => {
     const hash = createHash('sha256');
     const stream = createReadStream(path);
-    stream.on('data', (chunk: Buffer) => hash.update(chunk));
+    stream.on('data', (chunk: string | Buffer) => hash.update(chunk));
     stream.once('error', reject);
     stream.once('end', () => resolveHash(hash.digest('hex')));
   });

@@ -23,11 +23,11 @@ export class WorkspaceContactsService extends WorkspaceBase {
       LEFT JOIN project_contacts pc ON pc.contact_id = c.id
       GROUP BY c.id ORDER BY c.name COLLATE NOCASE`).all(...params, limit, offset) as Array<Record<string, unknown>>;
     const items = rows.map((row) => ({
-      id: String(row.id), name: String(row.name), role: String(row.role), company: String(row.company),
-      email: String(row.email), phone: String(row.phone), notes: String(row.notes),
-      customAttributes: parseContactAttributes(row.custom_attributes_json),
-      projectIds: row.project_ids ? String(row.project_ids).split(',') : [],
-      createdAt: String(row.created_at), updatedAt: String(row.updated_at),
+      id: String(row['id']), name: String(row['name']), role: String(row['role']), company: String(row['company']),
+      email: String(row['email']), phone: String(row['phone']), notes: String(row['notes']),
+      customAttributes: parseContactAttributes(row['custom_attributes_json']),
+      projectIds: row['project_ids'] ? String(row['project_ids']).split(',') : [],
+      createdAt: String(row['created_at']), updatedAt: String(row['updated_at']),
     }));
     return { items, total: Number(totalRow.total), limit, offset, hasMore: offset + items.length < Number(totalRow.total) };
   }
@@ -37,11 +37,11 @@ export class WorkspaceContactsService extends WorkspaceBase {
       FROM contacts c WHERE c.id = ? AND c.deleted_at IS NULL`).get(id) as Record<string, unknown> | undefined;
     if (!row) return null;
     return {
-      id: String(row.id), name: String(row.name), role: String(row.role), company: String(row.company),
-      email: String(row.email), phone: String(row.phone), notes: String(row.notes),
-      customAttributes: parseContactAttributes(row.custom_attributes_json),
-      projectIds: row.project_ids ? String(row.project_ids).split(',') : [],
-      createdAt: String(row.created_at), updatedAt: String(row.updated_at),
+      id: String(row['id']), name: String(row['name']), role: String(row['role']), company: String(row['company']),
+      email: String(row['email']), phone: String(row['phone']), notes: String(row['notes']),
+      customAttributes: parseContactAttributes(row['custom_attributes_json']),
+      projectIds: row['project_ids'] ? String(row['project_ids']).split(',') : [],
+      createdAt: String(row['created_at']), updatedAt: String(row['updated_at']),
     };
   }
 

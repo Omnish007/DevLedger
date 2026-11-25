@@ -151,7 +151,7 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="note-smart-date" className="text-xs">Or type @May 15, @last friday, @remind tomorrow 9am</Label>
+            <Label htmlFor="note-smart-date" className="text-xs font-medium">Expression</Label>
             <div className="flex gap-1.5">
               <Input
                 id="note-smart-date"
