@@ -45,7 +45,7 @@ test('creates project context, linked work records, and finds the note from anot
     await expect(restartedPage.getByRole('button', { name: noteTitle }).first()).toBeVisible();
 });
 
-test('quick capture creates a note through its own Electron window and persists it in Notes', async ({
+test('quick capture inherits light theme even under dark OS preference and closes after saving', async ({
     desktop,
 }) => {
     const page = desktop.page;
@@ -53,10 +53,18 @@ test('quick capture creates a note through its own Electron window and persists 
     const title = data.note('Quick capture record');
     const content = 'Captured from the dedicated Quick Capture window.';
 
+    // Explicitly switch DevLedger to Light while simulating a dark OS preference
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Light', exact: true }).click();
+    await page.waitForFunction(() => !document.documentElement.classList.contains('dark'));
+
     const captureWindowPromise = desktop.application.waitForEvent('window');
     await page.getByRole('button', { name: /Quick capture/i }).click();
     const captureWindow = await captureWindowPromise;
+    await captureWindow.emulateMedia({ colorScheme: 'dark' });
     await expect(captureWindow.getByRole('main')).toBeVisible();
+    await expect(captureWindow.locator('html')).not.toHaveClass(/\bdark\b/);
+
     await captureWindow.getByLabel('Note title').fill(title);
     await captureWindow.getByPlaceholder('Write a note, decision, or follow-up…').fill(content);
     const closed = captureWindow.waitForEvent('close');

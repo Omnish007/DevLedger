@@ -61,6 +61,12 @@ test('creates a vault, protects a note, excludes it from search and unlocks it a
     await desktop.page.getByRole('button', { name: 'Notes', exact: true }).click();
     await desktop.page.getByRole('button', { name: /Locked note/ }).click();
     await expect(desktop.page.getByRole('heading', { name: 'Protected note' })).toBeVisible();
+    await desktop.page.waitForTimeout(350);
+    await expect(desktop.page.getByRole('heading', { name: 'Protected note' })).toBeVisible();
+    await expect(desktop.page.getByRole('heading', { name: 'Select a note or create one' })).toHaveCount(0);
+    await desktop.page.waitForTimeout(350);
+    await expect(desktop.page.getByRole('heading', { name: 'Protected note' })).toBeVisible();
+    await expect(desktop.page.getByRole('heading', { name: 'Select a note or create one' })).toHaveCount(0);
     await expect(desktop.page.getByRole('button', { name: 'Unlock note' })).toBeDisabled();
 
     await desktop.page.getByRole('button', { name: 'Settings', exact: true }).click();

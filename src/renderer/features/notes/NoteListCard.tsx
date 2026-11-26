@@ -42,12 +42,7 @@ export function NoteListCard({ note, selected, projectName, onSelect }: NoteList
                                 <LockKeyhole className="size-2.5" aria-hidden="true" />
                             </span>
                         ) : (
-                            selected && (
-                                <span
-                                    aria-hidden="true"
-                                    className="size-1.5 shrink-0 rounded-full bg-primary"
-                                />
-                            )
+                            selected && <></>
                         )}
                         <span
                             className={cn(

@@ -65,6 +65,9 @@ function App() {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [activeTimer, setActiveTimer] = useState<ActiveTimerRecord | null>(null);
     const [settings, setSettings] = useState<Record<string, unknown>>({});
+    const [systemPrefersDark, setSystemPrefersDark] = useState(
+        () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false,
+    );
     const [loading, setLoading] = useState(true);
     const [viewLoading, setViewLoading] = useState(false);
     const [fatalError, setFatalError] = useState('');
@@ -125,9 +128,22 @@ function App() {
     useEffect(() => {
         let mounted = true;
         if (captureWindow) {
-            setLoading(false);
+            const syncCaptureSettings = () => {
+                void window.devLedger.settings
+                    .getAll()
+                    .then((settingRows) => {
+                        if (mounted) setSettings(settingRows);
+                    })
+                    .catch(() => undefined)
+                    .finally(() => {
+                        if (mounted) setLoading(false);
+                    });
+            };
+            syncCaptureSettings();
+            window.addEventListener('focus', syncCaptureSettings);
             return () => {
                 mounted = false;
+                window.removeEventListener('focus', syncCaptureSettings);
             };
         }
         void Promise.all([
@@ -229,13 +245,18 @@ function App() {
     }, [captureWindow, loading, webPushSetting]);
 
     const theme = settings['theme'];
+    const isDarkTheme = theme === 'dark' || (theme !== 'light' && systemPrefersDark);
     useEffect(() => {
-        const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-        document.documentElement.classList.toggle(
-            'dark',
-            theme === 'dark' || (theme !== 'light' && prefersDark),
-        );
-    }, [theme]);
+        const mediaQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+        if (!mediaQuery) return;
+        const sync = () => setSystemPrefersDark(mediaQuery.matches);
+        sync();
+        mediaQuery.addEventListener('change', sync);
+        return () => mediaQuery.removeEventListener('change', sync);
+    }, []);
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', isDarkTheme);
+    }, [isDarkTheme]);
 
     async function navigateToTarget(next: WorkspaceNavigationTarget, pushHistory = true) {
         if (
@@ -299,7 +320,7 @@ function App() {
                         await window.devLedger.capture.save(input);
                     }}
                 />
-                <Sonner position="bottom-right" theme={settings['theme'] === 'dark' ? 'dark' : 'light'} />
+                <Sonner position="bottom-right" theme={isDarkTheme ? 'dark' : 'light'} />
             </Suspense>
         );
     if (fatalError)

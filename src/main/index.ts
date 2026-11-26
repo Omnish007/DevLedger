@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, powerMonitor } from 'electron';
+import { app, BrowserWindow, Menu, nativeTheme, powerMonitor } from 'electron';
 import { resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 import { initializeWorkspaceDatabase } from './workspace-database-startup.js';
@@ -176,6 +176,17 @@ async function initialize(): Promise<void> {
                 error instanceof Error ? error.message : 'Unknown error',
             ),
         );
+    try {
+        const themeRow = database.prepare("SELECT value_json FROM app_settings WHERE key = 'theme'").get() as
+            { value_json: string } | undefined;
+        if (themeRow) {
+            const parsedTheme = JSON.parse(themeRow.value_json) as unknown;
+            nativeTheme.themeSource =
+                parsedTheme === 'light' || parsedTheme === 'dark' ? parsedTheme : 'system';
+        }
+    } catch {
+        /* Keep system theme fallback if a preference cannot be read. */
+    }
     documentWorkerSupervisor.start(resolveWorkspaceDatabasePath(dataDirectory));
     windowManager.createMainWindow();
     reminderDelivery.scheduleNext();

@@ -11,19 +11,7 @@ import {
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
-import {
-    BookOpen,
-    Check,
-    Clock3,
-    FolderKanban,
-    Link2,
-    LockKeyhole,
-    Plus,
-    Search,
-    ShieldAlert,
-    Trash2,
-    X,
-} from 'lucide-react';
+import { BookOpen, Check, Clock3, Link2, LockKeyhole, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 import type {
     ContactRecord,
     NoteInput,
@@ -33,10 +21,8 @@ import type {
     WorkspaceNavigationTarget,
 } from '@shared/contracts';
 import type { SmartDateReference } from '@domain/smart-date-markdown';
-import { PageControls } from '@/components/shared/PageControls';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { useConfirm } from '@/components/shared/ConfirmProvider';
-import { VirtualList } from '@/components/shared/VirtualList';
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -48,15 +34,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { formatRelative, friendlyError } from '@/lib/utils';
-import { NoteListCard } from './NoteListCard';
 import { createNoteExtensions } from './extensions';
 import { exportMarkdownFromEditor, importMarkdownIntoEditor } from './note-markdown-io';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
 import { NoteContactDialog, NoteInspectorDrawer } from './NoteInspectorDrawer';
+import { NotesSidebar } from './NotesSidebar';
 import { NoteTableOverlay } from './NoteTableOverlay';
 import { attachSyncedReminderId, computeReminderDueIso } from './smart-date-ui-helpers';
 
-const noteItemKey = (note: NoteRecord): string => note.id;
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 interface Props {
@@ -292,13 +277,31 @@ export function NotesPage({
             void selectNote(pageNotes[0]!.id);
     }, [pageNotes, selectedId, deferredFilter, focusNoteId, notesLoading, loadedNotesOffset, notesOffset]);
     useEffect(() => {
-        if (!vaultStatus.unlocked) {
-            setUnlockedNote(null);
-            if (selectedId && pageNotes.some((i) => i.id === selectedId && i.locked)) setSelectedId(null);
-        }
-    }, [vaultStatus.unlocked, pageNotes, selectedId]);
+        if (vaultStatus.unlocked) return;
+        setUnlockedNote((prev) => {
+            if (prev) {
+                setTitle('');
+                setContent('');
+                setProjectId('');
+                setSaveState('idle');
+                isDirty.current = false;
+                if (editor && !editor.isDestroyed) editor.commands.clearContent(false);
+            }
+            return null;
+        });
+    }, [vaultStatus.unlocked, editor]);
     useEffect(() => {
         if (selected) {
+            if (selected.locked && !unlockedNote) {
+                setTitle('');
+                setContent('');
+                setProjectId(selected.projectId ?? '');
+                setSaveState('idle');
+                setError('');
+                isDirty.current = false;
+                if (editor && !editor.isDestroyed) editor.commands.clearContent(false);
+                return;
+            }
             setTitle(selected.title);
             setContent(selected.content);
             setProjectId(selected.projectId ?? '');
@@ -313,10 +316,10 @@ export function NotesPage({
             setContent('');
             setProjectId('');
             if (editor && !editor.isDestroyed) {
-                editor.commands.clearContent();
+                editor.commands.clearContent(false);
             }
         }
-    }, [selectedId, selected?.id, editor]);
+    }, [selectedId, selected?.id, selected?.locked, unlockedNote?.id, editor]);
 
     useEffect(() => {
         if (focusProjectId && !focusNoteId) {
@@ -441,12 +444,25 @@ export function NotesPage({
         if (id === selectedId || !(await flushBeforeNavigation())) return;
         revision.current += 1;
         setUnlockedNote(null);
+        const listMatch = pageNotes.find((i) => i.id === id);
+        if (listMatch?.locked) {
+            if (vaultStatus.unlocked) {
+                await unlockSelected(id);
+                return;
+            }
+            setSelectedId(id);
+            return;
+        }
         try {
             const detail = await window.devLedger.notes.get(id);
             if (!isMountedRef.current) return;
             setPageNotes((c) =>
                 c.some((i) => i.id === id) ? c.map((i) => (i.id === id ? detail : i)) : [detail, ...c],
             );
+            if (detail.locked && vaultStatus.unlocked) {
+                await unlockSelected(id);
+                return;
+            }
             setSelectedId(id);
         } catch (caught) {
             if (isMountedRef.current) setError(friendlyError(caught, 'Note could not be opened.'));
@@ -503,15 +519,23 @@ export function NotesPage({
             setUnlockedNote(null);
             setTitle('');
             setContent('');
-            setSelectedId(null);
+            setProjectId('');
             isDirty.current = false;
+            if (editor && !editor.isDestroyed) editor.commands.clearContent(false);
             return;
         }
         if (selected.locked) return;
         try {
             await onLock(selectedId);
             setUnlockedNote(null);
-            setSelectedId(null);
+            setTitle('');
+            setContent('');
+            setProjectId('');
+            isDirty.current = false;
+            if (editor && !editor.isDestroyed) editor.commands.clearContent(false);
+            setPageNotes((c) =>
+                c.map((i) => (i.id === selectedId ? { ...i, locked: true, title: '', content: '' } : i)),
+            );
             void loadNotesPage();
         } catch (caught) {
             setError(friendlyError(caught, 'Note lock failed.'));
@@ -553,122 +577,29 @@ export function NotesPage({
                 maxSize={compactLayout ? '48%' : 460}
                 className="min-h-0 min-w-0"
             >
-                <aside className="notes-sidebar flex h-full w-full min-h-0 flex-col border-r border-border">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3.5">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                                <h1 className="workspace-page-title text-xl leading-none">Notes</h1>
-                                <span className="inline-flex h-5 items-center rounded-md border border-border/60 bg-surface-subtle/80 px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-                                    {notesTotal}
-                                </span>
-                            </div>
-                        </div>
-                        <Button
-                            size="icon"
-                            variant="outline"
-                            className="size-8 shrink-0 rounded-lg border-border/80 bg-card/90 shadow-[var(--shadow-xs)] hover:bg-surface-hover"
-                            onClick={() => void createNote()}
-                            aria-label="Create note"
-                            title="Create note"
-                        >
-                            <Plus className="size-4 text-primary" aria-hidden="true" />
-                        </Button>
-                    </div>
-                    <div className="space-y-2 border-b border-border/50 px-3.5 py-2.5">
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                aria-label="Filter notes by title or contents"
-                                value={filter}
-                                onChange={(e) => {
-                                    setNotesOffset(0);
-                                    setFilter(e.target.value);
-                                }}
-                                placeholder="Filter notes…"
-                                className="h-8.5 rounded-lg pl-8.5 pr-8 text-xs"
-                            />
-                            {filter && (
-                                <button
-                                    type="button"
-                                    aria-label="Clear note filter"
-                                    className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-                                    onClick={() => {
-                                        setNotesOffset(0);
-                                        setFilter('');
-                                    }}
-                                >
-                                    <X className="size-3.5" aria-hidden="true" />
-                                </button>
-                            )}
-                        </div>
-                        {filterProjectId && (
-                            <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/[0.06] px-2.5 py-1 text-xs">
-                                <span className="inline-flex min-w-0 items-center gap-1.5 font-medium text-foreground">
-                                    <FolderKanban
-                                        className="size-3 shrink-0 text-primary"
-                                        aria-hidden="true"
-                                    />
-                                    <span className="truncate">
-                                        {projectNames[filterProjectId] ?? 'Project filter'}
-                                    </span>
-                                </span>
-                                <button
-                                    type="button"
-                                    aria-label="Clear project filter"
-                                    className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-                                    onClick={() => setFilterProjectId('')}
-                                >
-                                    <X className="size-3" aria-hidden="true" />
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    {notesLoading ? (
-                        <p className="py-8 text-center text-xs text-muted-foreground">Loading notes…</p>
-                    ) : (
-                        <VirtualList
-                            items={pageNotes}
-                            itemKey={noteItemKey}
-                            itemHeight={116}
-                            label="Workspace notes"
-                            className="min-h-0 flex-1 px-3 py-2.5"
-                            empty={
-                                <div className="px-3 py-10 text-center text-xs text-muted-foreground">
-                                    <BookOpen className="mx-auto mb-2 size-4 opacity-70" />
-                                    <p>No matching notes</p>
-                                </div>
-                            }
-                            renderItem={(note) => (
-                                <NoteListCard
-                                    note={note}
-                                    selected={selectedId === note.id}
-                                    projectName={
-                                        note.projectId ? (projectNames[note.projectId] ?? 'Project') : null
-                                    }
-                                    onSelect={() =>
-                                        void (note.locked
-                                            ? vaultStatus.unlocked
-                                                ? unlockSelected(note.id)
-                                                : setSelectedId(note.id)
-                                            : selectNote(note.id))
-                                    }
-                                />
-                            )}
-                        />
-                    )}
-                    <PageControls
-                        offset={notesOffset}
-                        limit={notesPageSize}
-                        total={notesTotal}
-                        disabled={notesLoading}
-                        className="border-t border-border px-3 py-2"
-                        onPageChange={(nextOffset) => {
-                            setSelectedId(null);
-                            setUnlockedNote(null);
-                            setNotesOffset(nextOffset);
-                        }}
-                    />
-                </aside>
+                <NotesSidebar
+                    notes={pageNotes}
+                    total={notesTotal}
+                    offset={notesOffset}
+                    pageSize={notesPageSize}
+                    loading={notesLoading}
+                    selectedId={selectedId}
+                    filter={filter}
+                    filterProjectId={filterProjectId}
+                    projectNames={projectNames}
+                    onCreateNote={() => void createNote()}
+                    onFilterChange={(next) => {
+                        setNotesOffset(0);
+                        setFilter(next);
+                    }}
+                    onClearProjectFilter={() => setFilterProjectId('')}
+                    onSelectNote={(id) => void selectNote(id)}
+                    onPageChange={(nextOffset) => {
+                        setSelectedId(null);
+                        setUnlockedNote(null);
+                        setNotesOffset(nextOffset);
+                    }}
+                />
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel
@@ -862,6 +793,10 @@ export function NotesPage({
                                 />
                             </>
                         )
+                    ) : notesLoading ? (
+                        <div className="flex flex-1 items-center justify-center px-8 text-xs text-muted-foreground">
+                            Loading notes…
+                        </div>
                     ) : (
                         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
                             <BookOpen className="mb-2.5 size-6 text-muted-foreground" />

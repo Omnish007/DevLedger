@@ -27,6 +27,7 @@ export function QuickCapturePage({ onSave }: Props) {
         setError('');
         try {
             await onSave({ title: title.trim() || 'Quick capture', content, projectId: projectId || null });
+            window.close();
         } catch (e) {
             setError(friendlyError(e, 'Capture could not be saved.'));
             setBusy(false);

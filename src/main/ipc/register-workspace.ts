@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog } from 'electron';
+import { BrowserWindow, dialog, nativeTheme } from 'electron';
 import { z } from 'zod';
 import type {
     AppMetadata,
@@ -171,7 +171,11 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
         const isCaptureWindow =
             Boolean(senderWindow?.getTitle().startsWith('Quick capture')) ||
             event.sender.getURL().includes('capture=1');
-        if (isCaptureWindow) senderWindow?.close();
+        if (isCaptureWindow && senderWindow && !senderWindow.isDestroyed()) {
+            setImmediate(() => {
+                if (!senderWindow.isDestroyed()) senderWindow.close();
+            });
+        }
         return note;
     });
     register('capture:open', noInput, () => dependencies.openQuickCapture?.());
@@ -221,6 +225,9 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
 
     register('settings:list', noInput, () => workspace.getSettings());
     register('settings:set', z.tuple([z.string().min(1).max(64), z.unknown()]), ([key, value]) => {
+        if (key === 'theme' && nativeTheme) {
+            nativeTheme.themeSource = value === 'light' || value === 'dark' ? value : 'system';
+        }
         if (key === 'shortcuts.quickCapture') {
             if (!isQuickCaptureShortcut(value))
                 throw new Error('Choose one of the supported quick-capture shortcuts.');

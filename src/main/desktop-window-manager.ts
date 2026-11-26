@@ -57,8 +57,12 @@ export class DesktopWindowManager {
                 window.webContents.getURL().includes('capture=1'),
         );
         if (existing) {
-            existing.show();
-            existing.focus();
+            if (!existing.isDestroyed()) {
+                existing.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#111214' : '#f7f7f6');
+                if (existing.isMinimized()) existing.restore();
+                existing.show();
+                existing.focus();
+            }
             return;
         }
         const captureWindow = this.createWindow(true);
@@ -164,11 +168,12 @@ export class DesktopWindowManager {
         window.webContents.on('before-input-event', (event, input) => {
             if (input.type !== 'keyDown') return;
             const key = input.key.toLowerCase();
-            const isInspectorToggle =
+            const isDevToolsKey =
                 input.key === 'F12' ||
-                ((key === 'i' || key === 'j') &&
+                input.code === 'F12' ||
+                ((key === 'i' || key === 'j' || input.code === 'KeyI' || input.code === 'KeyJ') &&
                     ((input.control && input.shift) || (input.meta && input.alt)));
-            if (!isInspectorToggle) return;
+            if (!isDevToolsKey) return;
             event.preventDefault();
             window.webContents.toggleDevTools();
         });
