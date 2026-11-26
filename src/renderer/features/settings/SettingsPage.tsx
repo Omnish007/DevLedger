@@ -118,13 +118,16 @@ export function SettingsPage(props: Props) {
     }
 
     return (
-        <div className="workspace-page page-settings mx-auto space-y-5">
+        <div className="workspace-page page-settings mx-auto space-y-6">
             <PageHeader
                 title="Settings"
                 description="Manage preferences, vault security, backups, and local AI."
             />
-            <div className="grid gap-6 md:grid-cols-[216px_minmax(0,1fr)]">
-                <nav aria-label="Settings categories" className="flex gap-1 overflow-x-auto md:flex-col">
+            <div className="grid gap-6 md:grid-cols-[224px_minmax(0,1fr)]">
+                <nav
+                    aria-label="Settings categories"
+                    className="flex h-fit gap-1 overflow-x-auto rounded-xl border border-border/75 bg-card/65 p-1.5 shadow-[var(--shadow-xs)] md:flex-col"
+                >
                     {(
                         [
                             ['general', 'General', SlidersHorizontal],
@@ -139,9 +142,9 @@ export function SettingsPage(props: Props) {
                             type="button"
                             aria-current={section === id ? 'page' : undefined}
                             onClick={() => setSection(id)}
-                            className={`flex min-h-9 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors ${section === id ? 'bg-accent font-semibold text-accent-foreground' : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground'}`}
+                            className={`flex min-h-9 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors ${section === id ? 'bg-accent font-semibold text-accent-foreground shadow-2xs' : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground'}`}
                         >
-                            <Icon className="size-4 shrink-0" aria-hidden="true" />
+                            <Icon className="size-4 shrink-0 opacity-85" aria-hidden="true" />
                             <span>{label}</span>
                         </button>
                     ))}
@@ -151,7 +154,7 @@ export function SettingsPage(props: Props) {
                     {error && (
                         <p
                             role="alert"
-                            className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
+                            className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-xs text-danger-foreground"
                         >
                             {error}
                         </p>
@@ -159,7 +162,7 @@ export function SettingsPage(props: Props) {
                     {message && (
                         <p
                             role="status"
-                            className="rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
+                            className="rounded-xl border border-border bg-surface-subtle px-4 py-3 text-xs text-foreground"
                         >
                             {message}
                         </p>
@@ -167,41 +170,74 @@ export function SettingsPage(props: Props) {
 
                     {section === 'general' && (
                         <div className="space-y-5 text-xs">
-                            <section className="workspace-surface space-y-4 p-5">
-                                <h2 className="text-sm font-semibold">Appearance & shortcuts</h2>
-                                <div className="grid gap-2 sm:grid-cols-3">
+                            <section className="workspace-surface space-y-5 p-6">
+                                <div className="space-y-1">
+                                    <h2 className="text-sm font-semibold">Appearance & shortcuts</h2>
+                                    <p className="text-muted-foreground">
+                                        Customize workspace theme and global capture binding.
+                                    </p>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-3">
                                     {(
                                         [
-                                            { value: 'light', label: 'Light', icon: Sun },
-                                            { value: 'dark', label: 'Dark', icon: Moon },
-                                            { value: 'system', label: 'System', icon: Monitor },
+                                            {
+                                                value: 'light',
+                                                label: 'Light',
+                                                icon: Sun,
+                                                swatch: 'bg-[#f8f9fb] border-[#e2e5ec]',
+                                                bar: 'bg-[#1e2433]/15',
+                                            },
+                                            {
+                                                value: 'dark',
+                                                label: 'Dark',
+                                                icon: Moon,
+                                                swatch: 'bg-[#161922] border-[#2b3040]',
+                                                bar: 'bg-white/20',
+                                            },
+                                            {
+                                                value: 'system',
+                                                label: 'System',
+                                                icon: Monitor,
+                                                swatch: 'bg-gradient-to-r from-[#f8f9fb] 50% to-[#161922] 50% border-border',
+                                                bar: 'bg-primary/40',
+                                            },
                                         ] as const
                                     ).map((item) => {
                                         const Icon = item.icon;
+                                        const active = theme === item.value;
                                         return (
                                             <button
                                                 key={item.value}
                                                 type="button"
-                                                aria-pressed={theme === item.value}
+                                                aria-pressed={active}
                                                 onClick={() => void updateSetting('theme', item.value)}
-                                                className={`flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2.5 text-left font-medium transition-colors ${theme === item.value ? 'border-ring bg-accent text-accent-foreground' : 'border-input bg-card hover:bg-surface-hover'}`}
+                                                className={`flex flex-col gap-2.5 rounded-xl border p-3 text-left font-medium transition-all ${active ? 'border-ring bg-accent/70 text-accent-foreground ring-2 ring-ring/15' : 'border-border/85 bg-card hover:border-border hover:bg-surface-hover/60'}`}
                                             >
-                                                <Icon className="size-4" />
-                                                {item.label}
-                                                {theme === item.value && (
-                                                    <Check className="ml-auto size-3.5" />
-                                                )}
+                                                <div
+                                                    aria-hidden="true"
+                                                    className={`flex h-9 w-full items-center gap-1.5 rounded-lg border px-2.5 ${item.swatch}`}
+                                                >
+                                                    <span className={`h-2 w-8 rounded-full ${item.bar}`} />
+                                                    <span className={`h-2 w-4 rounded-full ${item.bar}`} />
+                                                </div>
+                                                <div className="flex w-full items-center gap-2">
+                                                    <Icon className="size-3.5 shrink-0 opacity-80" />
+                                                    <span>{item.label}</span>
+                                                    {active && (
+                                                        <Check className="ml-auto size-3.5 text-primary" />
+                                                    )}
+                                                </div>
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-                                    <div>
+                                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/75 pt-4">
+                                    <div className="space-y-0.5">
                                         <p className="font-medium text-foreground">
                                             Global quick capture shortcut
                                         </p>
                                         <p className="text-muted-foreground">
-                                            Opens capture window from anywhere on your desktop.
+                                            Opens the floating capture window from anywhere on your desktop.
                                         </p>
                                     </div>
                                     <NativeSelect
@@ -228,13 +264,12 @@ export function SettingsPage(props: Props) {
                                 </div>
                             </section>
 
-                            <section className="workspace-surface space-y-4 p-5">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div>
+                            <section className="workspace-surface space-y-4 p-6">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="space-y-0.5">
                                         <h2 className="text-sm font-semibold">Reminders & notifications</h2>
-                                        <p className="mt-0.5 text-muted-foreground">
-                                            Deliver due reminders both in-app and via desktop/web
-                                            notifications.
+                                        <p className="text-muted-foreground">
+                                            Control in-app reminder banners and desktop alert permissions.
                                         </p>
                                     </div>
                                     <Badge
@@ -244,52 +279,58 @@ export function SettingsPage(props: Props) {
                                         {webPerm}
                                     </Badge>
                                 </div>
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
-                                    <div>
-                                        <p className="font-medium text-foreground">In-app alert toasts</p>
-                                        <p className="text-muted-foreground">
-                                            Show interactive alert cards with Open & Snooze inside DevLedger.
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        checked={inAppEnabled}
-                                        onCheckedChange={(checked) =>
-                                            void updateSetting('notifications.inApp', checked)
-                                        }
-                                        aria-label="In-app reminder alerts"
-                                    />
-                                </div>
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
-                                    <div>
-                                        <p className="font-medium text-foreground">
-                                            Web & desktop notifications
-                                        </p>
-                                        <p className="text-muted-foreground">
-                                            Allow Chromium Web Notification alerts when due reminders fire.
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {webPerm !== 'granted' && webPerm !== 'unsupported' && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    void requestWebNotificationPermission().then(setWebPerm)
-                                                }
-                                            >
-                                                Allow web alerts
-                                            </Button>
-                                        )}
+                                <div className="divide-y divide-border/70 rounded-xl border border-border/80 bg-surface-subtle/25">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+                                        <div className="space-y-0.5">
+                                            <p className="font-medium text-foreground">In-app alert toasts</p>
+                                            <p className="text-muted-foreground">
+                                                Show interactive alert cards with Open & Snooze inside
+                                                DevLedger.
+                                            </p>
+                                        </div>
                                         <Switch
-                                            checked={webPushEnabled}
+                                            checked={inAppEnabled}
                                             onCheckedChange={(checked) =>
-                                                void updateSetting('notifications.webPush', checked)
+                                                void updateSetting('notifications.inApp', checked)
                                             }
-                                            aria-label="Web and desktop reminder notifications"
+                                            aria-label="In-app reminder alerts"
                                         />
                                     </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+                                        <div className="space-y-0.5">
+                                            <p className="font-medium text-foreground">
+                                                Web & desktop notifications
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                                Allow Chromium Web Notification alerts when due reminders
+                                                fire.
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {webPerm !== 'granted' && webPerm !== 'unsupported' && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() =>
+                                                        void requestWebNotificationPermission().then(
+                                                            setWebPerm,
+                                                        )
+                                                    }
+                                                >
+                                                    Allow web alerts
+                                                </Button>
+                                            )}
+                                            <Switch
+                                                checked={webPushEnabled}
+                                                onCheckedChange={(checked) =>
+                                                    void updateSetting('notifications.webPush', checked)
+                                                }
+                                                aria-label="Web and desktop reminder notifications"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex justify-end border-t border-border pt-3">
+                                <div className="flex justify-end">
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -331,47 +372,53 @@ export function SettingsPage(props: Props) {
                                 </div>
                             </section>
 
-                            <section className="workspace-surface space-y-3 p-5">
-                                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                            <section className="workspace-surface space-y-4 p-6">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                     <DevLedgerLogo subtitle="Local-first workspace" />
                                     <Badge variant="outline">v{props.metadata?.version ?? '—'}</Badge>
                                 </div>
-                                <h2 className="text-sm font-semibold">Local workspace data</h2>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <code className="min-w-0 flex-1 break-all rounded-lg bg-surface-subtle px-3 py-2 font-mono text-foreground">
-                                        {props.metadata?.dataDirectory ?? 'Loading…'}
-                                    </code>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={!props.metadata}
-                                        onClick={() => {
-                                            if (props.metadata)
-                                                void navigator.clipboard
-                                                    .writeText(props.metadata.dataDirectory)
-                                                    .then(() => {
-                                                        setCopied(true);
-                                                        window.setTimeout(() => setCopied(false), 1500);
-                                                    });
-                                        }}
-                                    >
-                                        {copied ? (
-                                            <Check className="size-3.5" />
-                                        ) : (
-                                            <Clipboard className="size-3.5" />
-                                        )}
-                                        {copied ? 'Copied' : 'Copy path'}
-                                    </Button>
+                                <div className="space-y-2 border-t border-border/75 pt-4">
+                                    <h2 className="text-sm font-semibold">Local workspace data</h2>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <code className="min-w-0 flex-1 break-all rounded-lg border border-border/70 bg-surface-subtle/60 px-3 py-2 font-mono text-foreground">
+                                            {props.metadata?.dataDirectory ?? 'Loading…'}
+                                        </code>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!props.metadata}
+                                            onClick={() => {
+                                                if (props.metadata)
+                                                    void navigator.clipboard
+                                                        .writeText(props.metadata.dataDirectory)
+                                                        .then(() => {
+                                                            setCopied(true);
+                                                            window.setTimeout(() => setCopied(false), 1500);
+                                                        });
+                                            }}
+                                        >
+                                            {copied ? (
+                                                <Check className="size-3.5" />
+                                            ) : (
+                                                <Clipboard className="size-3.5" />
+                                            )}
+                                            {copied ? 'Copied' : 'Copy path'}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
-                                    <div>
-                                        <span className="text-muted-foreground">Platform</span>
+                                <div className="grid gap-3 pt-1 sm:grid-cols-2">
+                                    <div className="rounded-lg border border-border/70 bg-surface-subtle/35 px-3.5 py-2.5">
+                                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                            Platform
+                                        </span>
                                         <p className="mt-0.5 font-medium capitalize text-foreground">
                                             {props.metadata?.platform ?? '—'}
                                         </p>
                                     </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Search & storage engine</span>
+                                    <div className="rounded-lg border border-border/70 bg-surface-subtle/35 px-3.5 py-2.5">
+                                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                            Search & storage engine
+                                        </span>
                                         <p className="mt-0.5 font-medium text-foreground">SQLite + FTS5</p>
                                     </div>
                                 </div>
@@ -408,31 +455,30 @@ export function SettingsPage(props: Props) {
                         />
                     )}
                     {section === 'ai' && (
-                        <section className="workspace-surface space-y-4 p-5 text-xs">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-sm font-semibold">Local AI (Ollama)</h2>
-                                <Badge variant="outline">127.0.0.1</Badge>
-                            </div>
-                            <p className="text-muted-foreground">
-                                Optional local inference for semantic ranking and search summaries.
-                            </p>
-                            <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-                                <Input
-                                    aria-label="Text generation model"
-                                    value={chatModel}
-                                    onChange={(e) => setChatModel(e.target.value)}
-                                    maxLength={128}
-                                />
+                        <div className="space-y-5 text-xs">
+                            <section className="workspace-surface flex flex-wrap items-center justify-between gap-3 p-5">
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-sm font-semibold">Local AI (Ollama)</h2>
+                                        <Badge variant="outline" className="font-mono text-[10px]">
+                                            127.0.0.1
+                                        </Badge>
+                                        {ollamaStatus && (
+                                            <Badge variant={ollamaStatus.available ? 'success' : 'warning'}>
+                                                {ollamaStatus.available ? 'Connected' : 'Unavailable'}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <p className="text-muted-foreground">
+                                        {ollamaStatus && !ollamaStatus.available
+                                            ? ollamaStatus.error ||
+                                              'Start Ollama locally to enable AI summaries.'
+                                            : 'Optional local inference for semantic ranking and workspace summaries.'}
+                                    </p>
+                                </div>
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={saving || !chatModel.trim()}
-                                    onClick={() => void updateSetting('ai.chatModel', chatModel.trim())}
-                                >
-                                    Save chat model
-                                </Button>
-                                <Button
-                                    size="sm"
                                     disabled={saving}
                                     onClick={() =>
                                         void props
@@ -450,24 +496,136 @@ export function SettingsPage(props: Props) {
                                 >
                                     Check Ollama
                                 </Button>
+                            </section>
+
+                            <div className="grid gap-5 lg:grid-cols-2">
+                                <section className="workspace-surface flex flex-col justify-between space-y-4 p-5">
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-semibold">Answer synthesis model</h3>
+                                        <p className="text-muted-foreground">
+                                            Generates concise cited summaries for workspace search queries.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                aria-label="Text generation model"
+                                                value={chatModel}
+                                                onChange={(e) => setChatModel(e.target.value)}
+                                                maxLength={128}
+                                                className="font-mono"
+                                            />
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={saving || !chatModel.trim()}
+                                                onClick={() =>
+                                                    void updateSetting('ai.chatModel', chatModel.trim())
+                                                }
+                                            >
+                                                Save chat model
+                                            </Button>
+                                        </div>
+                                        {ollamaStatus?.available &&
+                                            ollamaStatus.models.some(
+                                                (m) =>
+                                                    !/(embed|minilm|bge[-_:]|e5[-_:]|embeddinggemma|mxbai)/i.test(
+                                                        m,
+                                                    ),
+                                            ) && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {ollamaStatus.models
+                                                        .filter(
+                                                            (m) =>
+                                                                !/(embed|minilm|bge[-_:]|e5[-_:]|embeddinggemma|mxbai)/i.test(
+                                                                    m,
+                                                                ),
+                                                        )
+                                                        .map((modelName) => (
+                                                            <button
+                                                                key={modelName}
+                                                                type="button"
+                                                                onClick={() => setChatModel(modelName)}
+                                                                className={`inline-flex min-h-7 items-center rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors ${chatModel === modelName ? 'border-primary/50 bg-primary/10 text-primary font-semibold' : 'border-border bg-surface-subtle/50 text-foreground hover:bg-surface-hover'}`}
+                                                            >
+                                                                {modelName}
+                                                            </button>
+                                                        ))}
+                                                </div>
+                                            )}
+                                    </div>
+                                </section>
+
+                                <section className="workspace-surface flex flex-col justify-between space-y-4 p-5">
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-semibold">Semantic embedding model</h3>
+                                        <p className="text-muted-foreground">
+                                            Indexes unlocked workspace notes, tasks, and documents locally.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                aria-label="Embedding model"
+                                                value={embeddingModel}
+                                                onChange={(e) => setEmbeddingModel(e.target.value)}
+                                                maxLength={128}
+                                                className="font-mono"
+                                            />
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={saving || !embeddingModel.trim()}
+                                                onClick={() =>
+                                                    void updateSetting(
+                                                        'ai.embeddingModel',
+                                                        embeddingModel.trim(),
+                                                    )
+                                                }
+                                            >
+                                                Save embedding
+                                            </Button>
+                                        </div>
+                                        {ollamaStatus?.available &&
+                                            ollamaStatus.models.some((m) =>
+                                                /(embed|minilm|bge[-_:]|e5[-_:]|embeddinggemma|mxbai)/i.test(
+                                                    m,
+                                                ),
+                                            ) && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {ollamaStatus.models
+                                                        .filter((m) =>
+                                                            /(embed|minilm|bge[-_:]|e5[-_:]|embeddinggemma|mxbai)/i.test(
+                                                                m,
+                                                            ),
+                                                        )
+                                                        .map((modelName) => (
+                                                            <button
+                                                                key={modelName}
+                                                                type="button"
+                                                                onClick={() => setEmbeddingModel(modelName)}
+                                                                className={`inline-flex min-h-7 items-center rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors ${embeddingModel === modelName ? 'border-primary/50 bg-primary/10 text-primary font-semibold' : 'border-border bg-surface-subtle/50 text-foreground hover:bg-surface-hover'}`}
+                                                            >
+                                                                {modelName}
+                                                            </button>
+                                                        ))}
+                                                </div>
+                                            )}
+                                    </div>
+                                </section>
                             </div>
-                            <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-                                <Input
-                                    aria-label="Embedding model"
-                                    value={embeddingModel}
-                                    onChange={(e) => setEmbeddingModel(e.target.value)}
-                                    maxLength={128}
-                                />
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={saving || !embeddingModel.trim()}
-                                    onClick={() =>
-                                        void updateSetting('ai.embeddingModel', embeddingModel.trim())
-                                    }
-                                >
-                                    Save embedding
-                                </Button>
+
+                            <section className="workspace-surface flex flex-wrap items-center justify-between gap-3 p-5">
+                                <div className="space-y-0.5">
+                                    <h3 className="text-sm font-semibold">Semantic vector index</h3>
+                                    <p className="text-muted-foreground">
+                                        {semanticReport
+                                            ? `Last built: ${semanticReport.sources} records · ${semanticReport.chunks} chunks · ${new Date(semanticReport.completedAt).toLocaleString()}`
+                                            : ollamaStatus?.available && ollamaStatus.models.length === 0
+                                              ? 'Pull an Ollama embedding model locally, then build the vector index.'
+                                              : 'Rebuild semantic vectors across your unlocked workspace records.'}
+                                    </p>
+                                </div>
                                 <Button
                                     size="sm"
                                     disabled={saving || !ollamaStatus?.available}
@@ -487,52 +645,8 @@ export function SettingsPage(props: Props) {
                                 >
                                     Build index
                                 </Button>
-                            </div>
-                            {semanticReport && (
-                                <p className="text-muted-foreground">
-                                    Last index: {semanticReport.sources} records · {semanticReport.chunks}{' '}
-                                    chunks · {new Date(semanticReport.completedAt).toLocaleString()}
-                                </p>
-                            )}
-                            {ollamaStatus && (
-                                <div className="space-y-2 rounded-lg border border-border bg-surface-subtle p-3.5">
-                                    <Badge variant={ollamaStatus.available ? 'success' : 'warning'}>
-                                        {ollamaStatus.available ? 'Connected' : 'Unavailable'}
-                                    </Badge>
-                                    {ollamaStatus.available ? (
-                                        ollamaStatus.models.length ? (
-                                            <div className="flex flex-wrap items-center gap-1.5">
-                                                {ollamaStatus.models.map((modelName) => {
-                                                    const isEmbed =
-                                                        /(embed|minilm|bge[-_:]|e5[-_:]|embeddinggemma|mxbai)/i.test(
-                                                            modelName,
-                                                        );
-                                                    return (
-                                                        <button
-                                                            key={modelName}
-                                                            type="button"
-                                                            onClick={() =>
-                                                                isEmbed
-                                                                    ? setEmbeddingModel(modelName)
-                                                                    : setChatModel(modelName)
-                                                            }
-                                                            className="inline-flex min-h-7 items-center rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-surface-hover"
-                                                            title={`Use ${modelName} as ${isEmbed ? 'embedding' : 'chat'} model`}
-                                                        >
-                                                            {modelName}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <p className="text-muted-foreground">No models installed</p>
-                                        )
-                                    ) : (
-                                        <p className="text-muted-foreground">{ollamaStatus.error}</p>
-                                    )}
-                                </div>
-                            )}
-                        </section>
+                            </section>
+                        </div>
                     )}
                     {section === 'system' && <SettingsSystemTab />}
                 </div>

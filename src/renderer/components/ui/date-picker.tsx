@@ -45,15 +45,50 @@ function DatePicker({
                     {display}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-0">
+            <PopoverContent align="start" className="w-[310px] overflow-hidden p-0">
+                <div className="flex items-center justify-between border-b border-border/70 bg-surface-subtle/40 px-3 py-2 text-xs">
+                    <span className="font-semibold text-foreground">Choose date</span>
+                    <div className="flex items-center gap-1">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs text-primary"
+                            onClick={() => {
+                                onChange(new Date());
+                                setOpen(false);
+                            }}
+                        >
+                            Today
+                        </Button>
+                        {value && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-xs text-muted-foreground"
+                                onClick={() => {
+                                    onChange(undefined);
+                                    setOpen(false);
+                                }}
+                            >
+                                Clear
+                            </Button>
+                        )}
+                    </div>
+                </div>
                 <Calendar
                     mode="single"
+                    captionLayout="dropdown"
+                    startMonth={minDate ?? new Date(2000, 0)}
+                    endMonth={maxDate ?? new Date(2040, 11)}
                     selected={value}
                     onSelect={(date) => {
                         onChange(date);
                         if (date) setOpen(false);
                     }}
                     disabled={(date) => isLocalCalendarDateDisabled(date, minDate, maxDate)}
+                    className="border-0 p-2.5 [--cell-size:2.15rem]"
                 />
             </PopoverContent>
         </Popover>

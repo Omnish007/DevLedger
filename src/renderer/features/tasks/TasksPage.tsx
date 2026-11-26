@@ -568,7 +568,7 @@ export function TasksPage({
                                 </p>
                                 <Button size="sm" className="mt-4" onClick={openCreateModal}>
                                     <Plus className="size-3.5" />
-                                    New task
+                                    Create first task
                                 </Button>
                             </div>
                         }

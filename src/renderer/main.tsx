@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { toast } from 'sonner';
 import { Sonner } from '@/components/ui/sonner';
@@ -27,15 +27,32 @@ import { targetFromRecord } from '@/lib/navigation';
 import { dispatchRendererNotifications } from '@/lib/notifications-client';
 import { friendlyError } from '@/lib/utils';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
-import { ProjectsPage } from '@/features/projects/ProjectsPage';
-import { NotesPage } from '@/features/notes/NotesPage';
-import { TasksPage } from '@/features/tasks/TasksPage';
-import { DocumentsPage } from '@/features/documents/DocumentsPage';
-import { SearchPage } from '@/features/search/SearchPage';
-import { SettingsPage } from '@/features/settings/SettingsPage';
-import { QuickCapturePage } from '@/features/capture/QuickCapturePage';
-import { ContactsPage } from '@/features/contacts/ContactsPage';
 import '@/styles/globals.css';
+
+const ProjectsPage = lazy(() =>
+    import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
+);
+const NotesPage = lazy(() => import('@/features/notes/NotesPage').then((m) => ({ default: m.NotesPage })));
+const TasksPage = lazy(() => import('@/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })));
+const DocumentsPage = lazy(() =>
+    import('@/features/documents/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
+);
+const SearchPage = lazy(() =>
+    import('@/features/search/SearchPage').then((m) => ({ default: m.SearchPage })),
+);
+const SettingsPage = lazy(() =>
+    import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const QuickCapturePage = lazy(() =>
+    import('@/features/capture/QuickCapturePage').then((m) => ({ default: m.QuickCapturePage })),
+);
+const ContactsPage = lazy(() =>
+    import('@/features/contacts/ContactsPage').then((m) => ({ default: m.ContactsPage })),
+);
+
+function RouteFallback() {
+    return <div className="grid h-48 place-items-center text-xs text-muted-foreground">Loading view…</div>;
+}
 
 function App() {
     const captureWindow = new URLSearchParams(window.location.search).get('capture') === '1';
@@ -278,14 +295,14 @@ function App() {
 
     if (captureWindow)
         return (
-            <>
+            <Suspense fallback={<RouteFallback />}>
                 <QuickCapturePage
                     onSave={async (input) => {
                         await window.devLedger.capture.save(input);
                     }}
                 />
                 <Sonner position="bottom-right" theme={settings['theme'] === 'dark' ? 'dark' : 'light'} />
-            </>
+            </Suspense>
         );
     if (fatalError)
         return (
@@ -324,7 +341,7 @@ function App() {
                     Opening your local workspace…
                 </div>
             ) : (
-                <>
+                <Suspense fallback={<RouteFallback />}>
                     {viewLoading && (
                         <div className="pointer-events-none fixed bottom-4 right-5 z-20 rounded border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground shadow-sm">
                             Refreshing…
@@ -590,7 +607,7 @@ function App() {
                             onNavigateTarget={(target) => void navigateToTarget(target)}
                         />
                     )}
-                </>
+                </Suspense>
             )}
             <Sonner position="bottom-right" theme={settings['theme'] === 'dark' ? 'dark' : 'light'} />
         </AppShell>

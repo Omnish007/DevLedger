@@ -240,7 +240,7 @@ export function RecordConnectionsPanel({
     }
 
     return (
-        <div className="space-y-5 text-xs">
+        <div className="space-y-4 text-xs">
             {error && (
                 <p
                     role="alert"
@@ -251,7 +251,7 @@ export function RecordConnectionsPanel({
             )}
 
             <section className="space-y-2">
-                <SectionHeading className="text-xs font-semibold text-muted-foreground">Tags</SectionHeading>
+                <SectionHeading className="text-xs font-semibold text-foreground">Tags</SectionHeading>
                 <TagSelector
                     entityType={entityType}
                     entityId={entityId}
@@ -262,9 +262,9 @@ export function RecordConnectionsPanel({
             </section>
 
             {entityType !== 'document' && !hideReminders && (
-                <section className="space-y-2.5 border-t border-border pt-4">
+                <section className="space-y-2.5 border-t border-border/70 pt-3.5">
                     <div className="flex items-center justify-between">
-                        <SectionHeading className="text-xs font-semibold text-muted-foreground">
+                        <SectionHeading className="text-xs font-semibold text-foreground">
                             Reminders
                         </SectionHeading>
                         <Button
@@ -355,9 +355,9 @@ export function RecordConnectionsPanel({
                 </section>
             )}
 
-            <section className="space-y-3 border-t border-border pt-4">
+            <section className="space-y-3 border-t border-border/70 pt-3.5">
                 <div className="flex items-center justify-between">
-                    <SectionHeading className="text-xs font-semibold text-muted-foreground">
+                    <SectionHeading className="text-xs font-semibold text-foreground">
                         Links & backlinks
                     </SectionHeading>
                     <Button

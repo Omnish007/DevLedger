@@ -127,27 +127,32 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
             }
         };
 
-        const runTieredFts = (
-            matchExpr: string,
-            tierBaseScore: number,
-            queryRows: (expr: string) => void,
-        ) => {
-            if (!matchExpr) return;
-            queryRows(matchExpr);
-            void tierBaseScore;
-        };
-
         if (types.has('note')) {
             const baseFilter = `n.deleted_at IS NULL AND n.locked = 0 AND (? IS NULL OR n.project_id = ?)
         AND (? IS NULL OR EXISTS (SELECT 1 FROM entity_tags et JOIN tags tg ON tg.id = et.tag_id WHERE et.entity_type = 'note' AND et.entity_id = n.id AND tg.name = ? COLLATE NOCASE))
         AND (? IS NULL OR n.updated_at >= ?) AND (? IS NULL OR n.updated_at < ?)`;
-            const mapNoteRow = (row: Record<string, unknown>, highlighted: boolean, baseScore: number) => {
+            const mapNoteRow = (
+                row: Record<string, unknown>,
+                highlighted: boolean,
+                baseScore: number,
+                precomputedPlain?: string,
+            ) => {
                 const cleaned = stripHtmlToPlainText(String(row['excerpt'] ?? ''), {
                     preserveMark: highlighted,
                 });
-                const fallbackClean = stripHtmlToPlainText(String(row['fallback_content'] ?? ''));
-                const excerpt =
-                    (highlighted ? cleaned : cleaned.slice(0, 180)) || fallbackClean.slice(0, 180);
+                const fallbackClean =
+                    precomputedPlain ?? stripHtmlToPlainText(String(row['fallback_content'] ?? ''));
+                const needle = filters.text.trim().toLowerCase();
+                let slice = cleaned;
+                if (!highlighted && needle) {
+                    const matchIdx = fallbackClean.toLowerCase().indexOf(needle);
+                    if (matchIdx >= 0) {
+                        const start = Math.max(0, matchIdx - 60);
+                        const end = Math.min(fallbackClean.length, start + 180);
+                        slice = `${start > 0 ? '… ' : ''}${fallbackClean.slice(start, end)}${end < fallbackClean.length ? ' …' : ''}`;
+                    }
+                }
+                const excerpt = (highlighted ? slice : slice.slice(0, 190)) || fallbackClean.slice(0, 180);
                 const title = String(row['title']);
                 const bm25 = Number(row['score'] ?? 0);
                 const overlap = hasText
@@ -195,7 +200,7 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
                     const likeRows = this.db
                         .prepare(
                             `SELECT n.id, n.project_id, n.title, n.updated_at,
-                substr(n.content, 1, 600) AS excerpt, substr(n.content, 1, 600) AS fallback_content, 0 AS score
+                substr(n.content, 1, 200000) AS excerpt, substr(n.content, 1, 200000) AS fallback_content, 0 AS score
                 FROM notes n WHERE ${baseFilter}
                 AND (lower(n.title) LIKE ? ESCAPE '\\' OR lower(n.content) LIKE ? ESCAPE '\\')
                 ORDER BY n.updated_at DESC LIMIT ?`,
@@ -208,7 +213,7 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
                             String(row['title']).toLowerCase().includes(needle) ||
                             plain.toLowerCase().includes(needle)
                         ) {
-                            mapNoteRow(row, false, 450);
+                            mapNoteRow(row, false, 450, plain);
                         }
                     }
                     if (plan.relaxedFts && plan.contentTokens.length > 1) {
@@ -639,7 +644,6 @@ export class WorkspaceSearchService extends WorkspaceDashboardService {
             }
         }
 
-        void runTieredFts;
         return [...hits.values()]
             .sort((a, b) => b.score - a.score || b.result.updatedAt.localeCompare(a.result.updatedAt))
             .slice(0, limit)

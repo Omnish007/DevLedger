@@ -25,6 +25,7 @@ type RemoteRecordPickerProps = {
     onValueChange: (value: string) => void;
     placeholder?: string;
     searchPlaceholder?: string;
+    ariaLabel?: string;
     disabled?: boolean;
     className?: string;
     projectId?: string | null | undefined;
@@ -41,6 +42,7 @@ export function RemoteRecordPicker({
     onValueChange,
     placeholder = 'Choose a record…',
     searchPlaceholder,
+    ariaLabel,
     disabled,
     className,
     projectId,
@@ -127,6 +129,7 @@ export function RemoteRecordPicker({
 
     const resolvedSearchPlaceholder = searchPlaceholder ?? `Search ${entityType}s…`;
     const hasMaxOnly = /\bmax-w-\S+/.test(className ?? '') && !/\bw-\S+/.test(className ?? '');
+    const displayValue = (selected?.id === value ? selected.label : selectedLabel) ?? placeholder;
 
     return (
         <Popover
@@ -142,23 +145,22 @@ export function RemoteRecordPicker({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
+                    aria-label={ariaLabel ?? displayValue}
                     disabled={disabled}
                     className={cn(
                         hasMaxOnly ? 'w-auto' : 'w-full',
-                        'justify-between gap-2 rounded-lg border-input bg-card font-normal shadow-[var(--shadow-xs)] hover:bg-surface-subtle/60',
-                        selected?.id !== value && !selectedLabel && 'text-muted-foreground',
+                        'justify-between gap-2 rounded-lg border-input bg-card font-medium shadow-[var(--shadow-xs)] transition-[border-color,background-color,box-shadow] hover:border-border hover:bg-surface-subtle/60 data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20',
+                        selected?.id !== value && !selectedLabel && 'font-normal text-muted-foreground',
                         className,
                     )}
                 >
-                    <span className="min-w-0 truncate text-left">
-                        {(selected?.id === value ? selected.label : selectedLabel) ?? placeholder}
-                    </span>
-                    <ChevronsUpDown className="size-3.5 shrink-0 opacity-55" />
+                    <span className="min-w-0 truncate text-left">{displayValue}</span>
+                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent
                 align="start"
-                className="w-[max(17.5rem,var(--radix-popover-trigger-width))] max-w-[min(24rem,calc(100vw-24px))] overflow-hidden p-0"
+                className="w-[max(18rem,var(--radix-popover-trigger-width))] max-w-[min(25rem,calc(100vw-24px))] overflow-hidden p-0"
             >
                 <Command shouldFilter={false}>
                     <CommandInput
@@ -169,12 +171,12 @@ export function RemoteRecordPicker({
                     <CommandList>
                         {loading && (
                             <div className="flex items-center justify-center gap-2 px-3 py-5 text-xs text-muted-foreground">
-                                <LoaderCircle className="size-3.5 animate-spin" />
+                                <LoaderCircle className="size-3.5 animate-spin text-primary" />
                                 Searching…
                             </div>
                         )}
                         {!loading && error && (
-                            <div role="status" className="px-3 py-4 text-xs text-destructive">
+                            <div role="status" className="px-3 py-4 text-xs text-danger">
                                 {error}
                             </div>
                         )}
@@ -187,29 +189,32 @@ export function RemoteRecordPicker({
                         )}
                         {!loading && !error && choices.length > 0 && (
                             <CommandGroup heading={`Matching ${entityType}s`}>
-                                {choices.map((choice) => (
-                                    <CommandItem
-                                        key={choice.id}
-                                        value={choice.id}
-                                        onSelect={() => selectChoice(choice)}
-                                        className="py-2"
-                                    >
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate font-medium">{choice.label}</div>
-                                            {choice.description && (
-                                                <div className="truncate text-xs text-muted-foreground">
-                                                    {choice.description}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <Check
-                                            className={cn(
-                                                'ml-auto size-3.5 shrink-0 text-primary',
-                                                value === choice.id ? 'opacity-100' : 'opacity-0',
-                                            )}
-                                        />
-                                    </CommandItem>
-                                ))}
+                                {choices.map((choice) => {
+                                    const isChecked = value === choice.id;
+                                    return (
+                                        <CommandItem
+                                            key={choice.id}
+                                            value={choice.id}
+                                            onSelect={() => selectChoice(choice)}
+                                            className={cn('py-2', isChecked && 'bg-primary/[0.08]')}
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <div className="truncate font-medium">{choice.label}</div>
+                                                {choice.description && (
+                                                    <div className="truncate text-[11px] text-muted-foreground">
+                                                        {choice.description}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <Check
+                                                className={cn(
+                                                    'ml-auto size-3.5 shrink-0 text-primary transition-opacity',
+                                                    isChecked ? 'opacity-100' : 'opacity-0',
+                                                )}
+                                            />
+                                        </CommandItem>
+                                    );
+                                })}
                             </CommandGroup>
                         )}
                     </CommandList>

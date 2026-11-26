@@ -214,6 +214,13 @@ export class OllamaService {
                         750,
                     );
                 }
+            } else if (source.type === 'document') {
+                const row = this.db
+                    .prepare(
+                        "SELECT extracted_text FROM documents WHERE id = ? AND status = 'indexed' AND deleted_at IS NULL AND is_encrypted = 0",
+                    )
+                    .get(source.id) as { extracted_text: string } | undefined;
+                if (row?.extracted_text) return cleanExcerpt(row.extracted_text, 750);
             }
         } catch {
             /* fallback to snippet */

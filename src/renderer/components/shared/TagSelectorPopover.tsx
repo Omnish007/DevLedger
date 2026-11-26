@@ -105,57 +105,75 @@ export function TagSelector({ entityType, entityId, assigned, onChanged, onError
                         Tag
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-64 p-2.5">
-                    <div className="space-y-2">
+                <PopoverContent align="start" className="w-72 overflow-hidden p-0">
+                    <div className="flex items-center justify-between border-b border-border/70 bg-surface-subtle/40 px-3 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Tags
+                        </span>
+                        {assigned.length > 0 && (
+                            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary tabular-nums">
+                                {assigned.length} active
+                            </span>
+                        )}
+                    </div>
+                    <div className="space-y-2 p-2.5">
                         <Input
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Find or create tag…"
                             className="h-8 text-xs"
                         />
-                        <div className="max-h-44 space-y-0.5 overflow-y-auto">
-                            {available.map((tag) => (
-                                <button
-                                    key={tag.id}
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => void toggleTag(tag)}
-                                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent"
-                                >
-                                    <span
-                                        className={`size-2 rounded-full ${TAG_DOT_CLASS[tag.color] ?? TAG_DOT_CLASS['neutral']}`}
-                                    />
-                                    <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                                    {assignedIds.has(tag.id) && <Check className="size-3.5 text-primary" />}
-                                </button>
-                            ))}
+                        <div className="max-h-48 space-y-0.5 overflow-y-auto pr-0.5">
+                            {available.map((tag) => {
+                                const isAssigned = assignedIds.has(tag.id);
+                                return (
+                                    <button
+                                        key={tag.id}
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => void toggleTag(tag)}
+                                        className={`flex min-h-8 w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground ${isAssigned ? 'bg-primary/[0.08] font-medium text-foreground' : 'text-foreground'}`}
+                                    >
+                                        <span
+                                            className={`size-2 shrink-0 rounded-full ${TAG_DOT_CLASS[tag.color] ?? TAG_DOT_CLASS['neutral']}`}
+                                        />
+                                        <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+                                        {isAssigned && <Check className="size-3.5 shrink-0 text-primary" />}
+                                    </button>
+                                );
+                            })}
                             {!available.length && !query.trim() && (
-                                <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+                                <p className="px-2 py-4 text-center text-xs text-muted-foreground">
                                     Type a name to create your first tag.
                                 </p>
                             )}
                         </div>
                         {query.trim() && !exactMatch && (
-                            <div className="space-y-2 border-t border-border pt-2">
-                                <div className="flex items-center gap-1.5">
-                                    {COLORS.map((swatch) => (
-                                        <button
-                                            key={swatch}
-                                            type="button"
-                                            aria-label={`Select ${swatch} tag color`}
-                                            onClick={() => setColor(swatch)}
-                                            className={`grid size-5 place-items-center rounded-full border ${color === swatch ? 'border-foreground' : 'border-transparent'}`}
-                                        >
-                                            <span
-                                                className={`size-3 rounded-full ${TAG_DOT_CLASS[swatch]}`}
-                                            />
-                                        </button>
-                                    ))}
+                            <div className="space-y-2 border-t border-border/70 pt-2.5">
+                                <div className="flex items-center justify-between gap-1.5">
+                                    <span className="text-[11px] font-medium text-muted-foreground">
+                                        Color
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        {COLORS.map((swatch) => (
+                                            <button
+                                                key={swatch}
+                                                type="button"
+                                                aria-label={`Select ${swatch} tag color`}
+                                                onClick={() => setColor(swatch)}
+                                                className={`grid size-6 place-items-center rounded-full border transition-transform hover:scale-105 ${color === swatch ? 'border-foreground ring-2 ring-ring/25' : 'border-transparent'}`}
+                                            >
+                                                <span
+                                                    className={`size-3 rounded-full ${TAG_DOT_CLASS[swatch]}`}
+                                                />
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 <Button
                                     type="button"
                                     size="sm"
-                                    className="h-7 w-full text-xs"
+                                    className="h-8 w-full text-xs"
                                     disabled={busy}
                                     onClick={() => void createAndAttach()}
                                 >

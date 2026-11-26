@@ -256,7 +256,7 @@ export class SemanticIndexer {
         }
     }
 
-    /** Incrementally embed records added or modified since the last active generation build. */
+    /** Incrementally embed records added or modified, and remove orphaned/locked/deleted records. */
     async syncMissingSources(signal?: AbortSignal): Promise<{ syncedSources: number; syncedChunks: number }> {
         const modelRow = this.db
             .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.semantic.activeModel'")
@@ -268,23 +268,45 @@ export class SemanticIndexer {
         const model = String(JSON.parse(modelRow.value_json));
         const generation = String(JSON.parse(genRow.value_json));
 
+        this.db
+            .prepare(
+                `DELETE FROM semantic_chunks
+                 WHERE model = ? AND generation_id = ?
+                   AND NOT EXISTS (
+                     SELECT 1 FROM (${UNIFIED_KNOWLEDGE_SOURCES_SQL}) src
+                     WHERE src.source_type = semantic_chunks.source_type
+                       AND src.source_id = semantic_chunks.source_id
+                   )`,
+            )
+            .run(model, generation);
+
         const missingRows = this.db
             .prepare(
                 `SELECT src.* FROM (${UNIFIED_KNOWLEDGE_SOURCES_SQL}) src
                  WHERE trim(coalesce(src.title, '') || coalesce(src.body, '')) <> ''
-                   AND NOT EXISTS (
-                     SELECT 1 FROM semantic_chunks sc
-                     WHERE sc.source_type = src.source_type
-                       AND sc.source_id = src.source_id
-                       AND sc.model = ?
-                       AND sc.generation_id = ?
+                   AND (
+                     NOT EXISTS (
+                       SELECT 1 FROM semantic_chunks sc
+                       WHERE sc.source_type = src.source_type
+                         AND sc.source_id = src.source_id
+                         AND sc.model = ?
+                         AND sc.generation_id = ?
+                     )
+                     OR EXISTS (
+                       SELECT 1 FROM semantic_chunks sc
+                       WHERE sc.source_type = src.source_type
+                         AND sc.source_id = src.source_id
+                         AND sc.model = ?
+                         AND sc.generation_id = ?
+                         AND sc.source_updated_at <> src.source_updated_at
+                     )
                    )
                  LIMIT 80`,
             )
-            .all(model, generation) as KnowledgeSourceRow[];
+            .all(model, generation, model, generation) as KnowledgeSourceRow[];
         if (!missingRows.length) return { syncedSources: 0, syncedChunks: 0 };
 
-        const pending: PendingChunk[] = [];
+        const groupedBySource = new Map<string, PendingChunk[]>();
         let syncedSources = 0;
         for (const source of missingRows) {
             signal?.throwIfAborted();
@@ -294,17 +316,21 @@ export class SemanticIndexer {
             if (!chunks.length) continue;
             syncedSources += 1;
             const contentHash = createHash('sha256').update(text).digest('hex');
-            chunks.forEach((content, chunkIndex) =>
-                pending.push({ ...source, chunk_index: chunkIndex, content, content_hash: contentHash }),
+            const sourceKey = `${source.source_type}:${source.source_id}`;
+            groupedBySource.set(
+                sourceKey,
+                chunks.map((content, chunkIndex) => ({
+                    ...source,
+                    chunk_index: chunkIndex,
+                    content,
+                    content_hash: contentHash,
+                })),
             );
         }
+        const pending = [...groupedBySource.values()].flat();
         if (!pending.length) return { syncedSources: 0, syncedChunks: 0 };
 
-        const { insert, insertBucket } = this.insertChunkStatements();
-        const del = this.db.prepare(
-            'DELETE FROM semantic_chunks WHERE source_type = ? AND source_id = ? AND model = ? AND generation_id = ?',
-        );
-        let syncedChunks = 0;
+        const vectorsByItem: number[][] = [];
         for (let offset = 0; offset < pending.length; offset += 16) {
             signal?.throwIfAborted();
             const batch = pending.slice(offset, offset + 16);
@@ -315,12 +341,22 @@ export class SemanticIndexer {
             );
             if (vectors.length !== batch.length)
                 throw new Error('The embedding adapter returned an invalid batch size.');
-            const timestamp = new Date().toISOString();
-            this.db.exec('BEGIN IMMEDIATE');
-            try {
-                for (const item of batch) del.run(item.source_type, item.source_id, model, generation);
-                batch.forEach((item, index) => {
-                    const vector = vectors[index]!;
+            vectorsByItem.push(...vectors);
+        }
+
+        const { insert, insertBucket } = this.insertChunkStatements();
+        const del = this.db.prepare(
+            'DELETE FROM semantic_chunks WHERE source_type = ? AND source_id = ? AND model = ? AND generation_id = ?',
+        );
+        const timestamp = new Date().toISOString();
+        let cursor = 0;
+        this.db.exec('BEGIN IMMEDIATE');
+        try {
+            for (const sourceChunks of groupedBySource.values()) {
+                const first = sourceChunks[0]!;
+                del.run(first.source_type, first.source_id, model, generation);
+                for (const item of sourceChunks) {
+                    const vector = vectorsByItem[cursor++]!;
                     const chunkId = randomUUID();
                     insert.run(
                         chunkId,
@@ -342,14 +378,13 @@ export class SemanticIndexer {
                     vectorBandBuckets(vector).forEach((bucket, band) =>
                         insertBucket.run(chunkId, band, bucket),
                     );
-                });
-                this.db.exec('COMMIT');
-            } catch (error) {
-                this.db.exec('ROLLBACK');
-                throw error;
+                }
             }
-            syncedChunks += batch.length;
+            this.db.exec('COMMIT');
+        } catch (error) {
+            this.db.exec('ROLLBACK');
+            throw error;
         }
-        return { syncedSources, syncedChunks };
+        return { syncedSources, syncedChunks: pending.length };
     }
 }

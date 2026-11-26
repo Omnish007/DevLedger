@@ -23,12 +23,12 @@ function SelectTrigger({
             data-slot="select-trigger"
             data-size={size}
             className={cn(
-                'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-[var(--shadow-xs)] transition-[color,background-color,border-color,box-shadow] outline-none hover:bg-surface-subtle/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:text-xs',
+                'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-[var(--shadow-xs)] transition-[color,background-color,border-color,box-shadow] outline-none hover:border-border hover:bg-surface-subtle/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20 [&[data-state=open]_svg]:rotate-180 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:text-xs',
                 className,
             )}
             {...props}
         >
-            {children}
+            <span className="min-w-0 flex-1 truncate text-left">{children}</span>
             <SelectPrimitive.Icon asChild>
                 <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-150" />
             </SelectPrimitive.Icon>
@@ -38,7 +38,7 @@ function SelectTrigger({
 function SelectContent({
     className,
     position = 'popper',
-    sideOffset = 5,
+    sideOffset = 6,
     collisionPadding = 10,
     ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
@@ -50,7 +50,7 @@ function SelectContent({
                 sideOffset={sideOffset}
                 collisionPadding={collisionPadding}
                 className={cn(
-                    'relative z-50 max-h-80 min-w-[10rem] overflow-hidden rounded-xl border border-border/85 bg-popover text-popover-foreground shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45),0_2px_10px_-2px_rgba(0,0,0,0.18)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+                    'relative z-50 max-h-80 min-w-[max(11rem,var(--radix-select-trigger-width))] overflow-hidden rounded-xl border border-border/90 bg-popover/98 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
                     className,
                 )}
                 {...props}
@@ -69,7 +69,7 @@ function SelectLabel({ className, ...props }: React.ComponentProps<typeof Select
         <SelectPrimitive.Label
             data-slot="select-label"
             className={cn(
-                'px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground',
+                'px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground',
                 className,
             )}
             {...props}
@@ -81,12 +81,12 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
         <SelectPrimitive.Item
             data-slot="select-item"
             className={cn(
-                'relative flex w-full cursor-default select-none items-center rounded-lg py-1.5 pl-2.5 pr-8 text-[13px] outline-none transition-colors focus:bg-accent/85 focus:text-accent-foreground data-[state=checked]:font-medium data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+                'relative flex min-h-8 w-full cursor-default select-none items-center rounded-lg py-1.5 pl-2.5 pr-8 text-[13px] outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[state=checked]:bg-primary/[0.08] data-[state=checked]:font-medium data-[state=checked]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-45',
                 className,
             )}
             {...props}
         >
-            <span className="absolute right-2.5 flex size-3.5 items-center justify-center">
+            <span className="absolute right-2.5 flex size-4 items-center justify-center">
                 <SelectPrimitive.ItemIndicator>
                     <Check className="size-3.5 text-primary" />
                 </SelectPrimitive.ItemIndicator>

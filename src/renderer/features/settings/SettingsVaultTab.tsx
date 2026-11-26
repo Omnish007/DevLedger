@@ -57,11 +57,11 @@ export function SettingsVaultTab({
     }
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-5 text-xs">
             {error && (
                 <p
                     role="alert"
-                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
+                    className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -69,21 +69,29 @@ export function SettingsVaultTab({
             {message && (
                 <p
                     role="status"
-                    className="rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
+                    className="rounded-xl border border-border bg-surface-subtle px-4 py-3 text-foreground"
                 >
                     {message}
                 </p>
             )}
 
-            <section className="workspace-surface space-y-3 p-5">
-                <div className="flex items-center justify-between border-b border-border pb-3">
-                    <div>
+            <section className="workspace-surface space-y-5 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/75 pb-4">
+                    <div className="space-y-0.5">
                         <h2 className="text-sm font-semibold">Protected notes vault</h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="text-muted-foreground">
                             AES-256-GCM encryption for confidential notes and documents.
                         </p>
                     </div>
-                    <Badge variant={vaultStatus.configured ? 'success' : 'secondary'}>
+                    <Badge
+                        variant={
+                            vaultStatus.configured
+                                ? vaultStatus.unlocked
+                                    ? 'success'
+                                    : 'warning'
+                                : 'secondary'
+                        }
+                    >
                         {vaultStatus.configured
                             ? vaultStatus.unlocked
                                 ? 'Unlocked'
@@ -108,38 +116,48 @@ export function SettingsVaultTab({
                                 setConfirmPassphrase('');
                             }, 'Vault setup failed.');
                         }}
-                        className="space-y-3"
+                        className="space-y-4"
                     >
-                        <label className="block space-y-1 text-xs font-medium">
-                            Master passphrase
-                            <Input
-                                type="password"
-                                autoComplete="new-password"
-                                minLength={12}
-                                value={passphrase}
-                                onChange={(e) => setPassphrase(e.target.value)}
-                                placeholder="At least 12 characters"
-                                required
-                            />
-                        </label>
-                        <label className="block space-y-1 text-xs font-medium">
-                            Confirm passphrase
-                            <Input
-                                type="password"
-                                autoComplete="new-password"
-                                minLength={12}
-                                value={confirmPassphrase}
-                                onChange={(e) => setConfirmPassphrase(e.target.value)}
-                                required
-                            />
-                        </label>
-                        <Button
-                            type="submit"
-                            size="sm"
-                            disabled={saving || passphrase.length < 12 || passphrase !== confirmPassphrase}
-                        >
-                            Create vault
-                        </Button>
+                        <div className="grid gap-3.5 sm:grid-cols-2">
+                            <label className="block space-y-1.5 font-medium">
+                                <span>Master passphrase</span>
+                                <Input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    minLength={12}
+                                    value={passphrase}
+                                    onChange={(e) => setPassphrase(e.target.value)}
+                                    placeholder="At least 12 characters"
+                                    required
+                                />
+                            </label>
+                            <label className="block space-y-1.5 font-medium">
+                                <span>Confirm passphrase</span>
+                                <Input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    minLength={12}
+                                    value={confirmPassphrase}
+                                    onChange={(e) => setConfirmPassphrase(e.target.value)}
+                                    placeholder="Re-enter passphrase"
+                                    required
+                                />
+                            </label>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-muted-foreground">
+                                Passphrases are derived with Argon2id and never written to disk.
+                            </p>
+                            <Button
+                                type="submit"
+                                size="sm"
+                                disabled={
+                                    saving || passphrase.length < 12 || passphrase !== confirmPassphrase
+                                }
+                            >
+                                Create vault
+                            </Button>
+                        </div>
                     </form>
                 ) : !vaultStatus.unlocked ? (
                     <form
@@ -151,10 +169,10 @@ export function SettingsVaultTab({
                                 setUseRecovery(false);
                             }, 'Vault unlock failed.');
                         }}
-                        className="space-y-3"
+                        className="space-y-3.5"
                     >
-                        <label className="block space-y-1 text-xs font-medium">
-                            {useRecovery ? 'Offline recovery key' : 'Master passphrase'}
+                        <label className="block space-y-1.5 font-medium">
+                            <span>{useRecovery ? 'Offline recovery key' : 'Master passphrase'}</span>
                             <Input
                                 type="password"
                                 autoComplete="current-password"
@@ -163,7 +181,7 @@ export function SettingsVaultTab({
                                 required
                             />
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Button type="submit" size="sm" disabled={saving || !passphrase}>
                                 Unlock vault
                             </Button>
@@ -181,14 +199,15 @@ export function SettingsVaultTab({
                         </div>
                     </form>
                 ) : (
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">
-                                Session key active; lock manually when stepping away.
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/25 bg-success-subtle/60 px-4 py-3">
+                            <span className="font-medium text-success-foreground">
+                                Session key active in memory; lock manually when stepping away.
                             </span>
                             <Button
                                 size="sm"
                                 variant="outline"
+                                className="bg-card"
                                 onClick={() => void runVault(onVaultLock, 'Lock failed.')}
                             >
                                 <LockKeyhole className="size-3.5" />
@@ -209,43 +228,46 @@ export function SettingsVaultTab({
                                     setMessage('Vault passphrase changed.');
                                 }, 'Passphrase change failed.');
                             }}
-                            className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+                            className="space-y-2.5 rounded-xl border border-border/80 bg-surface-subtle/30 p-4"
                         >
-                            <Input
-                                aria-label="New passphrase"
-                                type="password"
-                                autoComplete="new-password"
-                                minLength={12}
-                                placeholder="New passphrase"
-                                value={passphrase}
-                                onChange={(e) => setPassphrase(e.target.value)}
-                                required
-                            />
-                            <Input
-                                aria-label="Confirm passphrase"
-                                type="password"
-                                autoComplete="new-password"
-                                minLength={12}
-                                placeholder="Confirm passphrase"
-                                value={confirmPassphrase}
-                                onChange={(e) => setConfirmPassphrase(e.target.value)}
-                                required
-                            />
-                            <Button
-                                type="submit"
-                                size="sm"
-                                disabled={
-                                    saving || passphrase.length < 12 || passphrase !== confirmPassphrase
-                                }
-                            >
-                                Update passphrase
-                            </Button>
+                            <p className="font-medium text-foreground">Rotate master passphrase</p>
+                            <div className="grid gap-2.5 sm:grid-cols-[1fr_1fr_auto]">
+                                <Input
+                                    aria-label="New passphrase"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    minLength={12}
+                                    placeholder="New passphrase"
+                                    value={passphrase}
+                                    onChange={(e) => setPassphrase(e.target.value)}
+                                    required
+                                />
+                                <Input
+                                    aria-label="Confirm passphrase"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    minLength={12}
+                                    placeholder="Confirm passphrase"
+                                    value={confirmPassphrase}
+                                    onChange={(e) => setConfirmPassphrase(e.target.value)}
+                                    required
+                                />
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    disabled={
+                                        saving || passphrase.length < 12 || passphrase !== confirmPassphrase
+                                    }
+                                >
+                                    Update passphrase
+                                </Button>
+                            </div>
                         </form>
                     </div>
                 )}
 
                 {vaultStatus.configured && (
-                    <div className="flex items-start gap-2.5 rounded-md border border-border bg-surface-subtle p-3 text-xs">
+                    <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-surface-subtle/35 p-4">
                         <Checkbox
                             id="vault-device-unlock"
                             checked={deviceUnlockEnabled}
@@ -261,11 +283,11 @@ export function SettingsVaultTab({
                                 }, 'Device unlock could not be updated.')
                             }
                         />
-                        <div>
+                        <div className="space-y-1">
                             <Label htmlFor="vault-device-unlock" className="font-medium">
                                 Unlock automatically with this device
                             </Label>
-                            <p className="mt-1 text-muted-foreground">
+                            <p className="text-muted-foreground">
                                 Stores the random vault key in the OS secure credential store (not your
                                 passphrase).
                             </p>
@@ -274,39 +296,43 @@ export function SettingsVaultTab({
                 )}
 
                 {recoveryVisible && (
-                    <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3 text-xs">
+                    <div className="space-y-3 rounded-xl border border-warning/40 bg-warning-subtle p-4 text-warning-foreground">
                         <p className="font-semibold">Save offline recovery key (shown once)</p>
-                        <code className="block break-all rounded bg-surface p-2 font-mono">
+                        <code className="block break-all rounded-lg border border-warning/25 bg-card p-3 font-mono text-foreground">
                             {recoveryKey}
                         </code>
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                id="recovery-key-saved"
-                                checked={recoveryConfirmed}
-                                onCheckedChange={(c) => setRecoveryConfirmed(c === true)}
-                            />
-                            <Label htmlFor="recovery-key-saved">I have saved this recovery key safely.</Label>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="recovery-key-saved"
+                                    checked={recoveryConfirmed}
+                                    onCheckedChange={(c) => setRecoveryConfirmed(c === true)}
+                                />
+                                <Label htmlFor="recovery-key-saved">
+                                    I have saved this recovery key safely.
+                                </Label>
+                            </div>
+                            <Button
+                                size="sm"
+                                disabled={!recoveryConfirmed}
+                                onClick={() => {
+                                    setRecoveryVisible(false);
+                                    setRecoveryConfirmed(false);
+                                    setRecoveryKey('');
+                                }}
+                            >
+                                Done
+                            </Button>
                         </div>
-                        <Button
-                            size="sm"
-                            disabled={!recoveryConfirmed}
-                            onClick={() => {
-                                setRecoveryVisible(false);
-                                setRecoveryConfirmed(false);
-                                setRecoveryKey('');
-                            }}
-                        >
-                            Done
-                        </Button>
                     </div>
                 )}
             </section>
 
-            <section className="workspace-surface flex items-center justify-between gap-3 p-5 text-xs">
-                <div>
+            <section className="workspace-surface flex flex-wrap items-center justify-between gap-4 p-6">
+                <div className="space-y-0.5">
                     <h2 className="text-sm font-semibold">Auto-lock timeout</h2>
-                    <p className="mt-0.5 text-muted-foreground">
-                        Lock the vault after inactivity or OS screen lock.
+                    <p className="text-muted-foreground">
+                        Automatically lock the vault after inactivity or OS screen lock.
                     </p>
                 </div>
                 <NativeSelect

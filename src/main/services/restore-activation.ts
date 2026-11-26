@@ -1,9 +1,10 @@
 import { mkdir, rename, rm } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import {
     MARKER_NAME,
     assertNoSymlinks,
     assertRestoreDirectory,
+    assertRollbackDirectory,
     exists,
     readMarker,
     writeMarker,
@@ -24,8 +25,9 @@ async function rollbackMarker(dataDirectory: string, marker: RestoreMarker): Pro
     const liveObjects = join(dataDirectory, 'objects');
     const stagedDatabase = join(marker.restoreDirectory, 'northstar.sqlite');
     const stagedObjects = join(marker.restoreDirectory, 'objects');
-    const backupDatabase = join(dataDirectory, marker.rollbackDirectory, 'northstar.sqlite');
-    const backupObjects = join(dataDirectory, marker.rollbackDirectory, 'objects');
+    const rollbackRoot = assertRollbackDirectory(dataDirectory, marker.rollbackDirectory);
+    const backupDatabase = join(rollbackRoot, 'northstar.sqlite');
+    const backupObjects = join(rollbackRoot, 'objects');
 
     // If a staged item has moved, the corresponding staged path is absent and the
     // live path is the promoted copy. Remove only in that case; never delete the
@@ -44,7 +46,7 @@ async function rollbackMarker(dataDirectory: string, marker: RestoreMarker): Pro
     }
     const restoredDatabaseWasPromoted = !(await exists(stagedDatabase));
     for (const suffix of ['-wal', '-shm', '-journal']) {
-        const backupSidecar = join(dataDirectory, marker.rollbackDirectory, `northstar.sqlite${suffix}`);
+        const backupSidecar = join(rollbackRoot, `northstar.sqlite${suffix}`);
         if (await exists(backupSidecar)) {
             await rm(`${liveDatabase}${suffix}`, { force: true });
             await rename(backupSidecar, `${liveDatabase}${suffix}`);
@@ -52,7 +54,7 @@ async function rollbackMarker(dataDirectory: string, marker: RestoreMarker): Pro
             await rm(`${liveDatabase}${suffix}`, { force: true });
         }
     }
-    await rm(join(dataDirectory, marker.rollbackDirectory), { recursive: true, force: true });
+    await rm(rollbackRoot, { recursive: true, force: true });
     await rm(join(dataDirectory, MARKER_NAME), { force: true });
 }
 
@@ -70,9 +72,10 @@ export async function promoteStagedRestore(
     const restoreRoot = marker.restoreDirectory;
     await assertNoSymlinks(restoreRoot);
     await validateDatabase(join(restoreRoot, 'northstar.sqlite'));
-    const rollbackRoot = join(dataDirectory, marker.rollbackDirectory);
+    const rollbackRoot = assertRollbackDirectory(dataDirectory, marker.rollbackDirectory);
+    const relativeRollback = relative(dataDirectory, rollbackRoot);
     await mkdir(rollbackRoot, { recursive: true, mode: 0o700 });
-    const promoting = { ...marker, phase: 'promoting' as const };
+    const promoting = { ...marker, rollbackDirectory: relativeRollback, phase: 'promoting' as const };
     await writeMarker(dataDirectory, promoting);
     try {
         for (const suffix of ['', '-wal', '-shm', '-journal']) {
@@ -119,14 +122,13 @@ export async function rollbackPromotedRestore(dataDirectory: string): Promise<vo
 export async function commitPromotedRestore(dataDirectory: string): Promise<void> {
     const marker = await readMarker(dataDirectory);
     if (!marker || marker.phase !== 'promoted') throw new Error('There is no promoted restore to commit.');
+    const rollbackRoot = assertRollbackDirectory(dataDirectory, marker.rollbackDirectory);
     // Remove the marker first: a crash after this point leaves a valid promoted
     // workspace plus an orphan rollback folder, never an unrollbackable marker.
     await rm(join(dataDirectory, MARKER_NAME), { force: true });
     // Cleanup is best-effort after commit. A leftover recovery folder is safer
     // than reporting failure after the promoted workspace has become authoritative.
-    await rm(join(dataDirectory, marker.rollbackDirectory), { recursive: true, force: true }).catch(
-        () => undefined,
-    );
+    await rm(rollbackRoot, { recursive: true, force: true }).catch(() => undefined);
     await rm(marker.restoreDirectory, { recursive: true, force: true }).catch(() => undefined);
 }
 
@@ -139,7 +141,12 @@ export async function requestRollbackPromotedRestore(dataDirectory: string): Pro
     const marker = await readMarker(dataDirectory);
     if (!marker || marker.phase !== 'promoted')
         throw new Error('There is no promoted restore available to roll back.');
-    await writeMarker(dataDirectory, { ...marker, phase: 'rollback-requested' });
+    const rollbackRoot = assertRollbackDirectory(dataDirectory, marker.rollbackDirectory);
+    await writeMarker(dataDirectory, {
+        ...marker,
+        rollbackDirectory: relative(dataDirectory, rollbackRoot),
+        phase: 'rollback-requested',
+    });
 }
 
 export async function hasPromotedRestore(dataDirectory: string): Promise<boolean> {

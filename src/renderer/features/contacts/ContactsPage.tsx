@@ -326,7 +326,7 @@ export function ContactsPage({
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
-                                                        className="text-destructive focus:text-destructive"
+                                                        variant="destructive"
                                                         onSelect={() => setPendingRemoval(contact)}
                                                     >
                                                         <Trash2 className="size-4" />
@@ -346,8 +346,8 @@ export function ContactsPage({
                                                 </ContextMenuItem>
                                                 <ContextMenuSeparator />
                                                 <ContextMenuItem
+                                                    variant="destructive"
                                                     onSelect={() => setPendingRemoval(contact)}
-                                                    className="text-destructive focus:text-destructive"
                                                 >
                                                     <Trash2 className="size-4" />
                                                     Move to trash
@@ -403,7 +403,7 @@ export function ContactsPage({
                                 }}
                             >
                                 <Plus className="size-3.5" />
-                                Add contact
+                                Add first contact
                             </Button>
                         )}
                     </EmptyContent>
@@ -573,15 +573,26 @@ export function ContactsPage({
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Move contact to trash?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Historical activity and note mentions remain intact.
-                        </AlertDialogDescription>
+                        <div className="flex items-start gap-3.5">
+                            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-danger-subtle text-danger-foreground ring-1 ring-danger/25">
+                                <Trash2 className="size-4.5" aria-hidden="true" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+                                <AlertDialogTitle>Move contact to trash?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    {pendingRemoval
+                                        ? `“${pendingRemoval.name}” will be moved to trash. `
+                                        : ''}
+                                    Historical activity and note mentions remain intact.
+                                </AlertDialogDescription>
+                            </div>
+                        </div>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             disabled={busy}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={(e) => {
                                 e.preventDefault();
                                 void confirmRemoval();

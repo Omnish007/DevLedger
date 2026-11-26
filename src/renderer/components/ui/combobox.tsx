@@ -20,6 +20,7 @@ type ComboboxProps = {
     placeholder?: string;
     searchPlaceholder?: string;
     emptyLabel?: string;
+    ariaLabel?: string;
     disabled?: boolean;
     className?: string;
 };
@@ -31,6 +32,7 @@ function Combobox({
     placeholder = 'Select an option…',
     searchPlaceholder = 'Search options…',
     emptyLabel = 'No options found.',
+    ariaLabel,
     disabled,
     className,
 }: ComboboxProps) {
@@ -44,15 +46,16 @@ function Combobox({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
+                    aria-label={ariaLabel ?? selected?.label ?? placeholder}
                     disabled={disabled}
                     className={cn(
-                        'w-full justify-between gap-2 rounded-lg border-input/85 bg-surface-subtle/40 font-normal hover:border-border hover:bg-surface-subtle/80',
-                        !selected && 'text-muted-foreground',
+                        'w-full justify-between gap-2 rounded-lg border-input bg-card font-medium shadow-[var(--shadow-xs)] transition-[border-color,background-color,box-shadow] hover:border-border hover:bg-surface-subtle/60 data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20',
+                        !selected && 'font-normal text-muted-foreground',
                         className,
                     )}
                 >
                     <span className="min-w-0 truncate text-left">{selected?.label ?? placeholder}</span>
-                    <ChevronsUpDown className="size-3.5 shrink-0 opacity-55" />
+                    <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground transition-opacity" />
                 </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -64,32 +67,36 @@ function Combobox({
                     <CommandList>
                         <CommandEmpty>{emptyLabel}</CommandEmpty>
                         <CommandGroup>
-                            {options.map((option) => (
-                                <CommandItem
-                                    key={option.value}
-                                    value={`${option.label} ${option.value}`}
-                                    disabled={Boolean(option.disabled)}
-                                    onSelect={() => {
-                                        onValueChange(option.value);
-                                        setOpen(false);
-                                    }}
-                                >
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate font-medium">{option.label}</span>
-                                        {option.description && (
-                                            <span className="block truncate text-[11px] text-muted-foreground">
-                                                {option.description}
-                                            </span>
-                                        )}
-                                    </span>
-                                    <Check
-                                        className={cn(
-                                            'ml-auto size-3.5 shrink-0 text-primary',
-                                            value === option.value ? 'opacity-100' : 'opacity-0',
-                                        )}
-                                    />
-                                </CommandItem>
-                            ))}
+                            {options.map((option) => {
+                                const isChecked = value === option.value;
+                                return (
+                                    <CommandItem
+                                        key={option.value}
+                                        value={`${option.label} ${option.value}`}
+                                        disabled={Boolean(option.disabled)}
+                                        className={cn(isChecked && 'bg-primary/[0.08] font-medium')}
+                                        onSelect={() => {
+                                            onValueChange(option.value);
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate font-medium">{option.label}</span>
+                                            {option.description && (
+                                                <span className="block truncate text-[11px] text-muted-foreground">
+                                                    {option.description}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <Check
+                                            className={cn(
+                                                'ml-auto size-3.5 shrink-0 text-primary transition-opacity',
+                                                isChecked ? 'opacity-100' : 'opacity-0',
+                                            )}
+                                        />
+                                    </CommandItem>
+                                );
+                            })}
                         </CommandGroup>
                     </CommandList>
                 </Command>

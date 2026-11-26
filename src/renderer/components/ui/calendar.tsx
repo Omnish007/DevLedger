@@ -28,7 +28,7 @@ function Calendar({
         <div
             data-slot="calendar"
             className={cn(
-                'relative w-fit rounded-lg bg-popover p-3 text-popover-foreground [--cell-size:2.25rem]',
+                'relative w-full max-w-full select-none rounded-xl bg-popover p-3 text-popover-foreground [--cell-size:2.25rem]',
                 className,
             )}
         >
@@ -48,21 +48,21 @@ function Calendar({
                 classNames={{
                     ...defaults,
                     ...classNames,
-                    root: cn(defaults.root, 'w-fit', classNames?.root),
+                    root: cn(defaults.root, 'w-full', classNames?.root),
                     months: cn(
                         defaults.months,
-                        'relative flex flex-col gap-4 sm:flex-row',
+                        'relative flex w-full flex-col gap-4 sm:flex-row',
                         classNames?.months,
                     ),
-                    month: cn(defaults.month, 'flex w-full flex-col gap-3', classNames?.month),
+                    month: cn(defaults.month, 'flex w-full flex-col gap-2.5', classNames?.month),
                     month_caption: cn(
                         defaults.month_caption,
-                        'flex h-8 items-center justify-center px-9',
+                        'flex h-9 items-center justify-center px-10',
                         classNames?.month_caption,
                     ),
                     caption_label: cn(
                         defaults.caption_label,
-                        'inline-flex select-none items-center gap-1 text-sm font-medium',
+                        'inline-flex select-none items-center gap-1 text-[13px] font-semibold tracking-tight text-foreground',
                         classNames?.caption_label,
                     ),
                     dropdowns: cn(
@@ -72,7 +72,7 @@ function Calendar({
                     ),
                     dropdown_root: cn(
                         defaults.dropdown_root,
-                        'relative inline-flex h-7 items-center rounded-lg border border-input/85 bg-surface-subtle/50 px-2 text-xs font-medium transition-colors hover:border-border hover:bg-surface-subtle [&>select>option]:bg-popover [&>select>option]:text-popover-foreground',
+                        'relative inline-flex h-8 items-center rounded-lg border border-input bg-card px-2.5 text-xs font-medium shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle has-[select:focus-visible]:border-ring has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring/25 [&>select>option]:bg-popover [&>select>option]:text-popover-foreground',
                         classNames?.dropdown_root,
                     ),
                     dropdown: cn(
@@ -84,45 +84,45 @@ function Calendar({
                     years_dropdown: cn(defaults.years_dropdown, 'relative', classNames?.years_dropdown),
                     nav: cn(
                         defaults.nav,
-                        'pointer-events-none absolute inset-x-0 top-0 z-20 flex h-8 items-center justify-between',
+                        'pointer-events-none absolute inset-x-0 top-0 z-20 flex h-9 items-center justify-between',
                         classNames?.nav,
                     ),
                     button_previous: cn(
                         defaults.button_previous,
                         navButton,
-                        'pointer-events-auto relative z-20 size-8 p-0 text-muted-foreground hover:text-foreground',
+                        'pointer-events-auto relative z-20 size-8 rounded-lg border border-border/75 bg-card p-0 text-muted-foreground shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-accent hover:text-foreground',
                         classNames?.button_previous,
                     ),
                     button_next: cn(
                         defaults.button_next,
                         navButton,
-                        'pointer-events-auto relative z-20 size-8 p-0 text-muted-foreground hover:text-foreground',
+                        'pointer-events-auto relative z-20 size-8 rounded-lg border border-border/75 bg-card p-0 text-muted-foreground shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-accent hover:text-foreground',
                         classNames?.button_next,
                     ),
                     chevron: cn(defaults.chevron, 'shrink-0', classNames?.chevron),
                     month_grid: cn(defaults.month_grid, 'w-full border-collapse', classNames?.month_grid),
-                    weekdays: cn(defaults.weekdays, 'flex w-full', classNames?.weekdays),
+                    weekdays: cn(
+                        defaults.weekdays,
+                        'grid grid-cols-7 border-b border-border/50 pb-1.5',
+                        classNames?.weekdays,
+                    ),
                     weekday: cn(
                         defaults.weekday,
-                        'w-[var(--cell-size)] flex-1 rounded-md text-center text-[0.7rem] font-medium text-muted-foreground',
+                        'flex h-7 items-center justify-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground',
                         classNames?.weekday,
                     ),
-                    week: cn(defaults.week, 'mt-1 flex w-full', classNames?.week),
+                    week: cn(defaults.week, 'mt-1 grid grid-cols-7', classNames?.week),
                     day: cn(
                         defaults.day,
-                        'relative h-[var(--cell-size)] w-[var(--cell-size)] flex-1 p-0 text-center text-sm',
+                        'relative flex h-[var(--cell-size)] items-center justify-center p-0 text-center text-sm',
                         classNames?.day,
                     ),
                     day_button: cn(
                         defaults.day_button,
-                        'inline-flex size-[calc(var(--cell-size)-4px)] items-center justify-center rounded-md p-0 font-normal text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:pointer-events-none disabled:opacity-40 aria-selected:bg-primary aria-selected:text-primary-foreground',
+                        'inline-flex size-[calc(var(--cell-size)-4px)] items-center justify-center rounded-lg p-0 text-[13px] font-normal text-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover disabled:pointer-events-none disabled:opacity-40 aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:font-semibold',
                         classNames?.day_button,
                     ),
-                    today: cn(
-                        defaults.today,
-                        'rounded-md bg-accent text-accent-foreground',
-                        classNames?.today,
-                    ),
+                    today: cn(defaults.today, 'rounded-lg', classNames?.today),
                     outside: cn(
                         defaults.outside,
                         'text-muted-foreground/45 aria-selected:text-muted-foreground/70',
@@ -134,18 +134,10 @@ function Calendar({
                         classNames?.disabled,
                     ),
                     hidden: cn(defaults.hidden, 'invisible', classNames?.hidden),
-                    selected: cn(
-                        defaults.selected,
-                        'bg-primary text-primary-foreground',
-                        classNames?.selected,
-                    ),
-                    range_start: cn(defaults.range_start, 'rounded-s-md bg-accent', classNames?.range_start),
-                    range_middle: cn(
-                        defaults.range_middle,
-                        'rounded-none bg-accent text-accent-foreground',
-                        classNames?.range_middle,
-                    ),
-                    range_end: cn(defaults.range_end, 'rounded-e-md bg-accent', classNames?.range_end),
+                    selected: cn(defaults.selected, 'rounded-lg', classNames?.selected),
+                    range_start: cn(defaults.range_start, 'rounded-s-lg', classNames?.range_start),
+                    range_middle: cn(defaults.range_middle, 'rounded-none', classNames?.range_middle),
+                    range_end: cn(defaults.range_end, 'rounded-e-lg', classNames?.range_end),
                     week_number: cn(
                         defaults.week_number,
                         'w-[var(--cell-size)] text-center text-xs text-muted-foreground',

@@ -316,7 +316,7 @@ export function DocumentsPage({
                                 disabled={busy}
                             >
                                 <Plus className="size-3.5" />
-                                Import document
+                                Import first document
                             </Button>
                         </div>
                     )

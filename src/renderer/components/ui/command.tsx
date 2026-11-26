@@ -62,7 +62,7 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
     return (
         <CommandPrimitive.List
             data-slot="command-list"
-            className={cn('max-h-96 overflow-y-auto overflow-x-hidden scroll-py-1 p-1.5', className)}
+            className={cn('max-h-80 overflow-y-auto overflow-x-hidden scroll-py-1 p-1.5', className)}
             {...props}
         />
     );
@@ -71,7 +71,7 @@ function CommandEmpty({ className, ...props }: React.ComponentProps<typeof Comma
     return (
         <CommandPrimitive.Empty
             data-slot="command-empty"
-            className={cn('py-8 text-center text-sm text-muted-foreground', className)}
+            className={cn('py-7 text-center text-xs text-muted-foreground', className)}
             {...props}
         />
     );
@@ -81,7 +81,7 @@ function CommandGroup({ className, ...props }: React.ComponentProps<typeof Comma
         <CommandPrimitive.Group
             data-slot="command-group"
             className={cn(
-                'overflow-hidden p-0 text-foreground [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground',
+                'overflow-hidden p-0 text-foreground [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground',
                 className,
             )}
             {...props}
@@ -93,7 +93,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
         <CommandPrimitive.Item
             data-slot="command-item"
             className={cn(
-                'relative flex min-h-9 cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
+                'relative flex min-h-8 cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] outline-none transition-colors aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-45 [&_svg]:size-3.5 [&_svg]:shrink-0',
                 className,
             )}
             {...props}

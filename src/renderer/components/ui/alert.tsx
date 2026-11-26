@@ -3,13 +3,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const alertVariants = cva(
-    'relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border border-border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+    'relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-xl border border-border px-4 py-3 text-sm shadow-[var(--shadow-xs)] has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
     {
         variants: {
             variant: {
                 default: 'bg-card text-card-foreground',
                 destructive:
-                    'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
+                    'border-danger/30 bg-danger-subtle text-danger-foreground *:data-[slot=alert-description]:text-danger-foreground/90 [&>svg]:text-danger',
+                warning:
+                    'border-warning/30 bg-warning-subtle text-warning-foreground *:data-[slot=alert-description]:text-warning-foreground/90 [&>svg]:text-warning',
+                info: 'border-info/30 bg-info-subtle text-info-foreground *:data-[slot=alert-description]:text-info-foreground/90 [&>svg]:text-info',
             },
         },
         defaultVariants: { variant: 'default' },

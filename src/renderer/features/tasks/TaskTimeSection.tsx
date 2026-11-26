@@ -74,11 +74,13 @@ export function TaskTimeSection({
     }
 
     return (
-        <section className="space-y-2.5 border-t border-border pt-4 text-xs">
+        <section className="space-y-2.5 text-xs">
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground">Time log</h3>
-                    <span className="tabular-nums text-muted-foreground">· {totalMinutes}m logged</span>
+                    <h3 className="text-xs font-semibold text-foreground">Time log</h3>
+                    <span className="rounded-md bg-surface-subtle px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                        {totalMinutes}m logged
+                    </span>
                 </div>
                 <div className="flex items-center gap-1">
                     {runningHere ? (

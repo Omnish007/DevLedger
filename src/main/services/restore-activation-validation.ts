@@ -37,6 +37,13 @@ export function assertRestoreDirectory(dataDirectory: string, restoreDirectory: 
         throw new Error('The selected restore copy must be inside DevLedger restore-copies.');
     return candidate;
 }
+export function assertRollbackDirectory(dataDirectory: string, rollbackDirectory: string): string {
+    const root = resolve(dataDirectory, ROLLBACK_ROOT);
+    const candidate = resolve(dataDirectory, rollbackDirectory);
+    if (!isInside(root, candidate) || candidate === root)
+        throw new Error('The restore rollback path failed safety validation.');
+    return candidate;
+}
 export async function writeMarker(dataDirectory: string, marker: RestoreMarker): Promise<void> {
     const markerPath = join(dataDirectory, MARKER_NAME);
     const temporaryPath = `${markerPath}.${randomUUID()}.tmp`;
@@ -68,13 +75,7 @@ export async function readMarker(dataDirectory: string): Promise<RestoreMarker |
         throw new Error('The pending restore activation marker is invalid. The workspace was not changed.');
     }
     const restoreDirectory = assertRestoreDirectory(dataDirectory, parsed.restoreDirectory);
-    const rollbackDirectory = resolve(dataDirectory, parsed.rollbackDirectory);
-    if (
-        !isInside(resolve(dataDirectory, ROLLBACK_ROOT), rollbackDirectory) ||
-        rollbackDirectory === resolve(dataDirectory, ROLLBACK_ROOT)
-    ) {
-        throw new Error('The restore rollback path failed safety validation.');
-    }
+    const rollbackDirectory = assertRollbackDirectory(dataDirectory, parsed.rollbackDirectory);
     return { ...parsed, restoreDirectory, rollbackDirectory } as RestoreMarker;
 }
 

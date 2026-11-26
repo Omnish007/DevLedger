@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AlertTriangle, ShieldAlert, Trash2 } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,6 +17,7 @@ export interface ConfirmOptions {
     confirmLabel?: string;
     cancelLabel?: string;
     destructive?: boolean;
+    tone?: 'danger' | 'warning' | 'neutral';
 }
 
 type ConfirmRequest = ConfirmOptions & { id: number };
@@ -60,14 +62,35 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 {request && (
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>{request.title}</AlertDialogTitle>
-                            <AlertDialogDescription>{request.description}</AlertDialogDescription>
+                            <div className="flex items-start gap-3.5">
+                                <div
+                                    className={`grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${
+                                        request.destructive || request.tone === 'danger'
+                                            ? 'bg-danger-subtle text-danger-foreground ring-danger/25'
+                                            : request.tone === 'warning'
+                                              ? 'bg-warning-subtle text-warning-foreground ring-warning/25'
+                                              : 'bg-primary/10 text-primary ring-primary/20'
+                                    }`}
+                                >
+                                    {request.destructive || request.tone === 'danger' ? (
+                                        <Trash2 className="size-4.5" aria-hidden="true" />
+                                    ) : request.tone === 'warning' ? (
+                                        <AlertTriangle className="size-4.5" aria-hidden="true" />
+                                    ) : (
+                                        <ShieldAlert className="size-4.5" aria-hidden="true" />
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+                                    <AlertDialogTitle>{request.title}</AlertDialogTitle>
+                                    <AlertDialogDescription>{request.description}</AlertDialogDescription>
+                                </div>
+                            </div>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>{request.cancelLabel ?? 'Cancel'}</AlertDialogCancel>
                             <AlertDialogAction
                                 className={
-                                    request.destructive
+                                    request.destructive || request.tone === 'danger'
                                         ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                                         : undefined
                                 }

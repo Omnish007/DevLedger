@@ -35,7 +35,7 @@ export class AutomaticBackupManager {
         this.keyPath = join(dataDirectory, KEY_FILE);
     }
 
-    private saveSetting(key: string, value: unknown): void {
+    private saveSetting(key: string, value: unknown, notify = true): void {
         const timestamp = new Date().toISOString();
         this.db
             .prepare(
@@ -43,7 +43,7 @@ export class AutomaticBackupManager {
       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
             )
             .run(key, JSON.stringify(value), timestamp);
-        if (typeof value === 'string' && key.endsWith('LastError')) {
+        if (notify && typeof value === 'string' && key.endsWith('LastError')) {
             const isExternal = key.startsWith('backup.external');
             const isOffline = key.startsWith('backup.offline');
             const title = isExternal
@@ -111,8 +111,11 @@ export class AutomaticBackupManager {
         if (!(await this.secureBackendAvailable())) {
             const reason =
                 'A secure OS credential backend is unavailable. Automatic backups are disabled; create manual encrypted backups instead.';
+            const hadSnapshots = await readdir(this.backupDirectory)
+                .then((names) => names.some((name) => isAutomaticSnapshotName(name)))
+                .catch(() => false);
             this.saveSetting('backup.autoEnabled', false);
-            this.saveSetting('backup.autoLastError', reason);
+            this.saveSetting('backup.autoLastError', reason, hadSnapshots);
             return { enabled: false, reason };
         }
         await mkdir(this.backupDirectory, { recursive: true, mode: 0o700 });

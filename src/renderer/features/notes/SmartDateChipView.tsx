@@ -169,7 +169,7 @@ export function SmartDateChipView({
                 </PopoverTrigger>
                 <PopoverContent
                     align="start"
-                    className="w-[344px] max-h-[min(calc(var(--radix-popover-content-available-height)-8px),84vh)] overflow-y-auto bg-popover p-2.5"
+                    className="w-[356px] max-h-[min(calc(var(--radix-popover-content-available-height)-8px),84vh)] overflow-y-auto bg-popover p-3"
                 >
                     <div className="space-y-2">
                         <div
@@ -287,7 +287,7 @@ export function SmartDateChipView({
                             </div>
                         )}
 
-                        <div className="rounded-lg border border-border/80 bg-surface-subtle/25 p-1">
+                        <div className="rounded-xl border border-border/75 bg-card/70 p-0.5">
                             {rangeEnabled ? (
                                 <Calendar
                                     mode="range"
@@ -314,7 +314,7 @@ export function SmartDateChipView({
                                             }),
                                         );
                                     }}
-                                    className="mx-auto p-1 [--cell-size:1.85rem]"
+                                    className="mx-auto p-2 [--cell-size:2.1rem]"
                                 />
                             ) : (
                                 <Calendar
@@ -339,7 +339,7 @@ export function SmartDateChipView({
                                             }),
                                         );
                                     }}
-                                    className="mx-auto p-1 [--cell-size:1.85rem]"
+                                    className="mx-auto p-2 [--cell-size:2.1rem]"
                                 />
                             )}
                         </div>

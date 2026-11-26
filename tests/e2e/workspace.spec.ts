@@ -90,7 +90,7 @@ test('navigates core workspace views and exposes accessible page headings', asyn
     await expect(
         currentPage.getByRole('textbox', { name: 'Filter documents by title or filename' }),
     ).toBeVisible();
-    await expect(currentPage.getByRole('combobox', { name: 'Filter project' })).toBeVisible();
+    await expect(currentPage.getByRole('combobox', { name: /Filter project|All projects/ })).toBeVisible();
     await expect(currentPage.getByRole('button', { name: 'Refresh documents' })).toBeVisible();
     await expect(currentPage.getByRole('checkbox', { name: 'Encrypt with vault' })).toBeDisabled();
 });

@@ -144,7 +144,7 @@ export class SemanticSearchService {
                         ? "status = 'in_progress'"
                         : "status NOT IN ('completed', 'cancelled') AND ((due_date IS NOT NULL AND due_date < date('now', 'localtime')) OR (due_date IS NULL AND due_at IS NOT NULL AND due_at < ?))";
             clauses.push(
-                `source_type = 'task' AND EXISTS (SELECT 1 FROM tasks t WHERE t.id = sc.source_id AND ${statusPredicate})`,
+                `source_type = 'task' AND EXISTS (SELECT 1 FROM tasks t WHERE t.id = sc.source_id AND t.deleted_at IS NULL AND ${statusPredicate})`,
             );
             if (filters.status === 'overdue') params.push(new Date().toISOString());
         }
@@ -221,8 +221,14 @@ export class SemanticSearchService {
         }
 
         const best = new Map<string, { result: SearchResult; score: number }>();
+        let inspectedCount = 0;
+        let dimensionMismatchCount = 0;
         for (const row of rows) {
-            if (Number(row['dimensions']) !== queryVector.length) continue;
+            inspectedCount += 1;
+            if (Number(row['dimensions']) !== queryVector.length) {
+                dimensionMismatchCount += 1;
+                continue;
+            }
             let vector: number[];
             try {
                 vector = JSON.parse(String(row['vector_json'])) as number[];
@@ -246,6 +252,11 @@ export class SemanticSearchService {
                     updatedAt: String(row['source_updated_at']),
                 },
             });
+        }
+        if (inspectedCount > 0 && dimensionMismatchCount === inspectedCount) {
+            throw new Error(
+                'The active semantic index vector dimensions do not match the embedding model. Rebuild the semantic index in Settings.',
+            );
         }
         return [...best.values()]
             .sort((a, b) => b.score - a.score)

@@ -4,7 +4,7 @@ import { ContextMenu as ContextMenuPrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const CTX_SURFACE =
-    'z-50 min-w-[11rem] overflow-hidden rounded-xl border border-border/85 bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45),0_2px_10px_-2px_rgba(0,0,0,0.18)] outline-none';
+    'z-50 min-w-[12.5rem] overflow-hidden rounded-xl border border-border/90 bg-popover/98 p-1.5 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md outline-none';
 
 function ContextMenu(props: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
     return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />;
@@ -29,14 +29,19 @@ function ContextMenuContent({
 function ContextMenuItem({
     className,
     inset,
+    variant = 'default',
     ...props
-}: React.ComponentProps<typeof ContextMenuPrimitive.Item> & { inset?: boolean }) {
+}: React.ComponentProps<typeof ContextMenuPrimitive.Item> & {
+    inset?: boolean;
+    variant?: 'default' | 'destructive';
+}) {
     return (
         <ContextMenuPrimitive.Item
             data-slot="context-menu-item"
             data-inset={inset}
+            data-variant={variant}
             className={cn(
-                'relative flex cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] outline-none transition-colors focus:bg-accent/85 focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset=true]:pl-8 [&_svg]:size-3.5 [&_svg]:shrink-0',
+                'relative flex min-h-8 cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-danger data-[variant=destructive]:focus:bg-danger-subtle data-[variant=destructive]:focus:text-danger-foreground data-[variant=destructive]:[&_svg]:text-danger/85 data-[disabled]:pointer-events-none data-[disabled]:opacity-45 data-[inset=true]:pl-8 [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
                 className,
             )}
             {...props}

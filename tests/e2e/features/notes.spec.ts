@@ -22,8 +22,9 @@ test('creates and autosaves Unicode and script-like note content, then reloads i
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await page.getByRole('button', { name: 'Notes', exact: true }).click();
     await page.getByRole('textbox', { name: 'Filter notes by title or contents' }).fill(title);
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
-    await page.getByText(title, { exact: true }).click();
+    const noteButton = page.getByRole('button', { name: title });
+    await expect(noteButton).toBeVisible();
+    await noteButton.click();
     await expect(page.getByPlaceholder('Untitled note')).toHaveValue(title);
     await expect(page.locator('.notes-writing-canvas [contenteditable="true"]')).toContainText('東京 🧭');
     expect(

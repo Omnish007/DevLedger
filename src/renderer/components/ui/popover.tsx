@@ -3,7 +3,7 @@ import { Popover as PopoverPrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const POPOVER_ELEVATED =
-    'z-50 w-72 rounded-xl border border-border bg-popover p-3.5 text-popover-foreground opacity-100 shadow-[var(--shadow-popover)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-75';
+    'z-50 w-72 rounded-xl border border-border/90 bg-popover/98 p-3.5 text-popover-foreground opacity-100 shadow-[var(--shadow-popover)] backdrop-blur-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-100';
 
 function Popover(props: React.ComponentProps<typeof PopoverPrimitive.Root>) {
     return <PopoverPrimitive.Root data-slot="popover" {...props} />;

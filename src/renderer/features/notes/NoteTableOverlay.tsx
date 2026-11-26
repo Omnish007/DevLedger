@@ -22,6 +22,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { NoteTableDragPreview, type TableDragIndicator } from './NoteTableDragPreview';
 import {
     applyLiveDomColumnPcts,
     commitColumnWidthsPct,
@@ -84,11 +85,7 @@ export function NoteTableOverlay({
     const [metrics, setMetrics] = useState<OverlayMetrics | null>(null);
     const [colMenuOpen, setColMenuOpen] = useState(false);
     const [rowMenuOpen, setRowMenuOpen] = useState(false);
-    const [dragIndicator, setDragIndicator] = useState<
-        | { kind: 'col'; colIndex: number; left: number; label: string }
-        | { kind: 'row'; rowIndex: number; top: number; label: string }
-        | null
-    >(null);
+    const [dragIndicator, setDragIndicator] = useState<TableDragIndicator | null>(null);
 
     const hideTimerRef = useRef<number | null>(null);
     const openMenuRef = useRef(false);
@@ -296,14 +293,19 @@ export function NoteTableOverlay({
     }
 
     function startColumnResize(event: ReactMouseEvent<HTMLDivElement>, divider: ColDivider) {
-        if (!editor || !activeTarget || !metrics) return;
+        if (!editor || !activeTarget || !metrics || !canvasRef.current) return;
         event.preventDefault();
         event.stopPropagation();
         const { tableEl, cellEl } = activeTarget;
+        const canvas = canvasRef.current;
         const startX = event.clientX;
         const totalWidth = Math.max(120, tableEl.getBoundingClientRect().width);
         const startPcts = readDomColumnPcts(tableEl);
         if (divider.colIndex + 1 >= startPcts.length) return;
+        const headerRow = tableEl.rows[0];
+        const initialLeftCellWidth = Math.round(
+            headerRow?.cells[divider.colIndex]?.getBoundingClientRect().width ?? 0,
+        );
 
         isDraggingRef.current = true;
         clearHideTimer();
@@ -311,6 +313,37 @@ export function NoteTableOverlay({
         const pairSum = startPcts[divider.colIndex]! + startPcts[divider.colIndex + 1]!;
         const minPct = Math.max(10, Number(((56 / totalWidth) * 100).toFixed(1)));
         let latestPcts = [...startPcts];
+
+        const publishColPreview = (leftPct: number, rightPct: number) => {
+            const canvasRect = canvas.getBoundingClientRect();
+            const leftCellRect = headerRow?.cells[divider.colIndex]?.getBoundingClientRect();
+            const rightCellRect = headerRow?.cells[divider.colIndex + 1]?.getBoundingClientRect();
+            const deltaX = ((leftPct - startPcts[divider.colIndex]!) / 100) * totalWidth;
+            const splitX = leftCellRect ? leftCellRect.right - canvasRect.left : divider.left + deltaX;
+            const leftColLeft = leftCellRect
+                ? leftCellRect.left - canvasRect.left
+                : splitX - Math.round((leftPct / 100) * totalWidth);
+            const leftColWidth = Math.round(leftCellRect?.width ?? (leftPct / 100) * totalWidth);
+            const rightColWidth = Math.round(rightCellRect?.width ?? (rightPct / 100) * totalWidth);
+            const deltaPx = leftColWidth - initialLeftCellWidth;
+            const clamped = leftPct <= minPct + 0.05 || rightPct <= minPct + 0.05;
+            setDragIndicator({
+                kind: 'col',
+                colIndex: divider.colIndex,
+                left: splitX,
+                startLeft: divider.left,
+                leftColLeft,
+                leftColWidth,
+                rightColWidth,
+                leftPct: Math.round(leftPct),
+                rightPct: Math.round(rightPct),
+                deltaPx,
+                clamped,
+                label: `${leftColWidth}px (${Math.round(leftPct)}%) ↔ ${rightColWidth}px (${Math.round(rightPct)}%)`,
+            });
+        };
+
+        publishColPreview(startPcts[divider.colIndex]!, startPcts[divider.colIndex + 1]!);
 
         const onMove = (moveEvent: MouseEvent) => {
             const deltaPct = ((moveEvent.clientX - startX) / totalWidth) * 100;
@@ -324,13 +357,7 @@ export function NoteTableOverlay({
             latestPcts[divider.colIndex] = leftPct;
             latestPcts[divider.colIndex + 1] = rightPct;
             applyLiveDomColumnPcts(tableEl, latestPcts);
-            const deltaX = ((leftPct - startPcts[divider.colIndex]!) / 100) * totalWidth;
-            setDragIndicator({
-                kind: 'col',
-                colIndex: divider.colIndex,
-                left: divider.left + deltaX,
-                label: `${Math.round(leftPct)}% · ${Math.round(rightPct)}%`,
-            });
+            publishColPreview(leftPct, rightPct);
             window.requestAnimationFrame(measure);
         };
 
@@ -349,18 +376,43 @@ export function NoteTableOverlay({
     }
 
     function startRowResize(event: ReactMouseEvent<HTMLDivElement>, divider: RowDivider) {
-        if (!editor || !activeTarget) return;
+        if (!editor || !activeTarget || !canvasRef.current) return;
         event.preventDefault();
         event.stopPropagation();
+        const canvas = canvasRef.current;
         const startY = event.clientY;
-        const startHeight = divider.height;
+        const startHeight = Math.round(divider.height);
         const targetCell = divider.rowEl.cells[0];
         if (!targetCell) return;
 
         isDraggingRef.current = true;
         clearHideTimer();
         document.body.style.cursor = 'row-resize';
-        let latestHeight = Math.round(startHeight);
+        let latestHeight = startHeight;
+
+        const publishRowPreview = (targetHeight: number) => {
+            const canvasRect = canvas.getBoundingClientRect();
+            const rowRect = divider.rowEl.getBoundingClientRect();
+            const actualHeight = Math.round(rowRect.height);
+            const clampedToContent = targetHeight < actualHeight - 1;
+            const deltaPx = actualHeight - startHeight;
+            setDragIndicator({
+                kind: 'row',
+                rowIndex: divider.rowIndex,
+                rowTop: rowRect.top - canvasRect.top,
+                top: rowRect.bottom - canvasRect.top,
+                startTop: divider.top,
+                actualHeight,
+                targetHeight,
+                deltaPx,
+                clampedToContent,
+                label: clampedToContent
+                    ? `Row ${divider.rowIndex + 1} · ${actualHeight}px (min content)`
+                    : `Row ${divider.rowIndex + 1} · ${actualHeight}px${deltaPx === 0 ? '' : ` (${deltaPx > 0 ? `+${deltaPx}` : deltaPx}px)`}`,
+            });
+        };
+
+        publishRowPreview(startHeight);
 
         const onMove = (moveEvent: MouseEvent) => {
             latestHeight = Math.min(
@@ -368,12 +420,7 @@ export function NoteTableOverlay({
                 Math.max(36, Math.round(startHeight + (moveEvent.clientY - startY))),
             );
             divider.rowEl.style.height = `${latestHeight}px`;
-            setDragIndicator({
-                kind: 'row',
-                rowIndex: divider.rowIndex,
-                top: divider.top + (latestHeight - startHeight),
-                label: `${latestHeight}px`,
-            });
+            publishRowPreview(latestHeight);
             window.requestAnimationFrame(measure);
         };
 
@@ -476,24 +523,13 @@ export function NoteTableOverlay({
                 );
             })}
 
-            {/* Live resize readout badge */}
-            {dragIndicator && (
-                <div
-                    style={
-                        dragIndicator.kind === 'col'
-                            ? { left: dragIndicator.left, top: Math.max(4, metrics.tableTop - 26) }
-                            : {
-                                  left: metrics.tableLeft + metrics.tableWidth - 6,
-                                  top: dragIndicator.top - 12,
-                              }
-                    }
-                    className={`pointer-events-none absolute z-30 rounded-md border border-primary/40 bg-popover px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary shadow-sm ${
-                        dragIndicator.kind === 'col' ? '-translate-x-1/2' : '-translate-x-full'
-                    }`}
-                >
-                    {dragIndicator.label}
-                </div>
-            )}
+            <NoteTableDragPreview
+                indicator={dragIndicator}
+                tableLeft={metrics.tableLeft}
+                tableTop={metrics.tableTop}
+                tableWidth={metrics.tableWidth}
+                tableHeight={metrics.tableHeight}
+            />
 
             {/* Top column grip handle */}
             <Popover open={colMenuOpen} onOpenChange={setColMenuOpen}>

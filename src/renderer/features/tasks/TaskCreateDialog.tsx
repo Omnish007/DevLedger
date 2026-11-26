@@ -1,4 +1,5 @@
 import type { UseFormReturn } from 'react-hook-form';
+import { ListPlus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -44,147 +45,173 @@ export function TaskCreateDialog({
                 if (!next) onClose();
             }}
         >
-            <DialogContent className="w-[min(94vw,640px)] p-6">
-                <DialogHeader>
-                    <DialogTitle>New task</DialogTitle>
-                    <DialogDescription>Add a task to your project.</DialogDescription>
+            <DialogContent className="w-[min(94vw,660px)] gap-0 overflow-hidden rounded-2xl p-0">
+                <DialogHeader className="border-b border-border/75 bg-surface-subtle/35 px-6 py-4 pr-12">
+                    <div className="flex items-center gap-3">
+                        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                            <ListPlus className="size-4.5" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0">
+                            <DialogTitle>New task</DialogTitle>
+                            <DialogDescription>Add a task to your project.</DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
-                <form onSubmit={onSubmit} noValidate className="space-y-4">
-                    <div className="space-y-2.5">
-                        <label className="block space-y-1.5 text-xs font-medium">
-                            <span>Title</span>
-                            <Input
-                                autoFocus
-                                {...form.register('title')}
-                                placeholder="What needs to be done?"
-                                maxLength={240}
-                                className="h-10 text-sm font-medium"
-                                aria-invalid={Boolean(form.formState.errors.title)}
-                            />
-                            {form.formState.errors.title && (
-                                <p className="text-[11px] text-danger" role="alert">
-                                    {form.formState.errors.title.message}
-                                </p>
-                            )}
-                        </label>
-                        <label className="block space-y-1.5 text-xs font-medium">
-                            <span>
-                                Description{' '}
-                                <span className="font-normal text-muted-foreground">(optional)</span>
-                            </span>
-                            <Textarea
-                                aria-label="Task description"
-                                {...form.register('description')}
-                                placeholder="Add context, links or acceptance notes…"
-                                rows={3}
-                            />
-                            {form.formState.errors.description && (
-                                <p className="text-[11px] text-danger" role="alert">
-                                    {form.formState.errors.description.message}
-                                </p>
-                            )}
-                        </label>
-                    </div>
 
-                    <div className="grid gap-3 border-t border-border pt-3.5 sm:grid-cols-2">
-                        <div className="space-y-1.5 text-xs font-medium">
-                            <span>Project</span>
-                            <RemoteRecordPicker
-                                entityType="project"
-                                value={selectedProject}
-                                onValueChange={(value) => onProjectChange(value)}
-                                onChoiceChange={(choice) => onProjectChange(choice?.id ?? '', choice?.label)}
-                                placeholder="Choose project"
-                                selectedLabel={selectedProjectLabel}
-                            />
-                            {form.formState.errors.projectId && (
-                                <p className="text-[11px] text-danger" role="alert">
-                                    {form.formState.errors.projectId.message}
-                                </p>
-                            )}
-                        </div>
-
-                        <label className="block space-y-1.5 text-xs font-medium">
-                            <span>Priority</span>
-                            <NativeSelect
-                                aria-label="Priority"
-                                {...form.register('priority')}
-                                className="h-9 w-full text-xs"
-                            >
-                                <NativeSelectOption value="low">Low</NativeSelectOption>
-                                <NativeSelectOption value="medium">Medium</NativeSelectOption>
-                                <NativeSelectOption value="high">High</NativeSelectOption>
-                                <NativeSelectOption value="urgent">Urgent</NativeSelectOption>
-                            </NativeSelect>
-                        </label>
-
-                        <div className="sm:col-span-2">
-                            <SmartDateField
-                                label="Due date & time"
-                                value={dueAt}
-                                onChange={(next) =>
-                                    form.setValue('dueAt', next, { shouldDirty: true, shouldValidate: true })
-                                }
-                                compact
-                            />
-                            {form.formState.errors.dueAt && (
-                                <p className="mt-1 text-[11px] text-danger" role="alert">
-                                    {form.formState.errors.dueAt.message}
-                                </p>
-                            )}
-                        </div>
-
-                        <label className="block space-y-1.5 text-xs font-medium">
-                            <span>
-                                Estimate <span className="font-normal text-muted-foreground">(optional)</span>
-                            </span>
-                            <div className="relative">
+                <form onSubmit={onSubmit} noValidate>
+                    <div className="space-y-5 px-6 py-5">
+                        <div className="space-y-3">
+                            <label className="block space-y-1.5 text-xs font-medium">
+                                <span>Title</span>
                                 <Input
-                                    type="number"
-                                    min="0"
-                                    max="525600"
-                                    {...form.register('estimate')}
-                                    placeholder="e.g. 45"
-                                    className="pr-11"
-                                    aria-invalid={Boolean(form.formState.errors.estimate)}
+                                    autoFocus
+                                    {...form.register('title')}
+                                    placeholder="What needs to be done?"
+                                    maxLength={240}
+                                    className="h-10 text-sm font-medium"
+                                    aria-invalid={Boolean(form.formState.errors.title)}
                                 />
-                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                    min
+                                {form.formState.errors.title && (
+                                    <p className="text-[11px] text-danger" role="alert">
+                                        {form.formState.errors.title.message}
+                                    </p>
+                                )}
+                            </label>
+                            <label className="block space-y-1.5 text-xs font-medium">
+                                <span>
+                                    Description{' '}
+                                    <span className="font-normal text-muted-foreground">(optional)</span>
                                 </span>
-                            </div>
-                            {form.formState.errors.estimate && (
-                                <p className="text-[11px] text-danger" role="alert">
-                                    {form.formState.errors.estimate.message}
-                                </p>
-                            )}
-                        </label>
-
-                        <div className="space-y-1.5 text-xs font-medium">
-                            <span>
-                                Parent task{' '}
-                                <span className="font-normal text-muted-foreground">(optional)</span>
-                            </span>
-                            <RemoteRecordPicker
-                                entityType="task"
-                                value={parentId}
-                                onValueChange={(value) => form.setValue('parentId', value)}
-                                projectId={selectedProject || null}
-                                includeCompleted={false}
-                                disabled={!selectedProject}
-                                placeholder={selectedProject ? 'Top-level task' : 'Select a project first'}
-                                selectedLabel={selectedParentLabel}
-                            />
+                                <Textarea
+                                    aria-label="Task description"
+                                    {...form.register('description')}
+                                    placeholder="Add context, links or acceptance notes…"
+                                    rows={3}
+                                    className="resize-y"
+                                />
+                                {form.formState.errors.description && (
+                                    <p className="text-[11px] text-danger" role="alert">
+                                        {form.formState.errors.description.message}
+                                    </p>
+                                )}
+                            </label>
                         </div>
+
+                        <div className="space-y-3.5 rounded-xl border border-border/80 bg-surface-subtle/30 p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Schedule & properties
+                            </p>
+                            <div className="grid gap-3.5 sm:grid-cols-2">
+                                <div className="space-y-1.5 text-xs font-medium">
+                                    <span>Project</span>
+                                    <RemoteRecordPicker
+                                        entityType="project"
+                                        value={selectedProject}
+                                        onValueChange={(value) => onProjectChange(value)}
+                                        onChoiceChange={(choice) =>
+                                            onProjectChange(choice?.id ?? '', choice?.label)
+                                        }
+                                        placeholder="Choose project"
+                                        ariaLabel={selectedProjectLabel || 'Choose project'}
+                                        selectedLabel={selectedProjectLabel}
+                                    />
+                                    {form.formState.errors.projectId && (
+                                        <p className="text-[11px] text-danger" role="alert">
+                                            {form.formState.errors.projectId.message}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <label className="block space-y-1.5 text-xs font-medium">
+                                    <span>Priority</span>
+                                    <NativeSelect
+                                        aria-label="Priority"
+                                        {...form.register('priority')}
+                                        className="h-9 w-full text-xs"
+                                    >
+                                        <NativeSelectOption value="low">Low</NativeSelectOption>
+                                        <NativeSelectOption value="medium">Medium</NativeSelectOption>
+                                        <NativeSelectOption value="high">High</NativeSelectOption>
+                                        <NativeSelectOption value="urgent">Urgent</NativeSelectOption>
+                                    </NativeSelect>
+                                </label>
+
+                                <div className="sm:col-span-2">
+                                    <SmartDateField
+                                        label="Due date & time"
+                                        value={dueAt}
+                                        onChange={(next) =>
+                                            form.setValue('dueAt', next, {
+                                                shouldDirty: true,
+                                                shouldValidate: true,
+                                            })
+                                        }
+                                        compact
+                                    />
+                                    {form.formState.errors.dueAt && (
+                                        <p className="mt-1 text-[11px] text-danger" role="alert">
+                                            {form.formState.errors.dueAt.message}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <label className="block space-y-1.5 text-xs font-medium">
+                                    <span>
+                                        Estimate{' '}
+                                        <span className="font-normal text-muted-foreground">(optional)</span>
+                                    </span>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            max="525600"
+                                            {...form.register('estimate')}
+                                            placeholder="e.g. 45"
+                                            className="pr-11"
+                                            aria-invalid={Boolean(form.formState.errors.estimate)}
+                                        />
+                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                            min
+                                        </span>
+                                    </div>
+                                    {form.formState.errors.estimate && (
+                                        <p className="text-[11px] text-danger" role="alert">
+                                            {form.formState.errors.estimate.message}
+                                        </p>
+                                    )}
+                                </label>
+
+                                <div className="space-y-1.5 text-xs font-medium">
+                                    <span>
+                                        Parent task{' '}
+                                        <span className="font-normal text-muted-foreground">(optional)</span>
+                                    </span>
+                                    <RemoteRecordPicker
+                                        entityType="task"
+                                        value={parentId}
+                                        onValueChange={(value) => form.setValue('parentId', value)}
+                                        projectId={selectedProject || null}
+                                        includeCompleted={false}
+                                        disabled={!selectedProject}
+                                        placeholder={
+                                            selectedProject ? 'Top-level task' : 'Select a project first'
+                                        }
+                                        selectedLabel={selectedParentLabel}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {(form.formState.errors.root?.message || error) && (
+                            <Alert variant="destructive" className="py-2.5">
+                                <AlertDescription>
+                                    {form.formState.errors.root?.message || error}
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
 
-                    {(form.formState.errors.root?.message || error) && (
-                        <Alert variant="destructive" className="py-2">
-                            <AlertDescription>
-                                {form.formState.errors.root?.message || error}
-                            </AlertDescription>
-                        </Alert>
-                    )}
-                    <div className="flex justify-end gap-2 border-t border-border pt-3">
+                    <div className="flex items-center justify-end gap-2 border-t border-border/75 bg-surface-subtle/45 px-6 py-3.5">
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>

@@ -84,11 +84,11 @@ export function SettingsSystemTab() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 text-xs">
             {error && (
                 <p
                     role="alert"
-                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
+                    className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -96,17 +96,17 @@ export function SettingsSystemTab() {
             {notice && (
                 <p
                     role="status"
-                    className="rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
+                    className="rounded-xl border border-border bg-surface-subtle px-4 py-3 text-foreground"
                 >
                     {notice}
                 </p>
             )}
 
-            <section className="workspace-surface p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-                    <div>
+            <section className="workspace-surface space-y-4 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/75 pb-3.5">
+                    <div className="space-y-0.5">
                         <h2 className="text-sm font-semibold">Workspace maintenance & background jobs</h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="text-muted-foreground">
                             Rebuild full-text indexes, verify document hashes, and optimize SQLite storage.
                         </p>
                     </div>
@@ -116,47 +116,62 @@ export function SettingsSystemTab() {
                     </Button>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void enqueue('search.rebuild')}
-                    >
-                        Rebuild search index
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void enqueue('storage.audit')}
-                    >
-                        Audit document storage
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void enqueue('maintenance.optimize')}
-                    >
-                        Optimize database
-                    </Button>
+                <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="flex flex-col justify-between gap-2.5 rounded-xl border border-border/80 bg-surface-subtle/30 p-3.5">
+                        <p className="text-muted-foreground">
+                            Recreate FTS5 tables across notes, tasks, contacts, and documents.
+                        </p>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => void enqueue('search.rebuild')}
+                        >
+                            Rebuild search index
+                        </Button>
+                    </div>
+                    <div className="flex flex-col justify-between gap-2.5 rounded-xl border border-border/80 bg-surface-subtle/30 p-3.5">
+                        <p className="text-muted-foreground">
+                            Verify SHA-256 object checksums for all imported files.
+                        </p>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => void enqueue('storage.audit')}
+                        >
+                            Audit document storage
+                        </Button>
+                    </div>
+                    <div className="flex flex-col justify-between gap-2.5 rounded-xl border border-border/80 bg-surface-subtle/30 p-3.5">
+                        <p className="text-muted-foreground">
+                            Compact WAL frames and refresh SQLite query planner stats.
+                        </p>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => void enqueue('maintenance.optimize')}
+                        >
+                            Optimize database
+                        </Button>
+                    </div>
                 </div>
 
                 {jobsPage.items.length ? (
-                    <div className="mt-4 divide-y divide-border rounded-md border border-border">
+                    <div className="divide-y divide-border/75 rounded-xl border border-border/80 bg-card">
                         {jobsPage.items.map((job) => {
                             const percent =
                                 typeof job.progress['percent'] === 'number'
                                     ? Math.max(0, Math.min(100, job.progress['percent']))
                                     : null;
                             return (
-                                <div key={job.id} className="space-y-1.5 px-3.5 py-2.5 text-xs">
+                                <div key={job.id} className="space-y-1.5 px-4 py-3 text-xs">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="min-w-0 flex-1 truncate font-medium">
+                                        <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                                             {JOB_LABELS[job.kind] ?? job.kind}
                                         </span>
                                         <Badge
@@ -172,7 +187,7 @@ export function SettingsSystemTab() {
                                         >
                                             {job.status}
                                         </Badge>
-                                        <span className="text-muted-foreground">
+                                        <span className="tabular-nums text-muted-foreground">
                                             Attempt {job.attempts}/{job.maxAttempts}
                                         </span>
                                         {(job.status === 'queued' || job.status === 'running') && (
@@ -204,7 +219,7 @@ export function SettingsSystemTab() {
                         })}
                     </div>
                 ) : (
-                    <p className="mt-4 text-xs text-muted-foreground">No background jobs queued.</p>
+                    <p className="py-2 text-center text-muted-foreground">No background jobs queued.</p>
                 )}
                 <PageControls
                     offset={jobsPage.offset}
@@ -212,41 +227,42 @@ export function SettingsSystemTab() {
                     total={jobsPage.total}
                     onPageChange={setJobsOffset}
                     disabled={busy}
-                    className="mt-3"
                 />
             </section>
 
-            <section className="workspace-surface p-5">
-                <div className="flex items-center justify-between border-b border-border pb-3">
-                    <div>
+            <section className="workspace-surface space-y-4 p-6">
+                <div className="flex items-center justify-between border-b border-border/75 pb-3.5">
+                    <div className="space-y-0.5">
                         <h2 className="text-sm font-semibold">Activity history</h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="text-muted-foreground">
                             Audit log of workspace edits, timers, blockers and maintenance runs.
                         </p>
                     </div>
-                    <Badge variant="secondary">{activityPage.total}</Badge>
+                    <Badge variant="secondary" className="tabular-nums">
+                        {activityPage.total}
+                    </Badge>
                 </div>
                 {activityPage.items.length ? (
-                    <div className="divide-y divide-border">
+                    <div className="divide-y divide-border/75 rounded-xl border border-border/80 bg-surface-subtle/20">
                         {activityPage.items.map((item) => (
                             <div
                                 key={item.id}
-                                className="flex items-start justify-between gap-3 py-2.5 text-xs"
+                                className="flex items-start justify-between gap-3 px-4 py-3 text-xs"
                             >
-                                <div className="min-w-0">
-                                    <p className="font-medium">{item.summary}</p>
-                                    <p className="text-muted-foreground capitalize">
+                                <div className="min-w-0 space-y-0.5">
+                                    <p className="font-medium text-foreground">{item.summary}</p>
+                                    <p className="capitalize text-muted-foreground">
                                         {item.entityType} · {item.eventType.replaceAll('_', ' ')}
                                     </p>
                                 </div>
-                                <time className="shrink-0 text-muted-foreground">
+                                <time className="shrink-0 tabular-nums text-muted-foreground">
                                     {formatRelative(item.createdAt)}
                                 </time>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p className="py-6 text-center text-xs text-muted-foreground">
+                    <p className="py-6 text-center text-muted-foreground">
                         Activity appears here as you work.
                     </p>
                 )}
@@ -256,7 +272,6 @@ export function SettingsSystemTab() {
                     total={activityPage.total}
                     onPageChange={setActivityOffset}
                     disabled={busy}
-                    className="mt-3 border-t border-border pt-3"
                 />
             </section>
         </div>

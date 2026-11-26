@@ -85,7 +85,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
             {error && (
                 <p
                     role="alert"
-                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
+                    className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-xs text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -93,17 +93,17 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
             {message && (
                 <p
                     role="status"
-                    className="break-all rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
+                    className="break-all rounded-xl border border-border bg-surface-subtle px-4 py-3 text-xs text-foreground"
                 >
                     {message}
                 </p>
             )}
 
-            <section className="workspace-surface space-y-4 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-                    <div>
+            <section className="workspace-surface space-y-4 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/75 pb-3.5">
+                    <div className="space-y-0.5">
                         <h2 className="text-sm font-semibold">Encrypted backups & destinations</h2>
-                        <p className="mt-0.5 text-muted-foreground">
+                        <p className="text-muted-foreground">
                             Consistent SQLite + object archives verified with SHA-256.
                         </p>
                     </div>
@@ -117,81 +117,104 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                     </p>
                 )}
                 {autoError && (
-                    <p className="rounded-lg border border-warning/30 bg-warning-subtle p-3 text-warning-foreground">
+                    <p className="rounded-xl border border-warning/30 bg-warning-subtle px-3.5 py-2.5 text-warning-foreground">
                         {autoError}
                     </p>
                 )}
 
-                {[
-                    {
-                        label: 'Independent backup destination',
-                        dir: extDir,
-                        keyDir: 'backup.externalDirectory',
-                        keySame: 'backup.externalSameVolume',
-                        choose: props.onChooseExternalBackupDestination,
-                        clear: props.onClearExternalBackupDestination,
-                        btn: 'Choose drive',
-                    },
-                    {
-                        label: 'Second removable / offline drive',
-                        dir: offDir,
-                        keyDir: 'backup.offlineDirectory',
-                        keySame: 'backup.offlineSameVolume',
-                        choose: props.onChooseOfflineBackupDestination,
-                        clear: props.onClearOfflineBackupDestination,
-                        btn: 'Choose second drive',
-                    },
-                ].map((dest) => (
-                    <div
-                        key={dest.keyDir}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-subtle p-3"
-                    >
-                        <div className="min-w-0 flex-1">
-                            <p className="font-medium">{dest.label}</p>
-                            <p className="mt-0.5 break-all text-muted-foreground">
-                                {dest.dir ?? 'Not configured'}
-                            </p>
-                        </div>
-                        <div className="flex gap-1.5">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={saving}
-                                onClick={() =>
-                                    void runAction(async () => {
-                                        const picked = await dest.choose();
-                                        if (!picked) return;
-                                        await props.onSettingChange(dest.keyDir, picked.directory);
-                                        await props.onSettingChange(dest.keySame, picked.sameVolume);
-                                        setMessage('Backup destination updated.');
-                                    }, 'Could not save destination.')
-                                }
-                            >
-                                {dest.btn}
-                            </Button>
-                            {dest.dir && (
+                <div className="grid gap-3 md:grid-cols-2">
+                    {[
+                        {
+                            label: 'Independent backup destination',
+                            dir: extDir,
+                            keyDir: 'backup.externalDirectory',
+                            keySame: 'backup.externalSameVolume',
+                            choose: props.onChooseExternalBackupDestination,
+                            clear: props.onClearExternalBackupDestination,
+                            btn: 'Choose drive',
+                        },
+                        {
+                            label: 'Second removable / offline drive',
+                            dir: offDir,
+                            keyDir: 'backup.offlineDirectory',
+                            keySame: 'backup.offlineSameVolume',
+                            choose: props.onChooseOfflineBackupDestination,
+                            clear: props.onClearOfflineBackupDestination,
+                            btn: 'Choose second drive',
+                        },
+                    ].map((dest) => (
+                        <div
+                            key={dest.keyDir}
+                            className="flex flex-col justify-between gap-3 rounded-xl border border-border/80 bg-surface-subtle/35 p-4"
+                        >
+                            <div className="min-w-0 space-y-1">
+                                <p className="font-semibold text-foreground">{dest.label}</p>
+                                <p className="break-all font-mono text-[11px] text-muted-foreground">
+                                    {dest.dir ?? 'Not configured'}
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     disabled={saving}
                                     onClick={() =>
                                         void runAction(async () => {
-                                            await dest.clear();
-                                            await props.onSettingChange(dest.keyDir, null);
-                                            await props.onSettingChange(dest.keySame, null);
-                                            setMessage('Destination cleared.');
-                                        }, 'Could not clear destination.')
+                                            const picked = await dest.choose();
+                                            if (!picked) return;
+                                            await props.onSettingChange(dest.keyDir, picked.directory);
+                                            await props.onSettingChange(dest.keySame, picked.sameVolume);
+                                            setMessage('Backup destination updated.');
+                                        }, 'Could not save destination.')
                                     }
                                 >
-                                    Remove
+                                    {dest.btn}
                                 </Button>
-                            )}
+                                {dest.dir && (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={saving}
+                                        onClick={() =>
+                                            void runAction(async () => {
+                                                await dest.clear();
+                                                await props.onSettingChange(dest.keyDir, null);
+                                                await props.onSettingChange(dest.keySame, null);
+                                                setMessage('Destination cleared.');
+                                            }, 'Could not clear destination.')
+                                        }
+                                    >
+                                        Remove
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
 
+                <Accordion type="single" collapsible className="border-t border-border/75">
+                    <AccordionItem value="details" className="border-b-0">
+                        <AccordionTrigger className="py-2.5 text-xs">
+                            How snapshot verification works
+                        </AccordionTrigger>
+                        <AccordionContent className="text-xs leading-relaxed text-muted-foreground">
+                            Snapshots run automatically every 30 minutes when a secure OS keychain is present,
+                            restore-verify into an isolated copy before retention cleanup, and mirror
+                            atomically to mounted external volumes.
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </section>
+
+            <section className="workspace-surface space-y-4 p-6">
+                <div className="space-y-0.5">
+                    <h3 className="text-sm font-semibold">Manual encrypted archive</h3>
+                    <p className="text-muted-foreground">
+                        Export a portable AES-256-GCM encrypted workspace archive and single-use recovery key.
+                    </p>
+                </div>
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -204,12 +227,12 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                             }
                         }, 'Backup creation failed.');
                     }}
-                    className="space-y-1.5"
+                    className="space-y-2"
                 >
                     <Label htmlFor="backup-create-passphrase" className="text-xs font-medium">
                         Backup passphrase
                     </Label>
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <div className="grid gap-2.5 sm:grid-cols-[1fr_auto]">
                         <Input
                             id="backup-create-passphrase"
                             type="password"
@@ -228,10 +251,10 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                 </form>
 
                 {backupRecoveryKey && (
-                    <div className="space-y-2 rounded-lg border border-warning/30 bg-warning-subtle p-3.5 text-warning-foreground">
+                    <div className="space-y-2 rounded-xl border border-warning/35 bg-warning-subtle p-4 text-warning-foreground">
                         <p className="font-semibold">Save portable recovery key (shown once)</p>
                         <div className="flex items-center gap-2">
-                            <code className="flex-1 break-all rounded-md bg-card p-2 font-mono text-foreground">
+                            <code className="flex-1 break-all rounded-lg border border-warning/25 bg-card p-2.5 font-mono text-foreground">
                                 {backupRecoveryKey}
                             </code>
                             <Button
@@ -239,6 +262,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                                 size="sm"
                                 variant="outline"
                                 aria-label="Copy recovery key"
+                                className="bg-card"
                                 onClick={() => void navigator.clipboard.writeText(backupRecoveryKey)}
                             >
                                 <Clipboard className="size-3.5" />
@@ -246,38 +270,48 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                         </div>
                     </div>
                 )}
+            </section>
 
-                <div className="space-y-2.5 rounded-lg border border-border p-3.5">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="backup-restore-secret" className="text-xs font-medium">
-                            Restore from archive ({useBackupRecovery ? 'Recovery key' : 'Passphrase'})
-                        </Label>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => {
-                                setUseBackupRecovery((v) => !v);
-                                setBackupPassphrase('');
-                                setBackupRestoreSecret('');
-                            }}
-                        >
-                            {useBackupRecovery ? 'Use passphrase' : 'Use recovery key'}
-                        </Button>
+            <section className="workspace-surface space-y-4 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="space-y-0.5">
+                        <h3 className="text-sm font-semibold">Restore & recovery</h3>
+                        <p className="text-muted-foreground">
+                            Decrypt and validate an `.nsbackup` archive into an isolated staging copy before
+                            activating.
+                        </p>
                     </div>
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            void runAction(async () => {
-                                const secret = useBackupRecovery ? backupRestoreSecret : backupPassphrase;
-                                const path = await props.onRestoreBackup(secret, useBackupRecovery);
-                                setRestoreCopyPath(path);
-                                if (path) setMessage(`Validated recovery copy ready: ${path}`);
-                            }, 'Backup restore failed.');
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => {
+                            setUseBackupRecovery((v) => !v);
+                            setBackupPassphrase('');
+                            setBackupRestoreSecret('');
                         }}
-                        className="grid gap-2 sm:grid-cols-[1fr_auto]"
                     >
+                        {useBackupRecovery ? 'Use passphrase' : 'Use recovery key'}
+                    </Button>
+                </div>
+
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        void runAction(async () => {
+                            const secret = useBackupRecovery ? backupRestoreSecret : backupPassphrase;
+                            const path = await props.onRestoreBackup(secret, useBackupRecovery);
+                            setRestoreCopyPath(path);
+                            if (path) setMessage(`Validated recovery copy ready: ${path}`);
+                        }, 'Backup restore failed.');
+                    }}
+                    className="space-y-2"
+                >
+                    <Label htmlFor="backup-restore-secret" className="text-xs font-medium">
+                        Restore from archive ({useBackupRecovery ? 'Recovery key' : 'Passphrase'})
+                    </Label>
+                    <div className="grid gap-2.5 sm:grid-cols-[1fr_auto]">
                         <Input
                             id="backup-restore-secret"
                             type="password"
@@ -294,8 +328,14 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                             <Upload className="size-3.5" />
                             Restore as copy
                         </Button>
-                    </form>
-                    {restoreCopyPath && (
+                    </div>
+                </form>
+
+                {restoreCopyPath && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3">
+                        <span className="font-medium text-foreground">
+                            Verified copy validated and ready for activation.
+                        </span>
                         <Button
                             type="button"
                             size="sm"
@@ -307,6 +347,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                                             description:
                                                 'DevLedger will stage promotion and verify integrity on restart.',
                                             confirmLabel: 'Stage restore',
+                                            tone: 'warning',
                                         })
                                     )
                                         await runAction(async () => {
@@ -320,48 +361,36 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                         >
                             Activate staged restore
                         </Button>
-                    )}
-                    {restoreRollbackAvailable && (
-                        <div className="flex gap-2 pt-2">
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                    void runAction(async () => {
-                                        await props.onCommitRestoreActivation();
-                                        setRestoreRollbackAvailable(false);
-                                        setMessage('Restored workspace confirmed.');
-                                    }, 'Commit failed.')
-                                }
-                            >
-                                Confirm restored workspace
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                    void runAction(props.onRollbackRestoreActivation, 'Rollback failed.')
-                                }
-                            >
-                                Roll back
-                            </Button>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
-                <Accordion type="single" collapsible className="border-t border-border">
-                    <AccordionItem value="details">
-                        <AccordionTrigger className="py-2.5 text-xs">
-                            How snapshot verification works
-                        </AccordionTrigger>
-                        <AccordionContent className="text-xs leading-relaxed text-muted-foreground">
-                            Snapshots run automatically every 30 minutes when a secure OS keychain is present,
-                            restore-verify into an isolated copy before retention cleanup, and mirror
-                            atomically to mounted external volumes.
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
+                {restoreRollbackAvailable && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border/75 pt-3">
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() =>
+                                void runAction(async () => {
+                                    await props.onCommitRestoreActivation();
+                                    setRestoreRollbackAvailable(false);
+                                    setMessage('Restored workspace confirmed.');
+                                }, 'Commit failed.')
+                            }
+                        >
+                            Confirm restored workspace
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                                void runAction(props.onRollbackRestoreActivation, 'Rollback failed.')
+                            }
+                        >
+                            Roll back
+                        </Button>
+                    </div>
+                )}
             </section>
         </div>
     );

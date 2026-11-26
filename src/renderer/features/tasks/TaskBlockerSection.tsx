@@ -89,9 +89,9 @@ export function TaskBlockerSection({
     }
 
     return (
-        <section className="space-y-2.5 border-t border-border pt-4 text-xs">
+        <section className="space-y-2.5 text-xs">
             <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold text-muted-foreground">Blocker & waiting status</h3>
+                <h3 className="text-xs font-semibold text-foreground">Blocker & waiting status</h3>
                 {!openBlocker && (
                     <Button
                         type="button"

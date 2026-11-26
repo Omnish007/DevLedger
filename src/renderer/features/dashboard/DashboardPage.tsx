@@ -719,7 +719,7 @@ export function DashboardPage({
                         ) : (
                             <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center text-xs text-muted-foreground">
                                 <FolderKanban className="mb-2 size-4 opacity-70" />
-                                <p className="font-medium text-foreground">No active projects yet</p>
+                                <p className="font-medium text-foreground">No active projects yet.</p>
                                 <Button
                                     className="mt-3"
                                     size="sm"

@@ -319,6 +319,7 @@ export function ProjectsPage({
                                                         </DropdownMenuItem>
                                                     ) : (
                                                         <DropdownMenuItem
+                                                            variant="destructive"
                                                             onSelect={() =>
                                                                 void runPageAction(
                                                                     () => onArchive(project.id),
