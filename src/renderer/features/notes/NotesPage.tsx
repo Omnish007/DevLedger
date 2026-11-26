@@ -545,7 +545,7 @@ export function NotesPage({
                 <aside className="notes-sidebar flex h-full w-full min-h-0 flex-col border-r border-border">
                     <div className="flex items-center justify-between px-4 py-3">
                         <div>
-                            <h1 className="text-sm font-semibold">Notes</h1>
+                            <h1 className="workspace-page-title text-xl">Notes</h1>
                             <p className="text-xs text-muted-foreground">
                                 {notesTotal} note{notesTotal === 1 ? '' : 's'}
                             </p>
@@ -571,13 +571,13 @@ export function NotesPage({
                                     setFilter(e.target.value);
                                 }}
                                 placeholder="Filter notes…"
-                                className="h-8 pl-8 pr-7 text-xs"
+                                className="h-8 pl-8 pr-8 text-xs"
                             />
                             {filter && (
                                 <button
                                     type="button"
                                     aria-label="Clear note filter"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                                    className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded text-xs text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                                     onClick={() => {
                                         setNotesOffset(0);
                                         setFilter('');
@@ -588,13 +588,14 @@ export function NotesPage({
                             )}
                         </div>
                         {filterProjectId && (
-                            <div className="flex items-center justify-between rounded border border-border bg-card px-2 py-1 text-xs">
+                            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-2.5 py-1 text-xs">
                                 <span className="truncate">
                                     {projectNames[filterProjectId] ?? 'Project filter'}
                                 </span>
                                 <button
                                     type="button"
-                                    className="text-muted-foreground hover:text-foreground"
+                                    aria-label="Clear project filter"
+                                    className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                                     onClick={() => setFilterProjectId('')}
                                 >
                                     ×
@@ -628,16 +629,16 @@ export function NotesPage({
                                                 : setSelectedId(note.id)
                                             : selectNote(note.id))
                                     }
-                                    className={`notes-record h-full w-full rounded-md px-2.5 py-2 text-left transition-colors`}
+                                    className="notes-record h-full w-full rounded-lg px-2.5 py-2 text-left transition-colors"
                                     aria-current={selectedId === note.id ? 'true' : undefined}
                                 >
                                     <div className="flex items-center gap-2">
                                         <BookOpen className="size-3.5 shrink-0 text-muted-foreground" />
-                                        <span className="truncate text-xs font-medium">
+                                        <span className="truncate text-sm font-medium text-foreground">
                                             {note.locked ? 'Locked note' : note.title || 'Untitled note'}
                                         </span>
                                     </div>
-                                    <p className="mt-1 line-clamp-2 pl-[22px] text-xs text-muted-foreground">
+                                    <p className="mt-0.5 line-clamp-2 pl-[22px] text-xs text-muted-foreground">
                                         {note.locked
                                             ? 'Protected content'
                                             : stripHtmlToPlainText(note.content) || 'Empty note'}
@@ -645,7 +646,7 @@ export function NotesPage({
                                     <div className="mt-1.5 flex items-center justify-between pl-[22px] text-xs text-muted-foreground">
                                         <span>{formatRelative(note.updatedAt)}</span>
                                         {note.projectId && (
-                                            <span className="max-w-[100px] truncate">
+                                            <span className="max-w-[112px] truncate">
                                                 {projectNames[note.projectId] ?? 'Project'}
                                             </span>
                                         )}
@@ -668,7 +669,7 @@ export function NotesPage({
                     />
                 </aside>
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle withHandle />
             <ResizablePanel
                 defaultSize={compactLayout ? '66%' : '71%'}
                 minSize={compactLayout ? 380 : 420}
@@ -679,7 +680,7 @@ export function NotesPage({
                         selected.locked && !unlockedNote ? (
                             <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
                                 <LockKeyhole className="mb-3 size-6 text-muted-foreground" />
-                                <h3 className="text-sm font-semibold">Protected note</h3>
+                                <h2 className="text-sm font-semibold">Protected note</h2>
                                 <p className="mt-1 max-w-sm text-xs text-muted-foreground">
                                     Encrypted at rest.{' '}
                                     {vaultStatus.unlocked
@@ -751,7 +752,7 @@ export function NotesPage({
                                             }}
                                             placeholder="No project"
                                             selectedLabel={projectNames[projectId]}
-                                            className="h-8 w-36 text-xs sm:w-44"
+                                            className="h-8 w-44 text-xs sm:w-56"
                                         />
                                         <Button
                                             type="button"
@@ -763,7 +764,7 @@ export function NotesPage({
                                             <Link2 className="size-3.5" />
                                             <span>Connections</span>
                                             {connectionCount > 0 && (
-                                                <span className="rounded bg-primary/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary tabular-nums">
+                                                <span className="rounded bg-primary/12 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary tabular-nums">
                                                     {connectionCount}
                                                 </span>
                                             )}
@@ -813,9 +814,10 @@ export function NotesPage({
                                 <div className="notes-editor-scroll min-h-0 flex-1">
                                     <div
                                         ref={writingCanvasRef}
-                                        className="notes-writing-canvas relative flex w-full max-w-[840px] flex-col px-7 py-5 sm:px-9"
+                                        className="notes-writing-canvas relative flex w-full max-w-[840px] flex-col px-4 py-4 sm:py-5 sm:pl-11 sm:pr-9"
                                     >
                                         <Input
+                                            aria-label="Note title"
                                             value={title}
                                             onChange={(e) => {
                                                 isDirty.current = true;
@@ -862,7 +864,7 @@ export function NotesPage({
                     ) : (
                         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
                             <BookOpen className="mb-2.5 size-6 text-muted-foreground" />
-                            <h3 className="text-sm font-semibold">Select a note or create one</h3>
+                            <h2 className="text-sm font-semibold">Select a note or create one</h2>
                             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                                 Decisions, meeting notes and linked follow-ups live here.
                             </p>

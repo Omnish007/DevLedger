@@ -88,7 +88,7 @@ export function SettingsSystemTab() {
             {error && (
                 <p
                     role="alert"
-                    className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger"
+                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -96,7 +96,7 @@ export function SettingsSystemTab() {
             {notice && (
                 <p
                     role="status"
-                    className="rounded-md border border-border bg-surface-subtle px-3 py-2 text-xs"
+                    className="rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
                 >
                     {notice}
                 </p>
@@ -105,7 +105,7 @@ export function SettingsSystemTab() {
             <section className="workspace-surface p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
                     <div>
-                        <h3 className="text-sm font-semibold">Workspace maintenance & background jobs</h3>
+                        <h2 className="text-sm font-semibold">Workspace maintenance & background jobs</h2>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                             Rebuild full-text indexes, verify document hashes, and optimize SQLite storage.
                         </p>
@@ -180,7 +180,7 @@ export function SettingsSystemTab() {
                                                 type="button"
                                                 size="sm"
                                                 variant="ghost"
-                                                className="h-6 px-2 text-xs"
+                                                className="h-7 px-2 text-xs"
                                                 onClick={() =>
                                                     void window.devLedger.operations
                                                         .cancelJob(job.id)
@@ -219,7 +219,7 @@ export function SettingsSystemTab() {
             <section className="workspace-surface p-5">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                     <div>
-                        <h3 className="text-sm font-semibold">Activity history</h3>
+                        <h2 className="text-sm font-semibold">Activity history</h2>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                             Audit log of workspace edits, timers, blockers and maintenance runs.
                         </p>

@@ -35,7 +35,7 @@ test('can queue a maintenance job from Settings Health & Activity', async ({ des
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await page.getByRole('button', { name: 'Health & Activity', exact: true }).click();
     await page.getByRole('button', { name: 'Rebuild search index' }).click();
-    await expect(page.getByText(/search\.rebuild/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Search index rebuild/i).first()).toBeVisible({ timeout: 15_000 });
 });
 
 test('connects a note and task inside Note Connections Drawer with human title resolution', async ({
@@ -52,8 +52,11 @@ test('connects a note and task inside Note Connections Drawer with human title r
 
     await page.getByRole('button', { name: 'Connections', exact: true }).click();
     await page.getByRole('button', { name: 'Connect record' }).click();
-    await page.getByRole('combobox', { name: /Search record/i }).click();
-    await page.getByPlaceholder('Search workspace records…').fill(taskTitle);
+    await page
+        .getByRole('combobox')
+        .filter({ hasText: /Search record/i })
+        .click();
+    await page.getByPlaceholder('Search tasks…').fill(taskTitle);
     await page.getByRole('option', { name: taskTitle }).click();
     await page.getByRole('button', { name: 'Link', exact: true }).click();
     await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();

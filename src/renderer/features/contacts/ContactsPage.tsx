@@ -1,11 +1,12 @@
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronRight, MoreHorizontal, Pencil, Plus, Search, Trash2, UserRound, X } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Trash2, UserRound, X } from 'lucide-react';
 import type { ContactInput, ContactRecord, WorkspaceNavigationTarget } from '@shared/contracts';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PageControls } from '@/components/shared/PageControls';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
+import { SearchFilterInput } from '@/components/shared/SearchFilterInput';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -244,19 +245,17 @@ export function ContactsPage({
             )}
 
             <div className="workspace-toolbar">
-                <div className="relative min-w-[220px] max-w-md flex-1">
-                    <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        className="pl-8"
-                        value={query}
-                        onChange={(e) => {
-                            setOffset(0);
-                            setQuery(e.target.value);
-                        }}
-                        placeholder="Filter contacts…"
-                        aria-label="Search contacts by name, role or company"
-                    />
-                </div>
+                <SearchFilterInput
+                    className="min-w-[220px] max-w-md flex-1"
+                    value={query}
+                    onValueChange={(next) => {
+                        setOffset(0);
+                        setQuery(next);
+                    }}
+                    placeholder="Filter contacts…"
+                    aria-label="Search contacts by name, role or company"
+                    clearLabel="Clear contact filter"
+                />
                 <RemoteRecordPicker
                     entityType="project"
                     value={filterProjectId}
@@ -274,9 +273,9 @@ export function ContactsPage({
                 <p className="py-12 text-center text-xs text-muted-foreground">Loading contacts…</p>
             ) : (
                 activeContact && (
-                    <div className="contact-shell workspace-surface grid min-h-[min(64vh,560px)] grid-cols-1 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+                    <div className="contact-shell workspace-surface grid grid-cols-1 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
                         <aside className="flex flex-col border-b border-border bg-sidebar/35 lg:border-b-0 lg:border-r">
-                            <div className="divide-y divide-border overflow-y-auto">
+                            <div className="divide-y divide-border/75 overflow-y-auto">
                                 {visible.map((contact) => {
                                     const initials = contact.name
                                         .trim()
@@ -287,7 +286,7 @@ export function ContactsPage({
                                     const isSelected = activeContact.id === contact.id;
                                     const row = (
                                         <div
-                                            className={`contact-list-item group flex items-center gap-3 px-3.5 py-2.5 transition-colors ${isSelected ? 'bg-accent/70' : 'hover:bg-surface-subtle'}`}
+                                            className={`contact-list-item group flex items-center gap-2.5 border-l-2 px-3.5 py-2.5 transition-colors ${isSelected ? 'border-l-primary bg-accent/70' : 'border-l-transparent hover:bg-surface-subtle'}`}
                                         >
                                             <button
                                                 type="button"
@@ -308,19 +307,16 @@ export function ContactsPage({
                                                         {contact.company ? ` · ${contact.company}` : ''}
                                                     </p>
                                                 </div>
-                                                <ChevronRight
-                                                    className={`size-3.5 shrink-0 text-muted-foreground transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`}
-                                                />
                                             </button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="size-7 shrink-0 opacity-70 hover:opacity-100"
+                                                        className="size-8 shrink-0 text-muted-foreground opacity-75 hover:text-foreground hover:opacity-100"
                                                         aria-label={`Actions for ${contact.name}`}
                                                     >
-                                                        <MoreHorizontal className="size-3.5" />
+                                                        <MoreHorizontal className="size-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
@@ -443,7 +439,13 @@ export function ContactsPage({
                                 {...form.register('name')}
                                 maxLength={160}
                                 placeholder="Full name"
+                                aria-invalid={Boolean(form.formState.errors.name)}
                             />
+                            {form.formState.errors.name && (
+                                <p role="alert" className="text-xs font-normal text-destructive">
+                                    {form.formState.errors.name.message}
+                                </p>
+                            )}
                         </label>
                         <div className="grid grid-cols-2 gap-3">
                             <label className="block space-y-1">
@@ -538,6 +540,7 @@ export function ContactsPage({
                                         size="icon"
                                         variant="ghost"
                                         className="size-8"
+                                        aria-label={`Remove custom field ${idx + 1}`}
                                         onClick={() => removeAttribute(idx)}
                                     >
                                         <X className="size-3.5" />

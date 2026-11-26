@@ -14,7 +14,6 @@ import {
     Play,
     Square,
     SquareCheckBig,
-    Timer,
     UserRound,
 } from 'lucide-react';
 import type { DashboardSummary, ProjectRecord, WorkspaceNavigationTarget } from '@shared/contracts';
@@ -78,6 +77,16 @@ export function DashboardPage({
           ? `${readyTasks.length} ready to start · ${attentionCount} ${attentionCount === 1 ? 'needs' : 'need'} attention · ${noteActionItems.length} open ${noteActionItems.length === 1 ? 'checklist' : 'checklists'} in notes`
           : undefined;
 
+    const blockedCount = summary?.blockedTasks ?? blockedItems.length;
+    const blockedHint =
+        blockedCount > 0 && waitingItems.length > 0
+            ? `${blockedCount} blocked · ${waitingItems.length} waiting`
+            : blockedCount > 0
+              ? `${blockedCount} blocked`
+              : waitingItems.length > 0
+                ? `${waitingItems.length} waiting externally`
+                : 'No active blockers';
+
     const metrics: Array<{
         label: string;
         hint: string;
@@ -104,13 +113,10 @@ export function DashboardPage({
         },
         {
             label: 'Blocked & waiting',
-            hint:
-                blockedItems.length || waitingItems.length
-                    ? `${waitingItems.length} waiting externally`
-                    : 'No active blockers',
-            value: loading ? '—' : (summary?.blockedTasks ?? 0) + waitingItems.length,
+            hint: blockedHint,
+            value: loading ? '—' : blockedCount + waitingItems.length,
             onClick: () => onNavigateTarget({ view: 'tasks' }),
-            tone: (summary?.blockedTasks ?? 0) > 0 ? 'warning' : 'neutral',
+            tone: blockedCount > 0 ? 'warning' : 'neutral',
             icon: AlertTriangle,
         },
         {
@@ -133,33 +139,9 @@ export function DashboardPage({
                 title="Overview"
                 description={storySubtitle}
                 actions={
-                    <div className="flex items-center gap-2">
-                        {timerDetail && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1.5 border-primary/40 bg-primary/5 text-xs text-primary"
-                                onClick={() =>
-                                    onNavigateTarget({
-                                        view: 'tasks',
-                                        recordId: timerDetail.taskId,
-                                        projectId: timerDetail.projectId,
-                                    })
-                                }
-                            >
-                                <Timer className="size-3.5" />
-                                <span className="max-w-[180px] truncate">{timerDetail.taskTitle}</span>
-                            </Button>
-                        )}
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs"
-                            onClick={() => onNavigate('tasks')}
-                        >
-                            Open Tasks
-                        </Button>
-                    </div>
+                    <Button size="sm" variant="outline" onClick={() => onNavigate('tasks')}>
+                        Open Tasks
+                    </Button>
                 }
             />
 
@@ -173,7 +155,7 @@ export function DashboardPage({
                                 ·{' '}
                                 <button
                                     type="button"
-                                    className="font-semibold text-primary hover:underline"
+                                    className="inline-flex min-h-6 items-center text-left font-semibold text-primary hover:underline"
                                     onClick={() =>
                                         onNavigateTarget({
                                             view: 'tasks',
@@ -216,34 +198,34 @@ export function DashboardPage({
                               : 'text-foreground';
                     const iconBg =
                         item.tone === 'danger'
-                            ? 'bg-danger/10 text-danger'
+                            ? 'bg-danger-subtle text-danger-foreground'
                             : item.tone === 'warning'
-                              ? 'bg-warning/10 text-warning'
+                              ? 'bg-warning-subtle text-warning-foreground'
                               : 'bg-surface-subtle text-muted-foreground';
                     return (
                         <button
                             key={item.label}
                             type="button"
                             onClick={item.onClick}
-                            className="group rounded-xl border border-border/80 bg-card px-4 py-3 text-left transition-colors hover:border-border hover:bg-surface-subtle/55"
+                            className="group rounded-[var(--workspace-radius)] border border-border bg-card px-4 py-3.5 text-left shadow-[var(--shadow-xs)] transition-colors hover:border-input hover:bg-surface-subtle/50"
                         >
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-medium text-muted-foreground">
                                     {item.label}
                                 </span>
-                                <span className={`grid size-6 place-items-center rounded-md ${iconBg}`}>
+                                <span className={`grid size-7 place-items-center rounded-md ${iconBg}`}>
                                     <Icon className="size-3.5" aria-hidden="true" />
                                 </span>
                             </div>
                             <div
-                                className={`mt-1.5 text-[24px] font-semibold leading-none tabular-nums tracking-tight ${valueColor}`}
+                                className={`mt-1.5 text-2xl font-semibold leading-none tabular-nums tracking-tight ${valueColor}`}
                             >
                                 {item.value}
                             </div>
-                            <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                                 <span className="truncate">{item.hint}</span>
                                 <ArrowUpRight
-                                    className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-80"
+                                    className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-80"
                                     aria-hidden="true"
                                 />
                             </div>
@@ -255,12 +237,12 @@ export function DashboardPage({
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(290px,0.9fr)]">
                 <div className="min-w-0 space-y-5">
                     {hasAttentionQueue ? (
-                        <section className="rounded-xl border border-border/80 bg-card">
-                            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                        <section className="rounded-[var(--workspace-radius)] border border-border bg-card shadow-[var(--shadow-xs)]">
+                            <div className="flex items-center justify-between border-b border-border/75 px-4 py-3">
                                 <div className="flex items-center gap-2">
                                     <AlertTriangle className="size-4 text-warning" aria-hidden="true" />
                                     <h2 className="text-sm font-semibold">Needs attention</h2>
-                                    <Badge variant="warning" className="h-5 px-1.5 text-[11px] tabular-nums">
+                                    <Badge variant="warning" className="tabular-nums">
                                         {overdueItems.length +
                                             blockedItems.length +
                                             waitingItems.length +
@@ -270,7 +252,7 @@ export function DashboardPage({
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                    className="h-8 gap-1 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                                     onClick={() => onNavigate('tasks')}
                                 >
                                     Review in Tasks <ArrowUpRight className="size-3.5" />
@@ -287,7 +269,7 @@ export function DashboardPage({
                                                 type="button"
                                                 aria-label={`Complete ${task.title}`}
                                                 onClick={() => void onCompleteTask(task.id)}
-                                                className="shrink-0 text-muted-foreground transition-colors hover:text-success"
+                                                className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-success-subtle hover:text-success-foreground"
                                             >
                                                 <Circle className="size-4" />
                                             </button>
@@ -303,10 +285,10 @@ export function DashboardPage({
                                             }
                                             className="min-w-0 flex-1 text-left"
                                         >
-                                            <div className="truncate text-[13px] font-medium hover:text-primary">
+                                            <div className="truncate text-sm font-medium hover:text-primary">
                                                 {task.title}
                                             </div>
-                                            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                            <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                                                 <span>{projectName(task.projectId)}</span>
                                                 <span>·</span>
                                                 <span className="font-medium text-danger">
@@ -336,12 +318,14 @@ export function DashboardPage({
                                                         projectId: item.task.projectId,
                                                     })
                                                 }
-                                                className="block max-w-full truncate text-left text-[13px] font-medium hover:text-primary"
+                                                className="inline-flex min-h-6 max-w-full items-center truncate text-left text-sm font-medium hover:text-primary"
                                             >
                                                 {item.task.title}
                                             </button>
-                                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                                                <span className="text-warning">{item.reason}</span>
+                                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                                                <span className="font-medium text-warning">
+                                                    {item.reason}
+                                                </span>
                                                 {item.waitingContactName && item.waitingContactId && (
                                                     <button
                                                         type="button"
@@ -351,9 +335,9 @@ export function DashboardPage({
                                                                 recordId: item.waitingContactId!,
                                                             })
                                                         }
-                                                        className="inline-flex items-center gap-1 font-medium text-info hover:underline"
+                                                        className="inline-flex min-h-6 items-center gap-1 rounded px-1.5 font-medium text-info hover:bg-info-subtle hover:text-info-foreground"
                                                     >
-                                                        <UserRound className="size-3" />
+                                                        <UserRound className="size-3.5" />
                                                         Waiting on {item.waitingContactName}
                                                     </button>
                                                 )}
@@ -367,10 +351,10 @@ export function DashboardPage({
                                                 type="button"
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-7 gap-1 px-2.5 text-xs"
+                                                className="h-8 gap-1 px-2.5 text-xs"
                                                 onClick={() => void onResolveBlocker(item.blockerId)}
                                             >
-                                                <Check className="size-3" />
+                                                <Check className="size-3.5" />
                                                 Resolve
                                             </Button>
                                         )}
@@ -395,10 +379,8 @@ export function DashboardPage({
                                             aria-hidden="true"
                                         />
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate text-[13px] font-medium">
-                                                {task.title}
-                                            </div>
-                                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                            <div className="truncate text-sm font-medium">{task.title}</div>
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
                                                 {projectName(task.projectId)} · Waiting on external follow-up
                                             </div>
                                         </div>
@@ -432,20 +414,20 @@ export function DashboardPage({
                                             }
                                             className="min-w-0 flex-1 text-left"
                                         >
-                                            <div className="truncate text-[13px] font-medium hover:text-primary">
+                                            <div className="truncate text-sm font-medium hover:text-primary">
                                                 {reminder.message || reminder.entityTitle}
                                             </div>
-                                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
                                                 {reminder.entityTitle} · Due {formatDate(reminder.dueAt)}
                                             </div>
                                         </button>
                                         {onReminderAction && (
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1.5">
                                                 <Button
                                                     type="button"
                                                     size="sm"
-                                                    variant="ghost"
-                                                    className="h-7 px-2 text-xs"
+                                                    variant="outline"
+                                                    className="h-8 px-2.5 text-xs"
                                                     onClick={() =>
                                                         void onReminderAction(reminder.id, 'snooze')
                                                     }
@@ -456,7 +438,7 @@ export function DashboardPage({
                                                     type="button"
                                                     size="sm"
                                                     variant="ghost"
-                                                    className="h-7 px-2 text-xs text-muted-foreground"
+                                                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                                                     onClick={() =>
                                                         void onReminderAction(reminder.id, 'dismiss')
                                                     }
@@ -471,7 +453,7 @@ export function DashboardPage({
                         </section>
                     ) : (
                         !loading && (
-                            <div className="flex items-center gap-2.5 rounded-xl border border-border/70 bg-surface-subtle/40 px-4 py-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2.5 rounded-[var(--workspace-radius)] border border-border bg-surface-subtle/50 px-4 py-3 text-sm text-muted-foreground">
                                 <CheckCircle2 className="size-4 shrink-0 text-success" />
                                 <span>
                                     Clear runway — no overdue deadlines, active blockers, or due reminders.
@@ -480,28 +462,25 @@ export function DashboardPage({
                         )
                     )}
 
-                    <section className="flex min-w-0 flex-col rounded-xl border border-border/80 bg-card">
-                        <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                    <section className="flex min-w-0 flex-col rounded-[var(--workspace-radius)] border border-border bg-card shadow-[var(--shadow-xs)]">
+                        <div className="flex items-center justify-between border-b border-border/75 px-4 py-3">
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h2 className="text-sm font-semibold">Up next (ready to start)</h2>
                                     {readyTasks.length > 0 && (
-                                        <Badge
-                                            variant="secondary"
-                                            className="h-5 px-1.5 text-[11px] tabular-nums"
-                                        >
+                                        <Badge variant="secondary" className="tabular-nums">
                                             {readyTasks.length}
                                         </Badge>
                                     )}
                                 </div>
-                                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                <p className="mt-0.5 text-xs text-muted-foreground">
                                     Tasks with all dependencies met and no active blocker
                                 </p>
                             </div>
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                className="h-8 gap-1 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                                 onClick={() => onNavigate('tasks')}
                             >
                                 All tasks <ArrowUpRight className="size-3.5" />
@@ -523,7 +502,7 @@ export function DashboardPage({
                                                 type="button"
                                                 aria-label={`Complete ${task.title}`}
                                                 onClick={() => void onCompleteTask(task.id)}
-                                                className="shrink-0 text-muted-foreground transition-colors hover:text-success"
+                                                className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-success-subtle hover:text-success-foreground"
                                             >
                                                 <Circle className="size-4" />
                                             </button>
@@ -545,16 +524,16 @@ export function DashboardPage({
                                             className="min-w-0 flex-1 text-left"
                                         >
                                             <div className="flex items-center gap-2">
-                                                <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary">
+                                                <span className="truncate text-sm font-medium text-foreground group-hover:text-primary">
                                                     {task.title}
                                                 </span>
                                                 {task.status === 'in_progress' && (
-                                                    <span className="shrink-0 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                                    <Badge variant="info" className="shrink-0">
                                                         In progress
-                                                    </span>
+                                                    </Badge>
                                                 )}
                                             </div>
-                                            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                            <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                                                 <span className="truncate">
                                                     {projectName(task.projectId)}
                                                 </span>
@@ -586,7 +565,7 @@ export function DashboardPage({
                                                 type="button"
                                                 size="icon"
                                                 variant="ghost"
-                                                className="size-7 shrink-0 text-muted-foreground opacity-60 hover:text-foreground group-hover:opacity-100"
+                                                className="size-8 shrink-0 text-muted-foreground opacity-70 hover:text-foreground group-hover:opacity-100"
                                                 aria-label={`Start timer for ${task.title}`}
                                                 onClick={() => void onStartTimer(task.id)}
                                             >
@@ -614,21 +593,18 @@ export function DashboardPage({
                     </section>
 
                     {noteActionItems.length > 0 && (
-                        <section className="rounded-xl border border-border/80 bg-card">
-                            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                        <section className="rounded-[var(--workspace-radius)] border border-border bg-card shadow-[var(--shadow-xs)]">
+                            <div className="flex items-center justify-between border-b border-border/75 px-4 py-3">
                                 <div className="flex items-center gap-2">
                                     <h2 className="text-sm font-semibold">Pending in notes</h2>
-                                    <Badge
-                                        variant="secondary"
-                                        className="h-5 px-1.5 text-[11px] tabular-nums"
-                                    >
+                                    <Badge variant="secondary" className="tabular-nums">
                                         {noteActionItems.length}
                                     </Badge>
                                 </div>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                    className="h-8 gap-1 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                                     onClick={() => onNavigate('notes')}
                                 >
                                     All notes <ArrowUpRight className="size-3.5" />
@@ -649,13 +625,13 @@ export function DashboardPage({
                                         className="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-subtle/50"
                                     >
                                         <SquareCheckBig
-                                            className="size-3.5 shrink-0 text-muted-foreground"
+                                            className="size-4 shrink-0 text-muted-foreground"
                                             aria-hidden="true"
                                         />
-                                        <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground group-hover:text-primary">
+                                        <span className="min-w-0 flex-1 truncate text-sm text-foreground group-hover:text-primary">
                                             {item.text}
                                         </span>
-                                        <span className="max-w-[160px] shrink-0 truncate rounded bg-surface-subtle px-2 py-0.5 text-[11px] text-muted-foreground">
+                                        <span className="max-w-[160px] shrink-0 truncate rounded-md border border-border/60 bg-surface-subtle px-2 py-0.5 text-xs text-muted-foreground">
                                             {item.noteTitle}
                                         </span>
                                     </button>
@@ -666,15 +642,12 @@ export function DashboardPage({
                 </div>
 
                 <div className="min-w-0 space-y-5">
-                    <section className="flex min-w-0 flex-col rounded-xl border border-border/80 bg-card">
-                        <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                    <section className="flex min-w-0 flex-col rounded-[var(--workspace-radius)] border border-border bg-card shadow-[var(--shadow-xs)]">
+                        <div className="flex items-center justify-between border-b border-border/75 px-4 py-3">
                             <div className="flex items-center gap-2">
                                 <h2 className="text-sm font-semibold">Active projects</h2>
                                 {active.length ? (
-                                    <Badge
-                                        variant="secondary"
-                                        className="h-5 px-1.5 text-[11px] tabular-nums"
-                                    >
+                                    <Badge variant="secondary" className="tabular-nums">
                                         {active.length}
                                     </Badge>
                                 ) : null}
@@ -682,7 +655,7 @@ export function DashboardPage({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                className="h-8 gap-1 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                                 onClick={() => onNavigate('projects')}
                             >
                                 All projects <ArrowUpRight className="size-3.5" />
@@ -715,26 +688,26 @@ export function DashboardPage({
                                                         <FolderKanban className="size-3.5" />
                                                     </span>
                                                     <div className="min-w-0">
-                                                        <div className="truncate text-[13px] font-medium text-foreground group-hover:text-primary">
+                                                        <div className="truncate text-sm font-medium text-foreground group-hover:text-primary">
                                                             {project.name}
                                                         </div>
-                                                        <div className="text-[11px] tabular-nums text-muted-foreground">
+                                                        <div className="text-xs tabular-nums text-muted-foreground">
                                                             {project.openTaskCount} open · {project.noteCount}{' '}
                                                             notes
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground opacity-50 transition-opacity group-hover:opacity-100" />
+                                                <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground opacity-60 transition-opacity group-hover:opacity-100" />
                                             </div>
                                             {project.taskCount > 0 && (
                                                 <div className="flex items-center gap-2 pl-9">
-                                                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-surface-subtle">
+                                                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-subtle">
                                                         <div
-                                                            className="h-full rounded-full bg-primary/80 transition-all"
+                                                            className="h-full rounded-full bg-primary/85 transition-all"
                                                             style={{ width: `${pct}%` }}
                                                         />
                                                     </div>
-                                                    <span className="text-[10px] tabular-nums text-muted-foreground">
+                                                    <span className="text-xs tabular-nums text-muted-foreground">
                                                         {done}/{project.taskCount}
                                                     </span>
                                                 </div>
@@ -760,13 +733,13 @@ export function DashboardPage({
                     </section>
 
                     {summary && summary.recentNotes.length > 0 && (
-                        <section className="rounded-xl border border-border/80 bg-card">
-                            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+                        <section className="rounded-[var(--workspace-radius)] border border-border bg-card shadow-[var(--shadow-xs)]">
+                            <div className="flex items-center justify-between border-b border-border/75 px-4 py-3">
                                 <h2 className="text-sm font-semibold">Recent notes</h2>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                    className="h-8 gap-1 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                                     onClick={() => onNavigate('notes')}
                                 >
                                     Open notes <ArrowUpRight className="size-3.5" />
@@ -787,21 +760,21 @@ export function DashboardPage({
                                         className="group flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-surface-subtle/55"
                                     >
                                         {note.locked ? (
-                                            <LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                                            <LockKeyhole className="mt-0.5 size-4 shrink-0 text-warning" />
                                         ) : (
-                                            <NotebookPen className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                                            <NotebookPen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                                         )}
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate text-[13px] font-medium text-foreground group-hover:text-primary">
+                                            <div className="truncate text-sm font-medium text-foreground group-hover:text-primary">
                                                 {note.locked ? 'Locked note' : note.title || 'Untitled note'}
                                             </div>
-                                            <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                                                 {note.locked
                                                     ? 'Protected content'
                                                     : cleanHtml(note.content) || 'Empty note'}
                                             </p>
                                         </div>
-                                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                                        <span className="shrink-0 text-xs text-muted-foreground">
                                             {formatRelative(note.updatedAt)}
                                         </span>
                                     </button>

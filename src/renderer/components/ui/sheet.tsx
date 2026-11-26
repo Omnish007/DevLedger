@@ -50,7 +50,7 @@ function SheetContent({
                 data-slot="sheet-content"
                 data-side={side}
                 className={cn(
-                    'fixed z-50 flex flex-col gap-4 bg-background p-6 shadow-lg outline-none transition data-[state=open]:animate-in data-[state=closed]:animate-out',
+                    'fixed z-50 flex flex-col gap-4 bg-card p-6 text-foreground shadow-[var(--shadow-modal)] outline-none transition data-[state=open]:animate-in data-[state=closed]:animate-out',
                     sideClasses[side],
                     className,
                 )}
@@ -58,7 +58,10 @@ function SheetContent({
             >
                 {children}
                 {showCloseButton && (
-                    <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
+                    <SheetPrimitive.Close
+                        aria-label="Close"
+                        className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+                    >
                         <X className="size-4" />
                         <span className="sr-only">Close</span>
                     </SheetPrimitive.Close>

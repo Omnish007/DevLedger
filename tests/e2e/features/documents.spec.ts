@@ -50,6 +50,6 @@ test('rejects an unsupported document extension without persisting a document', 
 
     await page.getByRole('button', { name: 'Documents', exact: true }).click();
     await page.getByRole('button', { name: 'Import document' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Supported formats' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Supported formats' })).toBeVisible();
     await expect(page.getByText('No documents yet')).toBeVisible();
 });

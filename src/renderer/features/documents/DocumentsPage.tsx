@@ -4,10 +4,10 @@ import type { DocumentRecord, WorkspaceNavigationTarget } from '@shared/contract
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PageControls } from '@/components/shared/PageControls';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
+import { SearchFilterInput } from '@/components/shared/SearchFilterInput';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { formatBytes, formatDate, friendlyError } from '@/lib/utils';
 
 interface Props {
@@ -136,14 +136,28 @@ export function DocumentsPage({
                 description={total ? `${total} ${total === 1 ? 'document' : 'documents'}` : undefined}
                 actions={
                     <>
-                        <label className="inline-flex items-center gap-2 px-1 text-xs text-muted-foreground">
+                        <label
+                            htmlFor="protect-document"
+                            title={
+                                vaultUnlocked
+                                    ? 'Encrypt imported file with your vault key'
+                                    : 'Unlock vault in Settings → Security to encrypt imported documents'
+                            }
+                            className="inline-flex min-h-8 items-center gap-2 px-1 text-xs text-muted-foreground"
+                        >
                             <Checkbox
                                 id="protect-document"
+                                aria-label="Encrypt with vault"
                                 checked={protectWithVault}
                                 onCheckedChange={(c) => setProtectWithVault(c === true)}
                                 disabled={!vaultUnlocked || busy}
                             />
-                            <span>Encrypt with vault</span>
+                            <span>
+                                Encrypt with vault
+                                {!vaultUnlocked && (
+                                    <span className="ml-1 text-muted-foreground/80">(Vault locked)</span>
+                                )}
+                            </span>
                         </label>
                         <Button
                             size="sm"
@@ -157,15 +171,16 @@ export function DocumentsPage({
                 }
             />
             <div className="workspace-toolbar">
-                <Input
+                <SearchFilterInput
                     className="min-w-[220px] max-w-md flex-1"
                     value={query}
-                    onChange={(e) => {
+                    onValueChange={(next) => {
                         setOffset(0);
-                        setQuery(e.target.value);
+                        setQuery(next);
                     }}
                     placeholder="Filter documents…"
                     aria-label="Filter documents by title or filename"
+                    clearLabel="Clear document filter"
                 />
                 <RemoteRecordPicker
                     entityType="project"
@@ -200,7 +215,7 @@ export function DocumentsPage({
             {(pageError || notice) && (
                 <div
                     role={pageError || noticeIsError ? 'alert' : 'status'}
-                    className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${pageError || noticeIsError ? 'border-danger/30 bg-danger/5 text-danger' : 'border-border bg-surface-subtle'}`}
+                    className={`flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-xs ${pageError || noticeIsError ? 'border-danger/25 bg-danger-subtle text-danger-foreground' : 'border-border bg-surface-subtle text-foreground'}`}
                 >
                     <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                     <span>{pageError || notice}</span>
@@ -208,78 +223,86 @@ export function DocumentsPage({
             )}
 
             <div className="workspace-surface overflow-x-auto">
-                <div className="min-w-[780px]">
-                    <div className="grid grid-cols-[minmax(220px,1fr)_140px_84px_120px_104px_76px] gap-3 border-b border-border bg-surface-subtle px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        <span>Document</span>
-                        <span>Project</span>
-                        <span>Size</span>
-                        <span>Status</span>
-                        <span>Added</span>
-                        <span className="text-right">Action</span>
-                    </div>
-                    {pageLoading ? (
-                        <p className="py-10 text-center text-xs text-muted-foreground">Loading documents…</p>
-                    ) : (
-                        visible.map((doc) => (
-                            <div
-                                key={doc.id}
-                                className="document-row grid grid-cols-[minmax(220px,1fr)_140px_84px_120px_104px_76px] items-center gap-3 border-b border-border px-4 py-2.5 last:border-0"
-                            >
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                    <FileText className="size-4 shrink-0 text-muted-foreground" />
-                                    <div className="min-w-0">
+                {pageLoading || visible.length > 0 ? (
+                    <div className="min-w-[780px]">
+                        <div className="grid grid-cols-[minmax(220px,1fr)_140px_84px_120px_104px_84px] gap-3 border-b border-border bg-surface-subtle px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <span>Document</span>
+                            <span>Project</span>
+                            <span>Size</span>
+                            <span>Status</span>
+                            <span>Added</span>
+                            <span className="text-right">Action</span>
+                        </div>
+                        {pageLoading ? (
+                            <p className="py-10 text-center text-xs text-muted-foreground">
+                                Loading documents…
+                            </p>
+                        ) : (
+                            visible.map((doc) => (
+                                <div
+                                    key={doc.id}
+                                    className="document-row grid grid-cols-[minmax(220px,1fr)_140px_84px_120px_104px_84px] items-center gap-3 border-b border-border px-4 py-2.5 last:border-0"
+                                >
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                        <FileText className="size-4 shrink-0 text-muted-foreground" />
+                                        <div className="min-w-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => void onOpen(doc.id)}
+                                                disabled={doc.encrypted && !vaultUnlocked}
+                                                className="max-w-full truncate text-left text-sm font-medium hover:underline disabled:opacity-60"
+                                            >
+                                                {doc.title}
+                                            </button>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {doc.originalName} ·{' '}
+                                                {doc.extension.replace('.', '').toUpperCase()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {doc.projectId ? (
                                         <button
                                             type="button"
-                                            onClick={() => void onOpen(doc.id)}
-                                            disabled={doc.encrypted && !vaultUnlocked}
-                                            className="max-w-full truncate text-left text-sm font-medium hover:underline disabled:opacity-60"
+                                            onClick={() =>
+                                                onNavigateTarget({
+                                                    view: 'projects',
+                                                    recordId: doc.projectId!,
+                                                })
+                                            }
+                                            className="min-h-6 truncate text-left text-xs text-muted-foreground hover:text-foreground hover:underline"
                                         >
-                                            {doc.title}
+                                            {projectNames[doc.projectId] ?? 'Project'}
                                         </button>
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {doc.originalName} ·{' '}
-                                            {doc.extension.replace('.', '').toUpperCase()}
-                                        </p>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                    <span className="text-xs tabular-nums text-muted-foreground">
+                                        {formatBytes(doc.sizeBytes)}
+                                    </span>
+                                    <Badge variant={doc.encrypted ? 'warning' : statusVariant[doc.status]}>
+                                        {doc.encrypted ? 'Protected' : statusLabel[doc.status]}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                        {formatDate(doc.createdAt)}
+                                    </span>
+                                    <div className="text-right">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 px-2.5 text-xs"
+                                            disabled={doc.encrypted && !vaultUnlocked}
+                                            onClick={() => void onOpen(doc.id)}
+                                        >
+                                            Open <ArrowUpRight className="size-3.5" />
+                                        </Button>
                                     </div>
                                 </div>
-                                {doc.projectId ? (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onNavigateTarget({ view: 'projects', recordId: doc.projectId! })
-                                        }
-                                        className="truncate text-left text-xs text-muted-foreground hover:text-foreground hover:underline"
-                                    >
-                                        {projectNames[doc.projectId] ?? 'Project'}
-                                    </button>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                                <span className="text-xs tabular-nums text-muted-foreground">
-                                    {formatBytes(doc.sizeBytes)}
-                                </span>
-                                <Badge variant={doc.encrypted ? 'warning' : statusVariant[doc.status]}>
-                                    {doc.encrypted ? 'Protected' : statusLabel[doc.status]}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                    {formatDate(doc.createdAt)}
-                                </span>
-                                <div className="text-right">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 px-2 text-xs"
-                                        disabled={doc.encrypted && !vaultUnlocked}
-                                        onClick={() => void onOpen(doc.id)}
-                                    >
-                                        Open <ArrowUpRight className="size-3" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                    {!pageLoading && !visible.length && !pageError && !noticeIsError && (
+                            ))
+                        )}
+                    </div>
+                ) : (
+                    !pageError && (
                         <div className="py-14 text-center">
                             <FolderOpen className="mx-auto mb-2.5 size-5 text-muted-foreground" />
                             <p className="text-sm font-medium">No documents yet</p>
@@ -296,8 +319,8 @@ export function DocumentsPage({
                                 Import document
                             </Button>
                         </div>
-                    )}
-                </div>
+                    )
+                )}
             </div>
 
             <PageControls

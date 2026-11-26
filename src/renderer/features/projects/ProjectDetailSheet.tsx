@@ -24,6 +24,27 @@ interface ProjectDetailSheetProps {
     onNavigate: (target: WorkspaceNavigationTarget) => void;
 }
 
+const TASK_STATUS_VARIANT: Record<
+    TaskRecord['status'],
+    'outline' | 'info' | 'secondary' | 'warning' | 'success'
+> = {
+    not_started: 'outline',
+    in_progress: 'info',
+    waiting: 'secondary',
+    blocked: 'warning',
+    completed: 'success',
+    cancelled: 'secondary',
+};
+
+const TASK_STATUS_LABEL: Record<TaskRecord['status'], string> = {
+    not_started: 'Not started',
+    in_progress: 'In progress',
+    waiting: 'Waiting',
+    blocked: 'Blocked',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+};
+
 export function ProjectDetailSheet({
     project,
     onClose,
@@ -125,7 +146,7 @@ export function ProjectDetailSheet({
                             onValueChange={(v) => setTab(v as typeof tab)}
                             className="space-y-3"
                         >
-                            <TabsList className="w-full justify-start">
+                            <TabsList className="w-full justify-start overflow-x-auto">
                                 <TabsTrigger value="tasks" className="text-xs">
                                     Tasks ({tasks.length})
                                 </TabsTrigger>
@@ -143,19 +164,19 @@ export function ProjectDetailSheet({
                                 </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="tasks" className="space-y-2">
+                            <TabsContent value="tasks" className="space-y-2.5">
                                 <div className="flex justify-end">
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-7 gap-1 text-xs"
+                                        className="h-8 gap-1 text-xs"
                                         onClick={() => jump({ view: 'tasks', projectId: project.id })}
                                     >
-                                        Open in Tasks <ArrowUpRight className="size-3" />
+                                        Open in Tasks <ArrowUpRight className="size-3.5" />
                                     </Button>
                                 </div>
                                 {tasks.length ? (
-                                    <div className="divide-y divide-border rounded-md border border-border">
+                                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
                                         {tasks.map((task) => (
                                             <button
                                                 key={task.id}
@@ -167,14 +188,14 @@ export function ProjectDetailSheet({
                                                         projectId: project.id,
                                                     })
                                                 }
-                                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-hover"
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-surface-hover"
                                             >
                                                 <ListTodo className="size-3.5 shrink-0 text-muted-foreground" />
                                                 <span className="min-w-0 flex-1 truncate font-medium">
                                                     {task.title}
                                                 </span>
-                                                <Badge variant="outline">
-                                                    {task.status.replaceAll('_', ' ')}
+                                                <Badge variant={TASK_STATUS_VARIANT[task.status]}>
+                                                    {TASK_STATUS_LABEL[task.status]}
                                                 </Badge>
                                             </button>
                                         ))}
@@ -186,19 +207,19 @@ export function ProjectDetailSheet({
                                 )}
                             </TabsContent>
 
-                            <TabsContent value="notes" className="space-y-2">
+                            <TabsContent value="notes" className="space-y-2.5">
                                 <div className="flex justify-end">
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-7 gap-1 text-xs"
+                                        className="h-8 gap-1 text-xs"
                                         onClick={() => jump({ view: 'notes', projectId: project.id })}
                                     >
-                                        Open in Notes <ArrowUpRight className="size-3" />
+                                        Open in Notes <ArrowUpRight className="size-3.5" />
                                     </Button>
                                 </div>
                                 {notes.length ? (
-                                    <div className="divide-y divide-border rounded-md border border-border">
+                                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
                                         {notes.map((note) => (
                                             <button
                                                 key={note.id}
@@ -210,7 +231,7 @@ export function ProjectDetailSheet({
                                                         projectId: project.id,
                                                     })
                                                 }
-                                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-hover"
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-surface-hover"
                                             >
                                                 <NotebookPen className="size-3.5 shrink-0 text-muted-foreground" />
                                                 <span className="min-w-0 flex-1 truncate font-medium">
@@ -218,7 +239,7 @@ export function ProjectDetailSheet({
                                                         ? 'Locked note'
                                                         : note.title || 'Untitled note'}
                                                 </span>
-                                                <span className="text-muted-foreground">
+                                                <span className="text-xs text-muted-foreground">
                                                     {formatDate(note.updatedAt)}
                                                 </span>
                                             </button>
@@ -231,19 +252,19 @@ export function ProjectDetailSheet({
                                 )}
                             </TabsContent>
 
-                            <TabsContent value="documents" className="space-y-2">
+                            <TabsContent value="documents" className="space-y-2.5">
                                 <div className="flex justify-end">
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-7 gap-1 text-xs"
+                                        className="h-8 gap-1 text-xs"
                                         onClick={() => jump({ view: 'documents', projectId: project.id })}
                                     >
-                                        Open in Documents <ArrowUpRight className="size-3" />
+                                        Open in Documents <ArrowUpRight className="size-3.5" />
                                     </Button>
                                 </div>
                                 {documents.length ? (
-                                    <div className="divide-y divide-border rounded-md border border-border">
+                                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
                                         {documents.map((doc) => (
                                             <button
                                                 key={doc.id}
@@ -260,7 +281,7 @@ export function ProjectDetailSheet({
                                                             ),
                                                         )
                                                 }
-                                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-hover"
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-surface-hover"
                                             >
                                                 <FileText className="size-3.5 shrink-0 text-muted-foreground" />
                                                 <span className="min-w-0 flex-1 truncate font-medium">
@@ -279,19 +300,19 @@ export function ProjectDetailSheet({
                                 )}
                             </TabsContent>
 
-                            <TabsContent value="contacts" className="space-y-2">
+                            <TabsContent value="contacts" className="space-y-2.5">
                                 <div className="flex justify-end">
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-7 gap-1 text-xs"
+                                        className="h-8 gap-1 text-xs"
                                         onClick={() => jump({ view: 'contacts', projectId: project.id })}
                                     >
-                                        Open in Contacts <ArrowUpRight className="size-3" />
+                                        Open in Contacts <ArrowUpRight className="size-3.5" />
                                     </Button>
                                 </div>
                                 {contacts.length ? (
-                                    <div className="divide-y divide-border rounded-md border border-border">
+                                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
                                         {contacts.map((contact) => (
                                             <button
                                                 key={contact.id}
@@ -303,13 +324,13 @@ export function ProjectDetailSheet({
                                                         projectId: project.id,
                                                     })
                                                 }
-                                                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs hover:bg-surface-hover"
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-surface-hover"
                                             >
                                                 <Users className="size-3.5 shrink-0 text-muted-foreground" />
                                                 <span className="min-w-0 flex-1 truncate font-medium">
                                                     {contact.name}
                                                 </span>
-                                                <span className="capitalize text-muted-foreground">
+                                                <span className="text-xs capitalize text-muted-foreground">
                                                     {contact.role.replaceAll('_', ' ')}
                                                 </span>
                                             </button>

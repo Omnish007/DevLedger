@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useConfirm } from '@/components/shared/ConfirmProvider';
 import { friendlyError } from '@/lib/utils';
 
@@ -84,7 +85,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
             {error && (
                 <p
                     role="alert"
-                    className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-danger"
+                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -92,7 +93,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
             {message && (
                 <p
                     role="status"
-                    className="break-all rounded-md border border-border bg-surface-subtle px-3 py-2"
+                    className="break-all rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
                 >
                     {message}
                 </p>
@@ -101,7 +102,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
             <section className="workspace-surface space-y-4 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
                     <div>
-                        <h3 className="text-sm font-semibold">Encrypted backups & destinations</h3>
+                        <h2 className="text-sm font-semibold">Encrypted backups & destinations</h2>
                         <p className="mt-0.5 text-muted-foreground">
                             Consistent SQLite + object archives verified with SHA-256.
                         </p>
@@ -116,7 +117,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                     </p>
                 )}
                 {autoError && (
-                    <p className="rounded border border-warning/40 bg-warning/5 p-2.5 text-muted-foreground">
+                    <p className="rounded-lg border border-warning/30 bg-warning-subtle p-3 text-warning-foreground">
                         {autoError}
                     </p>
                 )}
@@ -203,34 +204,41 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                             }
                         }, 'Backup creation failed.');
                     }}
-                    className="grid gap-2 sm:grid-cols-[1fr_auto]"
+                    className="space-y-1.5"
                 >
-                    <Input
-                        type="password"
-                        minLength={12}
-                        autoComplete="new-password"
-                        value={backupPassphrase}
-                        onChange={(e) => setBackupPassphrase(e.target.value)}
-                        placeholder="Backup passphrase (12+ chars)"
-                        required
-                    />
-                    <Button type="submit" size="sm" disabled={saving || backupPassphrase.length < 12}>
-                        <Download className="size-3.5" />
-                        Create backup
-                    </Button>
+                    <Label htmlFor="backup-create-passphrase" className="text-xs font-medium">
+                        Backup passphrase
+                    </Label>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <Input
+                            id="backup-create-passphrase"
+                            type="password"
+                            minLength={12}
+                            autoComplete="new-password"
+                            value={backupPassphrase}
+                            onChange={(e) => setBackupPassphrase(e.target.value)}
+                            placeholder="At least 12 characters"
+                            required
+                        />
+                        <Button type="submit" size="sm" disabled={saving || backupPassphrase.length < 12}>
+                            <Download className="size-3.5" />
+                            Create backup
+                        </Button>
+                    </div>
                 </form>
 
                 {backupRecoveryKey && (
-                    <div className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3">
+                    <div className="space-y-2 rounded-lg border border-warning/30 bg-warning-subtle p-3.5 text-warning-foreground">
                         <p className="font-semibold">Save portable recovery key (shown once)</p>
                         <div className="flex items-center gap-2">
-                            <code className="flex-1 break-all rounded bg-surface p-2 font-mono">
+                            <code className="flex-1 break-all rounded-md bg-card p-2 font-mono text-foreground">
                                 {backupRecoveryKey}
                             </code>
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
+                                aria-label="Copy recovery key"
                                 onClick={() => void navigator.clipboard.writeText(backupRecoveryKey)}
                             >
                                 <Clipboard className="size-3.5" />
@@ -239,14 +247,16 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                     </div>
                 )}
 
-                <div className="space-y-2 rounded-md border border-border p-3">
+                <div className="space-y-2.5 rounded-lg border border-border p-3.5">
                     <div className="flex items-center justify-between">
-                        <span className="font-medium">Restore from archive</span>
+                        <Label htmlFor="backup-restore-secret" className="text-xs font-medium">
+                            Restore from archive ({useBackupRecovery ? 'Recovery key' : 'Passphrase'})
+                        </Label>
                         <Button
                             type="button"
                             size="sm"
                             variant="ghost"
-                            className="h-6 px-2 text-xs"
+                            className="h-7 px-2 text-xs"
                             onClick={() => {
                                 setUseBackupRecovery((v) => !v);
                                 setBackupPassphrase('');
@@ -269,6 +279,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                         className="grid gap-2 sm:grid-cols-[1fr_auto]"
                     >
                         <Input
+                            id="backup-restore-secret"
                             type="password"
                             value={useBackupRecovery ? backupRestoreSecret : backupPassphrase}
                             onChange={(e) =>
@@ -276,7 +287,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                                     ? setBackupRestoreSecret(e.target.value)
                                     : setBackupPassphrase(e.target.value)
                             }
-                            placeholder={useBackupRecovery ? 'Recovery key' : 'Backup passphrase'}
+                            placeholder={useBackupRecovery ? 'Enter recovery key' : 'Enter backup passphrase'}
                             required
                         />
                         <Button type="submit" size="sm" variant="outline" disabled={saving}>

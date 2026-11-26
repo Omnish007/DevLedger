@@ -195,33 +195,38 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
 
     return (
         <div className="workspace-page page-search mx-auto">
-            <div
-                className={
-                    searched
-                        ? 'mx-auto max-w-[780px] space-y-4'
-                        : 'mx-auto flex min-h-[58vh] max-w-[680px] flex-col justify-center space-y-5'
-                }
-            >
+            <div className="mx-auto max-w-[820px] space-y-5">
                 <PageHeader
                     title="Search"
+                    description={
+                        !searched ? 'Search notes, tasks, projects, documents, and contacts.' : undefined
+                    }
                     actions={
-                        <div className="flex items-center gap-3 text-xs">
+                        <div className="flex flex-wrap items-center gap-3 text-xs">
                             <label
-                                className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                                htmlFor="search-semantic"
+                                className="flex min-h-7 cursor-pointer items-center gap-2 text-muted-foreground hover:text-foreground"
                                 title="Re-rank with local Ollama embeddings"
                             >
                                 <Switch
+                                    id="search-semantic"
+                                    aria-label="Semantic"
                                     checked={semanticEnabled}
                                     onCheckedChange={toggleSemantic}
-                                    size="sm"
                                 />
                                 <span>Semantic</span>
                             </label>
                             <label
-                                className="flex cursor-pointer items-center gap-1.5 text-muted-foreground hover:text-foreground"
+                                htmlFor="search-ai-summary"
+                                className="flex min-h-7 cursor-pointer items-center gap-2 text-muted-foreground hover:text-foreground"
                                 title="Summarize matches with local Ollama"
                             >
-                                <Switch checked={aiEnabled} onCheckedChange={toggleAi} size="sm" />
+                                <Switch
+                                    id="search-ai-summary"
+                                    aria-label="AI summary"
+                                    checked={aiEnabled}
+                                    onCheckedChange={toggleAi}
+                                />
                                 <Sparkles className="size-3.5" />
                                 <span>AI summary</span>
                             </label>
@@ -251,9 +256,9 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                                 setAiSummary(null);
                                 setError('');
                             }}
-                            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                         >
-                            <X className="size-3.5" />
+                            <X className="size-4" />
                         </button>
                     )}
                     <span className="h-5 w-px shrink-0 bg-border/80" aria-hidden="true" />
@@ -273,7 +278,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                     <Button
                         type="submit"
                         size="sm"
-                        className="h-9 rounded-xl px-4"
+                        className="h-9 rounded-lg px-4"
                         disabled={busy || !query.trim()}
                     >
                         {busy ? 'Searching…' : 'Search'}
@@ -281,13 +286,14 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 </form>
 
                 {!searched && (
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Try operator:</span>
                         {(['type:note', 'type:task', 'is:blocked', 'type:pdf'] as const).map((chip) => (
                             <button
                                 key={chip}
                                 type="button"
                                 onClick={() => void runQuery(chip)}
-                                className="rounded-full border border-border/80 bg-card px-3 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border hover:bg-surface-subtle hover:text-foreground"
+                                className="inline-flex min-h-7 items-center rounded-full border border-border bg-card px-3 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-input hover:bg-surface-subtle hover:text-foreground"
                             >
                                 {chip}
                             </button>
@@ -296,14 +302,17 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 )}
 
                 {error && (
-                    <p role="alert" className="text-xs text-danger">
+                    <p
+                        role="alert"
+                        className="rounded-lg border border-danger/25 bg-danger-subtle px-3 py-2 text-xs text-danger-foreground"
+                    >
                         {error}
                     </p>
                 )}
                 {semanticError && (
                     <div
                         role="alert"
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning-subtle px-3 py-2 text-xs text-warning-foreground"
                     >
                         <span>{semanticError}</span>
                         {semanticError.toLowerCase().includes('index') && (
@@ -342,22 +351,22 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 {aiError && (
                     <div
                         role="alert"
-                        className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/5 p-3 text-xs"
+                        className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-subtle p-3 text-xs text-warning-foreground"
                     >
-                        <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />
+                        <AlertCircle className="mt-0.5 size-4 shrink-0" />
                         <span>{aiError}</span>
                     </div>
                 )}
 
                 {aiEnabled && aiSummary && (
-                    <section className="rounded-xl border border-border/80 bg-surface-subtle/55 p-4">
+                    <section className="rounded-[var(--workspace-radius)] border border-border bg-surface-subtle/55 p-4 shadow-[var(--shadow-xs)]">
                         <div className="mb-2 flex items-center gap-2">
                             <Sparkles className="size-3.5 text-primary" />
-                            <h3 className="text-xs font-semibold">AI Answer</h3>
+                            <h2 className="text-xs font-semibold">AI Answer</h2>
                             <Badge variant="secondary">{aiSummary.model}</Badge>
                             {aiSummary.cached && <Badge variant="outline">Cached</Badge>}
                         </div>
-                        <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                             {aiSummary.summary}
                         </p>
                         <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2.5">
@@ -366,9 +375,9 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                                     key={`${source.type}:${source.id}`}
                                     type="button"
                                     onClick={() => onOpenResult(source)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-[11px] font-medium transition-colors hover:border-border hover:bg-surface-hover"
+                                    className="inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium transition-colors hover:border-input hover:bg-surface-hover"
                                 >
-                                    <span className="font-mono text-[10px] text-primary">[{index + 1}]</span>
+                                    <span className="font-mono text-xs text-primary">[{index + 1}]</span>
                                     <span className="truncate">{source.title}</span>
                                 </button>
                             ))}

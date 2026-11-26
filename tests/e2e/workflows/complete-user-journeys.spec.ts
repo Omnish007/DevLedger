@@ -50,13 +50,11 @@ test('quick capture creates a note through its own Electron window and persists 
     const content = 'Captured from the dedicated Quick Capture window.';
 
     const captureWindowPromise = desktop.application.waitForEvent('window');
-    await page.getByRole('button', { name: 'Capture', exact: true }).click();
+    await page.getByRole('button', { name: /Quick capture/i }).click();
     const captureWindow = await captureWindowPromise;
     await expect(captureWindow.getByRole('main')).toBeVisible();
     await captureWindow.getByLabel('Note title').fill(title);
-    await captureWindow
-        .getByPlaceholder('Capture a thought, decision, meeting note or follow-up…')
-        .fill(content);
+    await captureWindow.getByPlaceholder('Write a note, decision, or follow-up…').fill(content);
     const closed = captureWindow.waitForEvent('close');
     await captureWindow.getByRole('button', { name: 'Save note' }).click();
     await closed;

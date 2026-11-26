@@ -11,7 +11,7 @@ test('creates, searches, edits and moves a contact to trash', async ({ desktop }
     await page.getByRole('button', { name: 'Contacts', exact: true }).click();
     await page.getByRole('button', { name: 'Add contact' }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('button', { name: 'Save contact' }).click();
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog.getByText('Enter a contact name.')).toBeVisible();
 
     await dialog.getByLabel('Name').fill(contactName);
@@ -24,16 +24,16 @@ test('creates, searches, edits and moves a contact to trash', async ({ desktop }
     expect(await emailInput.evaluate((input: HTMLInputElement) => input.validity.valid)).toBe(true);
     await dialog.getByLabel('Company').fill('Initial Company');
     await dialog.getByLabel('Notes').fill('Contact record created with Unicode name: 東京');
-    await dialog.getByRole('button', { name: 'Add field' }).click();
-    await dialog.getByLabel('Custom attribute 1 name').fill('Environment');
-    await dialog.getByLabel('Custom attribute 1 value').fill('Production');
-    await dialog.getByRole('button', { name: 'Save contact' }).click();
-    await expect(page.getByText(contactName, { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await dialog.getByPlaceholder('Field').fill('Environment');
+    await dialog.getByPlaceholder('Value').fill('Production');
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText(contactName, { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Production', { exact: true })).toBeVisible();
 
-    const search = page.getByPlaceholder('Search contacts…');
+    const search = page.getByPlaceholder('Filter contacts…');
     await search.fill('ASHA.E2E@EXAMPLE.TEST');
-    await expect(page.getByText(contactName, { exact: true })).toBeVisible();
+    await expect(page.getByText(contactName, { exact: true }).first()).toBeVisible();
     await search.fill('does-not-exist');
     await expect(page.getByText('No matching contacts')).toBeVisible();
     await search.clear();
@@ -42,8 +42,8 @@ test('creates, searches, edits and moves a contact to trash', async ({ desktop }
     await page.getByRole('menuitem', { name: 'Edit contact' }).click();
     const editDialog = page.getByRole('dialog');
     await editDialog.getByLabel('Company').fill(revisedCompany);
-    await editDialog.getByRole('button', { name: 'Save changes' }).click();
-    await expect(page.getByText(revisedCompany, { exact: true })).toBeVisible();
+    await editDialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByText(revisedCompany, { exact: true }).first()).toBeVisible();
 
     await page.getByRole('button', { name: `Actions for ${contactName}` }).click();
     await page.getByRole('menuitem', { name: 'Move to trash' }).click();

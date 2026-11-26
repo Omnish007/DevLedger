@@ -42,15 +42,15 @@ test('exports a project archive and imports a remapped project copy with its tas
     await page.getByRole('button', { name: 'Projects', exact: true }).click();
     await page.getByRole('button', { name: `Actions for ${projectName}` }).click();
     await page.getByRole('menuitem', { name: 'Export project' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Project exported to' })).toBeVisible({
+    await expect(page.getByText(/Project exported to/i)).toBeVisible({
         timeout: 60_000,
     });
     expect((await stat(archivePath)).size).toBeGreaterThan(128);
 
     await page.getByRole('button', { name: 'Import archive' }).click();
-    await expect(
-        page.getByRole('status').filter({ hasText: `Imported ${projectName} (Imported)` }),
-    ).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(`Imported ${projectName} (Imported)`, { exact: false })).toBeVisible({
+        timeout: 60_000,
+    });
     await expect(page.getByText(`${projectName} (Imported)`, { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Tasks', exact: true }).click();
@@ -60,7 +60,7 @@ test('exports a project archive and imports a remapped project copy with its tas
     // merely duplicated as an orphan or left attached to the source project.
     const projectFilter = page.getByRole('combobox').filter({ hasText: 'All projects' });
     await projectFilter.click();
-    await page.getByPlaceholder('Search workspace records…').fill(`${projectName} (Imported)`);
+    await page.getByPlaceholder('Search projects…').fill(`${projectName} (Imported)`);
     await page.getByRole('option', { name: `${projectName} (Imported)` }).click();
     await expect(page.getByText(taskTitle, { exact: true })).toHaveCount(1);
 });

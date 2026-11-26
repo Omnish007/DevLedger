@@ -13,19 +13,19 @@ test('creates and autosaves Unicode and script-like note content, then reloads i
     const titleInput = page.getByPlaceholder('Untitled note');
     await expect(titleInput).toBeVisible();
     await titleInput.fill(title);
-    const editor = page.locator('.notes-editor-content [contenteditable="true"]');
+    const editor = page.locator('.notes-writing-canvas [contenteditable="true"]');
     await editor.fill(content);
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('.notes-editor-content script')).toHaveCount(0);
+    await expect(page.locator('.notes-writing-canvas script')).toHaveCount(0);
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'A clear view of your work.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await page.getByRole('button', { name: 'Notes', exact: true }).click();
     await page.getByRole('textbox', { name: 'Filter notes by title or contents' }).fill(title);
     await expect(page.getByText(title, { exact: true })).toBeVisible();
     await page.getByText(title, { exact: true }).click();
     await expect(page.getByPlaceholder('Untitled note')).toHaveValue(title);
-    await expect(page.locator('.notes-editor-content [contenteditable="true"]')).toContainText('東京 🧭');
+    await expect(page.locator('.notes-writing-canvas [contenteditable="true"]')).toContainText('東京 🧭');
     expect(
         await page.evaluate(() => (window as unknown as { __e2eInjected?: boolean }).__e2eInjected),
     ).toBeUndefined();

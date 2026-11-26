@@ -13,14 +13,24 @@ async function launchWorkspace(reuseUserData = false): Promise<void> {
         throw new Error('Electron E2E tests require a production build first. Run npm run build.');
     if (!reuseUserData || !userDataDirectory)
         userDataDirectory = await mkdtemp(join(tmpdir(), 'devledger-e2e-'));
+    const launchEnv: Record<string, string> = {
+        ...Object.fromEntries(
+            Object.entries(process.env).filter(
+                (entry): entry is [string, string] =>
+                    typeof entry[1] === 'string' && entry[0] !== 'ELECTRON_RUN_AS_NODE',
+            ),
+        ),
+        DEVLEDGER_E2E: '1',
+        DEVLEDGER_TEST_USER_DATA: userDataDirectory,
+        ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+    };
+    const headlessArgs =
+        !process.env['DISPLAY'] && !process.env['WAYLAND_DISPLAY']
+            ? ['--ozone-platform=headless', '--disable-gpu']
+            : [];
     application = await electron.launch({
-        args: [resolve('.'), '--no-sandbox'],
-        env: {
-            ...process.env,
-            DEVLEDGER_E2E: '1',
-            DEVLEDGER_TEST_USER_DATA: userDataDirectory,
-            ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-        },
+        args: [resolve('.'), ...headlessArgs],
+        env: launchEnv,
         timeout: 30_000,
     });
     page = await application.firstWindow();
@@ -52,8 +62,12 @@ test('creates a project and persists it across a window reload', async () => {
     await currentPage.getByRole('button', { name: 'Projects', exact: true }).click();
     await expect(currentPage.getByText('E2E Workspace Project', { exact: true })).toBeVisible();
     await currentPage.getByRole('button', { name: 'Tasks', exact: true }).click();
+    await currentPage.getByRole('button', { name: 'New task', exact: true }).click();
     await currentPage.getByPlaceholder('What needs to be done?').fill('E2E verify task persistence');
-    await currentPage.getByRole('button', { name: 'Create task' }).click();
+    await currentPage.getByRole('combobox', { name: 'Choose project' }).click();
+    await currentPage.getByPlaceholder('Search projects…').fill('E2E Workspace Project');
+    await currentPage.getByRole('option', { name: 'E2E Workspace Project' }).click();
+    await currentPage.getByRole('button', { name: 'Create task', exact: true }).click();
     await expect(currentPage.getByText('E2E verify task persistence', { exact: true })).toBeVisible();
     await currentPage.reload();
     await expect(currentPage.getByRole('heading', { name: 'Overview' })).toBeVisible();
@@ -85,7 +99,7 @@ test('opens command navigation with the keyboard', async () => {
     const currentPage = page!;
     await currentPage.keyboard.press('Control+k');
     await expect(currentPage.getByRole('dialog')).toBeVisible();
-    await expect(currentPage.getByPlaceholder(/search pages and actions/i)).toBeVisible();
+    await expect(currentPage.getByPlaceholder(/Jump to a note, task/i)).toBeVisible();
     await currentPage.keyboard.press('Escape');
     await expect(currentPage.getByRole('dialog')).toBeHidden();
 });
@@ -137,20 +151,24 @@ test('a timer surviving an application restart requires explicit recovery', asyn
     await currentPage.getByLabel('Project name').fill('Timer recovery E2E project');
     await currentPage.getByRole('button', { name: 'Create project' }).click();
     await currentPage.getByRole('button', { name: 'Tasks', exact: true }).click();
+    await currentPage.getByRole('button', { name: 'New task', exact: true }).click();
     await currentPage.getByPlaceholder('What needs to be done?').fill('Recover timer after restart');
-    await currentPage.getByRole('button', { name: 'Create task' }).click();
+    await currentPage.getByRole('combobox', { name: 'Choose project' }).click();
+    await currentPage.getByPlaceholder('Search projects…').fill('Timer recovery E2E project');
+    await currentPage.getByRole('option', { name: 'Timer recovery E2E project' }).click();
+    await currentPage.getByRole('button', { name: 'Create task', exact: true }).click();
     await currentPage.locator('button[title="Start timer"]').first().click();
-    await expect(currentPage.getByText('Timer running')).toBeVisible();
+    await expect(currentPage.getByText(/Timer running/)).toBeVisible();
     await application!.close();
     application = undefined;
     page = undefined;
     await launchWorkspace(true);
     await page!.getByRole('button', { name: 'Tasks', exact: true }).click();
-    const recoveryPrompt = page!.getByText('Confirm the interrupted work session');
+    const recoveryPrompt = page!.getByText('Confirm interrupted work session');
     await expect(recoveryPrompt).toBeVisible();
-    await page!.getByRole('button', { name: 'Discard session' }).click();
+    await page!.getByRole('button', { name: 'Discard', exact: true }).click();
     const confirmation = page!.getByRole('alertdialog');
     await expect(confirmation).toBeVisible();
-    await confirmation.getByRole('button', { name: 'Discard session' }).click();
+    await confirmation.getByRole('button', { name: 'Discard', exact: true }).click();
     await expect(recoveryPrompt).toBeHidden();
 });

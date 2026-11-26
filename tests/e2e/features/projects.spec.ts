@@ -51,6 +51,6 @@ test('edits, archives, filters, and restores a project without losing the record
     await expect(page.getByText(projectName, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: `Actions for ${projectName}` }).click();
     await page.getByRole('menuitem', { name: 'Restore project' }).click();
-    await page.getByRole('button', { name: 'Hide archived' }).click();
+    await page.getByRole('button', { name: 'Active', exact: true }).click();
     await expect(page.getByText(projectName, { exact: true })).toBeVisible();
 });

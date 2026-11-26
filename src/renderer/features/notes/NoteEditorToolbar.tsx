@@ -105,7 +105,7 @@ export function NoteEditorToolbar({
                                     type="button"
                                     variant={item.active ? 'secondary' : 'ghost'}
                                     size="icon"
-                                    className="size-7"
+                                    className="size-8"
                                     title={item.label}
                                     aria-label={item.label}
                                     onClick={item.run}
@@ -125,7 +125,7 @@ export function NoteEditorToolbar({
                                 type="button"
                                 size="icon"
                                 variant="ghost"
-                                className="size-7 text-muted-foreground"
+                                className="size-8 text-muted-foreground"
                                 title="Inline @ shortcuts & tables"
                                 aria-label="Inline @ shortcuts"
                             >
@@ -152,7 +152,7 @@ export function NoteEditorToolbar({
                                 <div>
                                     <code className="text-foreground">@r tomorrow 9am</code> sets a reminder
                                 </div>
-                                <div className="border-t border-border/60 pt-1.5 text-[11px]">
+                                <div className="border-t border-border/60 pt-1.5 text-xs">
                                     Hover any table edge to add or resize rows and columns; use row/column
                                     handles or press <code className="text-foreground">Tab</code> to move
                                     cells.
@@ -171,7 +171,7 @@ export function NoteEditorToolbar({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-xs"
+                        className="h-8 px-2.5 text-xs"
                         onClick={() => markdownInputRef.current?.click()}
                     >
                         <FileUp className="mr-1 size-3.5" />
@@ -181,7 +181,7 @@ export function NoteEditorToolbar({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-xs"
+                        className="h-8 px-2.5 text-xs"
                         onClick={onExportMarkdown}
                     >
                         <Download className="mr-1 size-3.5" />

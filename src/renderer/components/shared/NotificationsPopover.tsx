@@ -82,15 +82,16 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
             </PopoverTrigger>
             <PopoverContent align="end" className="w-[388px] p-0">
                 <div className="flex items-center justify-between border-b border-border/70 px-3.5 py-2.5">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold">Inbox</span>
-                        <div className="flex rounded-lg border border-border/80 bg-surface-subtle/60 p-0.5 text-xs">
+                    <div className="flex items-center gap-2.5">
+                        <span className="text-sm font-semibold">Inbox</span>
+                        <div className="workspace-segmented" role="group" aria-label="Filter inbox">
                             {(['all', 'unread'] as const).map((tab) => (
                                 <button
                                     key={tab}
                                     type="button"
+                                    data-active={filter === tab}
                                     onClick={() => setFilter(tab)}
-                                    className={`rounded-md px-2 py-0.5 capitalize transition-colors ${filter === tab ? 'bg-accent font-medium text-accent-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                                    className="workspace-segmented-item capitalize"
                                 >
                                     {tab}
                                 </button>
@@ -101,7 +102,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-7 gap-1 px-2 text-xs"
+                        className="h-8 gap-1 px-2.5 text-xs"
                         disabled={!unreadCount}
                         onClick={() => void window.devLedger.notifications.markAllRead().then(loadInbox)}
                     >
@@ -120,7 +121,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                             type="button"
                             size="sm"
                             variant="secondary"
-                            className="h-6 px-2 text-[11px]"
+                            className="h-7 px-2.5 text-xs"
                             onClick={() => void requestWebNotificationPermission().then(setPermission)}
                         >
                             Allow
@@ -143,20 +144,26 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                                         <span
                                             className={`size-2 shrink-0 rounded-full ${item.status === 'unread' ? 'bg-primary' : 'bg-transparent'}`}
                                         />
-                                        <p className="truncate font-medium">{item.title}</p>
+                                        <p className="truncate text-sm font-medium text-foreground">
+                                            {item.title}
+                                        </p>
                                     </div>
-                                    <span className="shrink-0 text-muted-foreground">
+                                    <span className="shrink-0 text-xs text-muted-foreground">
                                         {formatRelative(item.deliveredAt)}
                                     </span>
                                 </div>
-                                {item.body && <p className="pl-4 text-muted-foreground">{item.body}</p>}
-                                <div className="flex flex-wrap items-center gap-1.5 pl-4 pt-0.5">
+                                {item.body && (
+                                    <p className="pl-4 text-xs leading-relaxed text-muted-foreground">
+                                        {item.body}
+                                    </p>
+                                )}
+                                <div className="flex flex-wrap items-center gap-1.5 pl-4 pt-1">
                                     {canJump && (
                                         <Button
                                             type="button"
                                             size="sm"
                                             variant="outline"
-                                            className="h-6 gap-1 px-2 text-xs"
+                                            className="h-7 gap-1 px-2.5 text-xs"
                                             onClick={() => {
                                                 setOpen(false);
                                                 onNavigateTarget(
@@ -178,7 +185,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                                                 type="button"
                                                 size="sm"
                                                 variant="ghost"
-                                                className="h-6 px-2 text-xs"
+                                                className="h-7 px-2.5 text-xs"
                                                 onClick={() =>
                                                     void window.devLedger.notifications
                                                         .snooze(item.id, 60)
@@ -193,7 +200,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                                             type="button"
                                             size="sm"
                                             variant="ghost"
-                                            className="h-6 px-2 text-xs"
+                                            className="h-7 px-2.5 text-xs"
                                             onClick={() =>
                                                 void window.devLedger.notifications
                                                     .markRead(item.id)
@@ -208,7 +215,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                                             type="button"
                                             size="sm"
                                             variant="ghost"
-                                            className="h-6 px-2 text-xs text-muted-foreground"
+                                            className="h-7 px-2.5 text-xs text-muted-foreground"
                                             onClick={() =>
                                                 void window.devLedger.notifications
                                                     .dismiss(item.id)
@@ -223,7 +230,7 @@ export function NotificationsPopover({ onNavigateTarget }: NotificationsPopoverP
                         );
                     })}
                     {!items.length && !error && (
-                        <div className="py-12 text-center text-xs text-muted-foreground">
+                        <div className="py-12 text-center text-sm text-muted-foreground">
                             <AlarmClock className="mx-auto mb-2 size-4 opacity-70" />
                             <p>You’re all caught up.</p>
                         </div>

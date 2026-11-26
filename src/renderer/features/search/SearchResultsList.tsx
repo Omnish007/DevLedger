@@ -21,7 +21,7 @@ export function SearchSyntaxPopover() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground"
                 >
                     <HelpCircle className="size-3.5" />
                     Syntax
@@ -122,18 +122,20 @@ export function SearchResultsList({
                     {TYPE_FILTERS.map((item) => {
                         const count = typeCounts[item.id];
                         const active = typeFilter === item.id;
+                        const isEmptyType = item.id !== 'all' && count === 0;
                         return (
                             <button
                                 key={item.id}
                                 type="button"
                                 role="tab"
                                 aria-selected={active}
+                                disabled={isEmptyType}
                                 onClick={() => onTypeFilterChange(item.id)}
-                                className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-2.5 py-2 text-xs transition-colors ${active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                                className={`-mb-px inline-flex min-h-9 items-center gap-1.5 border-b-2 px-2.5 py-2 text-xs transition-colors ${active ? 'border-primary font-semibold text-foreground' : isEmptyType ? 'cursor-default border-transparent text-muted-foreground/45 opacity-60' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
                             >
                                 <span>{item.label}</span>
                                 {count > 0 && (
-                                    <span className="tabular-nums text-[11px] text-muted-foreground">
+                                    <span className="tabular-nums text-xs text-muted-foreground">
                                         {count}
                                     </span>
                                 )}
@@ -153,7 +155,7 @@ export function SearchResultsList({
                         <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 px-2 text-xs"
+                            className="h-8 px-2 text-xs"
                             disabled={!totalResults || aiBusy}
                             onClick={onRequestSummary}
                         >
@@ -163,11 +165,14 @@ export function SearchResultsList({
                 </div>
             </div>
 
-            <div className="divide-y divide-border/50">
+            <div className="divide-y divide-border/55">
                 {visibleResults.map((result) => {
                     const Icon = ENTITY_ICON[result.type];
                     return (
-                        <article key={`${result.type}:${result.id}`} className="py-3.5">
+                        <article
+                            key={`${result.type}:${result.id}`}
+                            className="search-result py-3.5 transition-colors"
+                        >
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <Icon className="size-3.5 shrink-0" />
                                 <span className="truncate">
@@ -181,11 +186,11 @@ export function SearchResultsList({
                             <button
                                 type="button"
                                 onClick={() => onOpenResult(result)}
-                                className="mt-1 block max-w-full truncate text-left text-[15px] font-medium text-primary hover:underline"
+                                className="mt-1 inline-flex min-h-6 max-w-full items-center truncate text-left text-base font-medium text-primary hover:underline"
                             >
                                 {result.title}
                             </button>
-                            <p className="mt-1 line-clamp-2 text-[13px] leading-[1.6] text-muted-foreground">
+                            <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                                 {renderExcerpt(result.excerpt)}
                             </p>
                         </article>

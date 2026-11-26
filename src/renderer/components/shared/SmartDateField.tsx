@@ -86,7 +86,7 @@ export function SmartDateField({
                             key={preset.id}
                             type="button"
                             onClick={() => onChange(preset.token)}
-                            className="rounded-md border border-border/80 bg-surface-subtle/50 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            className="inline-flex min-h-6 items-center rounded-md border border-border/80 bg-surface-subtle/60 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         >
                             {preset.label}
                         </button>
@@ -111,16 +111,16 @@ export function SmartDateField({
                             `${compact ? '' : `${id}-help `}${parsed.result || parsed.error ? `${id}-preview` : ''}`.trim() ||
                             undefined
                         }
-                        className="pl-8 pr-7 text-xs"
+                        className="pl-8 pr-8 text-xs"
                     />
                     {value.trim() && (
                         <button
                             type="button"
                             onClick={() => onChange('')}
                             aria-label="Clear date and time"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                         >
-                            <X className="size-3" />
+                            <X className="size-3.5" />
                         </button>
                     )}
                 </div>
@@ -194,14 +194,14 @@ export function SmartDateField({
                                     </div>
                                 </div>
                                 {hasTime && (
-                                    <div className="flex flex-wrap gap-1">
+                                    <div className="flex flex-wrap gap-1.5">
                                         {SMART_TIME_PRESETS.map((presetTime) => (
                                             <Button
                                                 key={presetTime}
                                                 type="button"
                                                 size="sm"
                                                 variant={currentTime === presetTime ? 'secondary' : 'outline'}
-                                                className="h-6 px-2 text-[11px] tabular-nums"
+                                                className="h-7 px-2 text-xs tabular-nums"
                                                 onClick={() => applyTimeSelection(presetTime)}
                                             >
                                                 {presetTime}
@@ -211,7 +211,7 @@ export function SmartDateField({
                                             type="button"
                                             size="sm"
                                             variant="ghost"
-                                            className="h-6 px-1.5 text-[11px] text-muted-foreground"
+                                            className="h-7 px-2 text-xs text-muted-foreground"
                                             onClick={() => applyTimeSelection(null)}
                                         >
                                             All day
@@ -225,17 +225,17 @@ export function SmartDateField({
             </div>
 
             {!compact && (
-                <p id={`${id}-help`} className="text-[11px] text-muted-foreground">
+                <p id={`${id}-help`} className="text-xs text-muted-foreground">
                     {helpText ?? 'Supports @today, @friday 3pm, @May 15, or use Pick for calendar & time.'}
                 </p>
             )}
             {parsed.error && (
-                <p id={`${id}-preview`} role="alert" className="text-[11px] text-danger">
+                <p id={`${id}-preview`} role="alert" className="text-xs text-danger">
                     {parsed.error}
                 </p>
             )}
             {parsed.result && !parsed.error && (
-                <p id={`${id}-preview`} className="text-[11px] text-foreground">
+                <p id={`${id}-preview`} className="text-xs text-foreground">
                     <span className="font-medium">{previewLabel}</span>
                     {!currentTime && <span className="text-muted-foreground"> · {defaultTimeLabel}</span>}
                 </p>

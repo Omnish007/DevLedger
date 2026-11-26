@@ -73,14 +73,24 @@ export const test = base.extend<{ desktop: DesktopHarness }>({
         };
 
         const launch = async (): Promise<void> => {
+            const launchEnv: Record<string, string> = {
+                ...Object.fromEntries(
+                    Object.entries(process.env).filter(
+                        (entry): entry is [string, string] =>
+                            typeof entry[1] === 'string' && entry[0] !== 'ELECTRON_RUN_AS_NODE',
+                    ),
+                ),
+                DEVLEDGER_E2E: '1',
+                DEVLEDGER_TEST_USER_DATA: profileDirectory,
+            };
+            const headlessArgs =
+                !process.env['DISPLAY'] && !process.env['WAYLAND_DISPLAY']
+                    ? ['--ozone-platform=headless', '--disable-gpu']
+                    : [];
             const application = await electron.launch({
                 // Keep Electron's production security model intact during tests; never pass --no-sandbox.
-                args: [PROJECT_ROOT],
-                env: {
-                    ...process.env,
-                    DEVLEDGER_E2E: '1',
-                    DEVLEDGER_TEST_USER_DATA: profileDirectory,
-                },
+                args: [PROJECT_ROOT, ...headlessArgs],
+                env: launchEnv,
                 timeout: 45_000,
             });
             application

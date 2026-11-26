@@ -61,7 +61,7 @@ export function SettingsVaultTab({
             {error && (
                 <p
                     role="alert"
-                    className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger"
+                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -69,7 +69,7 @@ export function SettingsVaultTab({
             {message && (
                 <p
                     role="status"
-                    className="rounded-md border border-border bg-surface-subtle px-3 py-2 text-xs"
+                    className="rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
                 >
                     {message}
                 </p>
@@ -78,7 +78,7 @@ export function SettingsVaultTab({
             <section className="workspace-surface space-y-3 p-5">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                     <div>
-                        <h3 className="text-sm font-semibold">Protected notes vault</h3>
+                        <h2 className="text-sm font-semibold">Protected notes vault</h2>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                             AES-256-GCM encryption for confidential notes and documents.
                         </p>
@@ -212,6 +212,7 @@ export function SettingsVaultTab({
                             className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
                         >
                             <Input
+                                aria-label="New passphrase"
                                 type="password"
                                 autoComplete="new-password"
                                 minLength={12}
@@ -221,6 +222,7 @@ export function SettingsVaultTab({
                                 required
                             />
                             <Input
+                                aria-label="Confirm passphrase"
                                 type="password"
                                 autoComplete="new-password"
                                 minLength={12}
@@ -302,7 +304,7 @@ export function SettingsVaultTab({
 
             <section className="workspace-surface flex items-center justify-between gap-3 p-5 text-xs">
                 <div>
-                    <h3 className="text-sm font-semibold">Auto-lock timeout</h3>
+                    <h2 className="text-sm font-semibold">Auto-lock timeout</h2>
                     <p className="mt-0.5 text-muted-foreground">
                         Lock the vault after inactivity or OS screen lock.
                     </p>

@@ -44,6 +44,7 @@ interface RecordConnectionsPanelProps {
     onNavigate?: ((target: WorkspaceNavigationTarget) => void) | undefined;
     onChanged?: (() => void) | undefined;
     hideReminders?: boolean;
+    headingLevel?: 'h3' | 'h4';
 }
 
 export function RecordConnectionsPanel({
@@ -52,7 +53,9 @@ export function RecordConnectionsPanel({
     onNavigate,
     onChanged,
     hideReminders = false,
+    headingLevel = 'h3',
 }: RecordConnectionsPanelProps) {
+    const SectionHeading = headingLevel;
     const [tags, setTags] = useState<TagRecord[]>([]);
     const [links, setLinks] = useState<EntityLinkRecord[]>([]);
     const [summaries, setSummaries] = useState<Record<string, RecordSummary>>({});
@@ -168,21 +171,21 @@ export function RecordConnectionsPanel({
     function renderLinkGroup(title: string, groupLinks: EntityLinkRecord[], incoming: boolean) {
         if (!groupLinks.length) return null;
         return (
-            <div className="space-y-1">
-                <p className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+            <div className="space-y-1.5">
+                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                     {incoming && <CornerDownLeft className="size-3" />}
                     <span>
                         {title} ({groupLinks.length})
                     </span>
                 </p>
-                <div className="divide-y divide-border rounded-md border border-border">
+                <div className="divide-y divide-border rounded-lg border border-border bg-card">
                     {groupLinks.map((link) => {
                         const otherType = link.direction === 'outgoing' ? link.targetType : link.sourceType;
                         const otherId = link.direction === 'outgoing' ? link.targetId : link.sourceId;
                         const summary = summaries[`${otherType}:${otherId}`];
                         const Icon = entityIcon[otherType];
                         return (
-                            <div key={link.id} className="flex items-center gap-2 px-2.5 py-2">
+                            <div key={link.id} className="flex items-center gap-2 px-3 py-2">
                                 <Icon className="size-3.5 shrink-0 text-muted-foreground" />
                                 <button
                                     type="button"
@@ -191,10 +194,10 @@ export function RecordConnectionsPanel({
                                         onNavigate?.(targetFromRecord(otherType, otherId, summary?.projectId))
                                     }
                                 >
-                                    <span className="block truncate font-medium">
+                                    <span className="block truncate text-xs font-medium text-foreground">
                                         {summary?.title ?? `${otherType} record`}
                                     </span>
-                                    <span className="block truncate text-muted-foreground">
+                                    <span className="block truncate text-xs text-muted-foreground">
                                         {link.relationship} · {summary?.subtitle ?? otherType}
                                     </span>
                                 </button>
@@ -203,7 +206,7 @@ export function RecordConnectionsPanel({
                                         type="button"
                                         size="icon"
                                         variant="ghost"
-                                        className="size-6 shrink-0"
+                                        className="size-7 shrink-0"
                                         aria-label={`Open ${summary?.title ?? otherType}`}
                                         onClick={() =>
                                             onNavigate(
@@ -218,7 +221,7 @@ export function RecordConnectionsPanel({
                                     type="button"
                                     size="icon"
                                     variant="ghost"
-                                    className="size-6 shrink-0 text-muted-foreground hover:text-danger"
+                                    className="size-7 shrink-0 text-muted-foreground hover:text-danger"
                                     aria-label="Remove link"
                                     onClick={() =>
                                         void window.devLedger.operations
@@ -226,7 +229,7 @@ export function RecordConnectionsPanel({
                                             .then(refreshAndNotify)
                                     }
                                 >
-                                    <Trash2 className="size-3" />
+                                    <Trash2 className="size-3.5" />
                                 </Button>
                             </div>
                         );
@@ -241,14 +244,14 @@ export function RecordConnectionsPanel({
             {error && (
                 <p
                     role="alert"
-                    className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-danger"
+                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3 py-2 text-danger-foreground"
                 >
                     {error}
                 </p>
             )}
 
             <section className="space-y-2">
-                <h4 className="font-medium text-muted-foreground">Tags</h4>
+                <SectionHeading className="text-xs font-semibold text-muted-foreground">Tags</SectionHeading>
                 <TagSelector
                     entityType={entityType}
                     entityId={entityId}
@@ -261,12 +264,14 @@ export function RecordConnectionsPanel({
             {entityType !== 'document' && !hideReminders && (
                 <section className="space-y-2.5 border-t border-border pt-4">
                     <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-muted-foreground">Reminders</h4>
+                        <SectionHeading className="text-xs font-semibold text-muted-foreground">
+                            Reminders
+                        </SectionHeading>
                         <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-6 gap-1 px-2 text-xs"
+                            className="h-7 gap-1 px-2 text-xs"
                             onClick={() => setShowReminderForm((v) => !v)}
                         >
                             <Plus className="size-3" />
@@ -352,12 +357,14 @@ export function RecordConnectionsPanel({
 
             <section className="space-y-3 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-muted-foreground">Links & backlinks</h4>
+                    <SectionHeading className="text-xs font-semibold text-muted-foreground">
+                        Links & backlinks
+                    </SectionHeading>
                     <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 gap-1 px-2 text-xs"
+                        className="h-7 gap-1 px-2 text-xs"
                         onClick={() => setShowLinkForm((v) => !v)}
                     >
                         <Link2 className="size-3" />

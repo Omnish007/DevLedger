@@ -22,7 +22,7 @@ export function PageControls({ offset, limit, total, onPageChange, disabled = fa
             aria-label="Pagination"
             className={cn('flex flex-wrap items-center justify-between gap-2 py-3', className)}
         >
-            <p className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">
+            <p className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
                 Showing {start}–{end} of {total}
             </p>
             <div className="flex shrink-0 items-center gap-1.5">

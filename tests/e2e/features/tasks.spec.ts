@@ -37,7 +37,7 @@ test('creates a task, updates status, searches it and starts/stops its timer', a
     const status = page.getByRole('combobox', { name: `Status for ${taskTitle}` });
     await status.click();
     await page.getByRole('option', { name: 'In progress' }).click();
-    await expect(page.getByText(/in progress · high/i)).toBeVisible();
+    await expect(status).toContainText('In progress');
 
     await page.getByRole('textbox', { name: 'Filter tasks by title or description' }).fill(taskTitle);
     await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
@@ -67,10 +67,10 @@ test('recovers an interrupted active timer after a full Electron restart', async
 
     await desktop.restart();
     await desktop.page.getByRole('button', { name: 'Tasks', exact: true }).click();
-    await expect(desktop.page.getByText('Confirm the interrupted work session')).toBeVisible();
-    await desktop.page.getByRole('button', { name: 'Discard session' }).click();
+    await expect(desktop.page.getByText('Confirm interrupted work session')).toBeVisible();
+    await desktop.page.getByRole('button', { name: 'Discard', exact: true }).click();
     const confirmation = desktop.page.getByRole('alertdialog');
     await expect(confirmation).toBeVisible();
-    await confirmation.getByRole('button', { name: 'Discard session' }).click();
-    await expect(desktop.page.getByText('Confirm the interrupted work session')).toBeHidden();
+    await confirmation.getByRole('button', { name: 'Discard', exact: true }).click();
+    await expect(desktop.page.getByText('Confirm interrupted work session')).toBeHidden();
 });

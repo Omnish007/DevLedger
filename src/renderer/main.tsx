@@ -284,11 +284,7 @@ function App() {
                         await window.devLedger.capture.save(input);
                     }}
                 />
-                <Sonner
-                    position="bottom-right"
-                    richColors
-                    theme={settings['theme'] === 'dark' ? 'dark' : 'light'}
-                />
+                <Sonner position="bottom-right" theme={settings['theme'] === 'dark' ? 'dark' : 'light'} />
             </>
         );
     if (fatalError)
@@ -596,11 +592,7 @@ function App() {
                     )}
                 </>
             )}
-            <Sonner
-                position="bottom-right"
-                richColors
-                theme={settings['theme'] === 'dark' ? 'dark' : 'light'}
-            />
+            <Sonner position="bottom-right" theme={settings['theme'] === 'dark' ? 'dark' : 'light'} />
         </AppShell>
     );
 }

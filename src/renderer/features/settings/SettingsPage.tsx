@@ -1,5 +1,18 @@
 import { useEffect, useState } from 'react';
-import { BellRing, Check, Clipboard, Monitor, Moon, Sun } from 'lucide-react';
+import {
+    Activity,
+    BellRing,
+    Check,
+    Clipboard,
+    HardDriveDownload,
+    Monitor,
+    Moon,
+    ShieldCheck,
+    SlidersHorizontal,
+    Sparkles,
+    Sun,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import type {
     AppMetadata,
     BackupCreationResult,
@@ -94,10 +107,9 @@ export function SettingsPage(props: Props) {
     async function updateSetting(key: string, value: unknown) {
         setSaving(true);
         setError('');
-        setMessage('');
         try {
             await props.onSettingChange(key, value);
-            setMessage('Saved.');
+            toast.success('Setting saved.');
         } catch (e) {
             setError(friendlyError(e, 'Setting could not be saved.'));
         } finally {
@@ -107,25 +119,30 @@ export function SettingsPage(props: Props) {
 
     return (
         <div className="workspace-page page-settings mx-auto space-y-5">
-            <PageHeader title="Settings" />
-            <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+            <PageHeader
+                title="Settings"
+                description="Manage preferences, vault security, backups, and local AI."
+            />
+            <div className="grid gap-6 md:grid-cols-[216px_minmax(0,1fr)]">
                 <nav aria-label="Settings categories" className="flex gap-1 overflow-x-auto md:flex-col">
                     {(
                         [
-                            ['general', 'General'],
-                            ['vault', 'Vault & Privacy'],
-                            ['backups', 'Backups & Restore'],
-                            ['ai', 'Local AI'],
-                            ['system', 'Health & Activity'],
-                        ] as Array<[SectionId, string]>
-                    ).map(([id, label]) => (
+                            ['general', 'General', SlidersHorizontal],
+                            ['vault', 'Vault & Privacy', ShieldCheck],
+                            ['backups', 'Backups & Restore', HardDriveDownload],
+                            ['ai', 'Local AI', Sparkles],
+                            ['system', 'Health & Activity', Activity],
+                        ] as Array<[SectionId, string, typeof SlidersHorizontal]>
+                    ).map(([id, label, Icon]) => (
                         <button
                             key={id}
                             type="button"
+                            aria-current={section === id ? 'page' : undefined}
                             onClick={() => setSection(id)}
-                            className={`shrink-0 rounded-md px-3 py-2 text-left text-xs font-medium transition-colors ${section === id ? 'bg-accent text-accent-foreground font-semibold' : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground'}`}
+                            className={`flex min-h-9 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition-colors ${section === id ? 'bg-accent font-semibold text-accent-foreground' : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground'}`}
                         >
-                            {label}
+                            <Icon className="size-4 shrink-0" aria-hidden="true" />
+                            <span>{label}</span>
                         </button>
                     ))}
                 </nav>
@@ -134,7 +151,7 @@ export function SettingsPage(props: Props) {
                     {error && (
                         <p
                             role="alert"
-                            className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger"
+                            className="rounded-lg border border-danger/25 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
                         >
                             {error}
                         </p>
@@ -142,7 +159,7 @@ export function SettingsPage(props: Props) {
                     {message && (
                         <p
                             role="status"
-                            className="rounded-md border border-border bg-surface-subtle px-3 py-2 text-xs"
+                            className="rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground"
                         >
                             {message}
                         </p>
@@ -151,7 +168,7 @@ export function SettingsPage(props: Props) {
                     {section === 'general' && (
                         <div className="space-y-5 text-xs">
                             <section className="workspace-surface space-y-4 p-5">
-                                <h3 className="text-sm font-semibold">Appearance & shortcuts</h3>
+                                <h2 className="text-sm font-semibold">Appearance & shortcuts</h2>
                                 <div className="grid gap-2 sm:grid-cols-3">
                                     {(
                                         [
@@ -165,8 +182,9 @@ export function SettingsPage(props: Props) {
                                             <button
                                                 key={item.value}
                                                 type="button"
+                                                aria-pressed={theme === item.value}
                                                 onClick={() => void updateSetting('theme', item.value)}
-                                                className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-left ${theme === item.value ? 'border-ring bg-accent' : 'border-border hover:bg-surface-hover'}`}
+                                                className={`flex min-h-10 items-center gap-2 rounded-lg border px-3 py-2.5 text-left font-medium transition-colors ${theme === item.value ? 'border-ring bg-accent text-accent-foreground' : 'border-input bg-card hover:bg-surface-hover'}`}
                                             >
                                                 <Icon className="size-4" />
                                                 {item.label}
@@ -179,7 +197,9 @@ export function SettingsPage(props: Props) {
                                 </div>
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                                     <div>
-                                        <p className="font-medium">Global quick capture shortcut</p>
+                                        <p className="font-medium text-foreground">
+                                            Global quick capture shortcut
+                                        </p>
                                         <p className="text-muted-foreground">
                                             Opens capture window from anywhere on your desktop.
                                         </p>
@@ -211,7 +231,7 @@ export function SettingsPage(props: Props) {
                             <section className="workspace-surface space-y-4 p-5">
                                 <div className="flex items-center justify-between gap-2">
                                     <div>
-                                        <h3 className="text-sm font-semibold">Reminders & notifications</h3>
+                                        <h2 className="text-sm font-semibold">Reminders & notifications</h2>
                                         <p className="mt-0.5 text-muted-foreground">
                                             Deliver due reminders both in-app and via desktop/web
                                             notifications.
@@ -226,7 +246,7 @@ export function SettingsPage(props: Props) {
                                 </div>
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
                                     <div>
-                                        <p className="font-medium">In-app alert toasts</p>
+                                        <p className="font-medium text-foreground">In-app alert toasts</p>
                                         <p className="text-muted-foreground">
                                             Show interactive alert cards with Open & Snooze inside DevLedger.
                                         </p>
@@ -241,7 +261,9 @@ export function SettingsPage(props: Props) {
                                 </div>
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
                                     <div>
-                                        <p className="font-medium">Web & desktop notifications</p>
+                                        <p className="font-medium text-foreground">
+                                            Web & desktop notifications
+                                        </p>
                                         <p className="text-muted-foreground">
                                             Allow Chromium Web Notification alerts when due reminders fire.
                                         </p>
@@ -314,9 +336,9 @@ export function SettingsPage(props: Props) {
                                     <DevLedgerLogo subtitle="Local-first workspace" />
                                     <Badge variant="outline">v{props.metadata?.version ?? '—'}</Badge>
                                 </div>
-                                <h3 className="text-sm font-semibold">Local workspace data</h3>
+                                <h2 className="text-sm font-semibold">Local workspace data</h2>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <code className="min-w-0 flex-1 break-all rounded-md bg-surface-subtle px-3 py-2 font-mono">
+                                    <code className="min-w-0 flex-1 break-all rounded-lg bg-surface-subtle px-3 py-2 font-mono text-foreground">
                                         {props.metadata?.dataDirectory ?? 'Loading…'}
                                     </code>
                                     <Button
@@ -341,20 +363,16 @@ export function SettingsPage(props: Props) {
                                         {copied ? 'Copied' : 'Copy path'}
                                     </Button>
                                 </div>
-                                <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-3">
-                                    <div>
-                                        <span className="text-muted-foreground">Version</span>
-                                        <p className="mt-0.5 font-medium">{props.metadata?.version ?? '—'}</p>
-                                    </div>
+                                <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
                                     <div>
                                         <span className="text-muted-foreground">Platform</span>
-                                        <p className="mt-0.5 font-medium">
+                                        <p className="mt-0.5 font-medium capitalize text-foreground">
                                             {props.metadata?.platform ?? '—'}
                                         </p>
                                     </div>
                                     <div>
-                                        <span className="text-muted-foreground">Engine</span>
-                                        <p className="mt-0.5 font-medium">SQLite + FTS5</p>
+                                        <span className="text-muted-foreground">Search & storage engine</span>
+                                        <p className="mt-0.5 font-medium text-foreground">SQLite + FTS5</p>
                                     </div>
                                 </div>
                             </section>
@@ -392,7 +410,7 @@ export function SettingsPage(props: Props) {
                     {section === 'ai' && (
                         <section className="workspace-surface space-y-4 p-5 text-xs">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-semibold">Local AI (Ollama)</h3>
+                                <h2 className="text-sm font-semibold">Local AI (Ollama)</h2>
                                 <Badge variant="outline">127.0.0.1</Badge>
                             </div>
                             <p className="text-muted-foreground">
@@ -477,7 +495,7 @@ export function SettingsPage(props: Props) {
                                 </p>
                             )}
                             {ollamaStatus && (
-                                <div className="space-y-2 rounded border border-border bg-surface-subtle p-3">
+                                <div className="space-y-2 rounded-lg border border-border bg-surface-subtle p-3.5">
                                     <Badge variant={ollamaStatus.available ? 'success' : 'warning'}>
                                         {ollamaStatus.available ? 'Connected' : 'Unavailable'}
                                     </Badge>
@@ -498,7 +516,7 @@ export function SettingsPage(props: Props) {
                                                                     ? setEmbeddingModel(modelName)
                                                                     : setChatModel(modelName)
                                                             }
-                                                            className="rounded-md border border-border/80 bg-card px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/50 hover:bg-surface-hover"
+                                                            className="inline-flex min-h-7 items-center rounded-md border border-border bg-card px-2.5 py-1 font-mono text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-surface-hover"
                                                             title={`Use ${modelName} as ${isEmbed ? 'embedding' : 'chat'} model`}
                                                         >
                                                             {modelName}

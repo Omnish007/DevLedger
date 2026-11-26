@@ -18,7 +18,7 @@ export async function createProject(
 
 export async function chooseProject(page: Page, name: string): Promise<void> {
     await page.getByRole('combobox', { name: 'Choose project' }).click();
-    const search = page.getByPlaceholder('Search workspace records…');
+    const search = page.getByPlaceholder('Search projects…');
     await search.fill(name);
     await page.getByRole('option', { name }).click();
 }
@@ -42,7 +42,7 @@ export async function createNote(page: Page, title: string, content: string): Pr
     const titleInput = page.getByPlaceholder('Untitled note');
     await expect(titleInput).toBeVisible();
     await titleInput.fill(title);
-    const editor = page.locator('.notes-editor-content [contenteditable="true"]');
+    const editor = page.locator('.notes-writing-canvas [contenteditable="true"]');
     await editor.fill(content);
     await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 15_000 });
 }

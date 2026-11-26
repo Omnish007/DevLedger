@@ -14,6 +14,7 @@ import { parseSmartDate } from '@domain/smart-date';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PageControls } from '@/components/shared/PageControls';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
+import { SearchFilterInput } from '@/components/shared/SearchFilterInput';
 import { useConfirm } from '@/components/shared/ConfirmProvider';
 import { VirtualList } from '@/components/shared/VirtualList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -114,6 +115,7 @@ export function TasksPage({
     const [relationSummaries, setRelationSummaries] = useState<Record<string, TaskRelationSummary>>({});
     const [pageOffset, setPageOffset] = useState(0);
     const [pageLoading, setPageLoading] = useState(true);
+    const [activeTimerTitle, setActiveTimerTitle] = useState<string>('');
     const pageRequest = useRef(0);
     const pageSize = 50;
 
@@ -217,6 +219,33 @@ export function TasksPage({
             active = false;
         };
     }, [inspectedTaskId, pageTasks]);
+
+    const visibleTimerTitle = activeTimer
+        ? pageTasks.find((t) => t.id === activeTimer.taskId)?.title
+        : undefined;
+
+    useEffect(() => {
+        if (!activeTimer) {
+            setActiveTimerTitle('');
+            return;
+        }
+        if (visibleTimerTitle) {
+            setActiveTimerTitle(visibleTimerTitle);
+            return;
+        }
+        let active = true;
+        void window.devLedger.tasks
+            .listPage({ limit: 200, offset: 0, includeCompleted: true })
+            .then((page) => {
+                if (!active) return;
+                const found = page.items.find((t) => t.id === activeTimer.taskId);
+                if (found) setActiveTimerTitle(found.title);
+            })
+            .catch(() => undefined);
+        return () => {
+            active = false;
+        };
+    }, [activeTimer?.taskId, visibleTimerTitle]);
 
     function resolveDueDate(value: string) {
         if (!value.trim()) return { dueAt: null, dueDate: null };
@@ -388,12 +417,12 @@ export function TasksPage({
                         <button
                             type="button"
                             onClick={() => setInspectedTaskId(activeTimer.taskId)}
-                            className="font-medium hover:underline"
+                            className="inline-flex min-h-6 items-center text-left font-medium hover:underline"
                         >
                             {activeTimer.recoveryRequired
                                 ? 'Interrupted timer needs review'
                                 : 'Timer running'}{' '}
-                            · {pageTasks.find((t) => t.id === activeTimer.taskId)?.title ?? 'Task'}
+                            · {visibleTimerTitle ?? (activeTimerTitle || 'Focus task')}
                         </button>
                         <p className="font-mono text-sm font-semibold tabular-nums">{elapsedLabel}</p>
                     </div>
@@ -446,7 +475,11 @@ export function TasksPage({
 
             <div className="workspace-toolbar justify-between">
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
-                    <div className="inline-flex rounded-xl border border-border/80 bg-surface-subtle/40 p-1 text-xs">
+                    <div
+                        className="workspace-segmented flex-wrap"
+                        role="group"
+                        aria-label="Filter tasks by state"
+                    >
                         {(
                             [
                                 ['active', 'Active'],
@@ -459,42 +492,28 @@ export function TasksPage({
                             <button
                                 key={key}
                                 type="button"
+                                data-active={viewTab === key}
                                 onClick={() => {
                                     setPageOffset(0);
                                     setViewTab(key);
                                 }}
-                                className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${viewTab === key ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                                className="workspace-segmented-item"
                             >
                                 {label}
                             </button>
                         ))}
                     </div>
-                    <div className="relative min-w-[200px] max-w-xs flex-1">
-                        <ListTodo className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            className="pl-8 pr-7"
-                            aria-label="Filter tasks by title or description"
-                            value={query}
-                            onChange={(e) => {
-                                setPageOffset(0);
-                                setQuery(e.target.value);
-                            }}
-                            placeholder="Filter tasks…"
-                        />
-                        {query && (
-                            <button
-                                type="button"
-                                aria-label="Clear task filter"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() => {
-                                    setPageOffset(0);
-                                    setQuery('');
-                                }}
-                            >
-                                ×
-                            </button>
-                        )}
-                    </div>
+                    <SearchFilterInput
+                        aria-label="Filter tasks by title or description"
+                        clearLabel="Clear task filter"
+                        value={query}
+                        onValueChange={(next) => {
+                            setPageOffset(0);
+                            setQuery(next);
+                        }}
+                        placeholder="Filter tasks…"
+                        className="min-w-[200px] max-w-xs flex-1"
+                    />
                     <RemoteRecordPicker
                         entityType="project"
                         value={projectId === 'all' ? '' : projectId}
@@ -517,8 +536,8 @@ export function TasksPage({
                 )}
             </div>
 
-            <div className="workspace-surface task-queue overflow-hidden rounded-xl border-border/80">
-                <div className="hidden grid-cols-[minmax(240px,1.5fr)_136px_152px_96px_112px_104px] gap-3 border-b border-border/70 bg-surface-subtle/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+            <div className="workspace-surface task-queue @container overflow-hidden rounded-[var(--workspace-radius)]">
+                <div className="hidden grid-cols-[minmax(200px,1.5fr)_128px_138px_86px_106px_104px] gap-3 border-b border-border bg-surface-subtle/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground @[780px]:grid">
                     <span>Task</span>
                     <span>Project</span>
                     <span>Status</span>
@@ -532,7 +551,7 @@ export function TasksPage({
                     <VirtualList
                         items={orderedVisible}
                         itemKey={taskItemKey}
-                        itemHeight={70}
+                        itemHeight={76}
                         label="Workspace tasks"
                         className="max-h-[min(70vh,740px)]"
                         empty={

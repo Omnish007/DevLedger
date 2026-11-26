@@ -145,7 +145,7 @@ export function RemoteRecordPicker({
                     disabled={disabled}
                     className={cn(
                         hasMaxOnly ? 'w-auto' : 'w-full',
-                        'justify-between gap-2 rounded-lg border-input/85 bg-surface-subtle/40 font-normal hover:border-border hover:bg-surface-subtle/80',
+                        'justify-between gap-2 rounded-lg border-input bg-card font-normal shadow-[var(--shadow-xs)] hover:bg-surface-subtle/60',
                         selected?.id !== value && !selectedLabel && 'text-muted-foreground',
                         className,
                     )}
@@ -197,7 +197,7 @@ export function RemoteRecordPicker({
                                         <div className="min-w-0 flex-1">
                                             <div className="truncate font-medium">{choice.label}</div>
                                             {choice.description && (
-                                                <div className="truncate text-[11px] text-muted-foreground">
+                                                <div className="truncate text-xs text-muted-foreground">
                                                     {choice.description}
                                                 </div>
                                             )}

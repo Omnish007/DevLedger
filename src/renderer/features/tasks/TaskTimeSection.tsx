@@ -77,7 +77,7 @@ export function TaskTimeSection({
         <section className="space-y-2.5 border-t border-border pt-4 text-xs">
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    <h4 className="font-medium text-muted-foreground">Time log</h4>
+                    <h3 className="text-xs font-semibold text-muted-foreground">Time log</h3>
                     <span className="tabular-nums text-muted-foreground">· {totalMinutes}m logged</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -86,7 +86,7 @@ export function TaskTimeSection({
                             type="button"
                             size="sm"
                             variant="secondary"
-                            className="h-6 gap-1 px-2 text-xs"
+                            className="h-7 gap-1 px-2 text-xs"
                             disabled={busy || Boolean(activeTimer?.recoveryRequired)}
                             onClick={() =>
                                 void onStopTimer()
@@ -102,7 +102,7 @@ export function TaskTimeSection({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="h-6 gap-1 px-2 text-xs"
+                            className="h-7 gap-1 px-2 text-xs"
                             disabled={busy || Boolean(activeTimer)}
                             onClick={() =>
                                 void onStartTimer()
@@ -118,7 +118,7 @@ export function TaskTimeSection({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        className="h-6 gap-1 px-2 text-xs"
+                        className="h-7 gap-1 px-2 text-xs"
                         onClick={() => {
                             setShowForm((v) => !v);
                             setEditingId(null);
@@ -209,7 +209,7 @@ export function TaskTimeSection({
                                         type="button"
                                         size="icon"
                                         variant="ghost"
-                                        className="size-6"
+                                        className="size-7"
                                         aria-label="Edit time entry"
                                         onClick={() => {
                                             setEditingId(entry.id);
@@ -225,7 +225,7 @@ export function TaskTimeSection({
                                         type="button"
                                         size="icon"
                                         variant="ghost"
-                                        className="size-6 text-muted-foreground hover:text-danger"
+                                        className="size-7 text-muted-foreground hover:text-danger"
                                         aria-label="Delete time entry"
                                         onClick={() => {
                                             void (async () => {

@@ -9,7 +9,6 @@ import {
     Pencil,
     Plus,
     RotateCcw,
-    Search,
     Upload,
     Download,
 } from 'lucide-react';
@@ -21,6 +20,7 @@ import type {
 } from '@shared/contracts';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PageControls } from '@/components/shared/PageControls';
+import { SearchFilterInput } from '@/components/shared/SearchFilterInput';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -212,29 +212,28 @@ export function ProjectsPage({
             )}
 
             <div className="workspace-toolbar justify-between">
-                <div className="relative min-w-[220px] max-w-sm flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        aria-label="Filter projects by name or description"
-                        value={query}
-                        onChange={(e) => {
-                            setOffset(0);
-                            setQuery(e.target.value);
-                        }}
-                        placeholder="Filter projects…"
-                        className="pl-8"
-                    />
-                </div>
-                <div className="inline-flex rounded-xl border border-border/80 bg-surface-subtle/40 p-1 text-xs">
+                <SearchFilterInput
+                    aria-label="Filter projects by name or description"
+                    clearLabel="Clear project filter"
+                    value={query}
+                    onValueChange={(next) => {
+                        setOffset(0);
+                        setQuery(next);
+                    }}
+                    placeholder="Filter projects…"
+                    className="min-w-[220px] max-w-sm flex-1"
+                />
+                <div className="workspace-segmented" role="group" aria-label="Filter by archive status">
                     {([false, true] as const).map((archivedTab) => (
                         <button
                             key={String(archivedTab)}
                             type="button"
+                            data-active={showArchived === archivedTab}
                             onClick={() => {
                                 setOffset(0);
                                 setShowArchived(archivedTab);
                             }}
-                            className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${showArchived === archivedTab ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'}`}
+                            className="workspace-segmented-item"
                         >
                             {archivedTab ? 'Show archived' : 'Active'}
                         </button>
@@ -253,21 +252,21 @@ export function ProjectsPage({
                             <article
                                 key={project.id}
                                 onClick={() => setSelectedProject(project)}
-                                className="group flex cursor-pointer flex-col justify-between rounded-xl border border-border/80 bg-card p-4 transition-colors hover:border-border hover:bg-surface-subtle/45"
+                                className="group flex cursor-pointer flex-col justify-between rounded-[var(--workspace-radius)] border border-border bg-card p-4 shadow-[var(--shadow-xs)] transition-colors hover:border-input hover:bg-surface-subtle/40"
                             >
                                 <div>
                                     <div className="flex items-start justify-between gap-2">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-subtle text-muted-foreground">
                                                 <FolderKanban className="size-4" />
                                             </span>
-                                            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-subtle px-2 py-0.5 text-[11px] font-medium capitalize text-foreground">
+                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/75 bg-surface-subtle px-2.5 py-0.5 text-xs font-medium capitalize text-foreground">
                                                 <span
                                                     className={`size-1.5 rounded-full ${STATUS_DOT[project.status]}`}
                                                 />
                                                 {project.status.replaceAll('_', ' ')}
                                             </span>
-                                            <span className="text-[11px] text-muted-foreground">
+                                            <span className="text-xs text-muted-foreground">
                                                 {project.type === 'greenfield' ? 'Greenfield' : 'Ongoing'}
                                             </span>
                                         </div>
@@ -277,7 +276,7 @@ export function ProjectsPage({
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="size-7 text-muted-foreground hover:text-foreground"
+                                                        className="size-8 text-muted-foreground hover:text-foreground"
                                                         aria-label={`Actions for ${project.name}`}
                                                     >
                                                         <MoreHorizontal className="size-4" />
@@ -336,9 +335,9 @@ export function ProjectsPage({
                                         </div>
                                     </div>
 
-                                    <h3 className="mt-3 truncate text-[15px] font-semibold tracking-tight text-foreground group-hover:text-primary">
+                                    <h2 className="mt-3 truncate text-base font-semibold tracking-tight text-foreground group-hover:text-primary">
                                         {project.name}
-                                    </h3>
+                                    </h2>
                                     {project.description && (
                                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                                             {project.description}
@@ -346,10 +345,10 @@ export function ProjectsPage({
                                     )}
                                 </div>
 
-                                <div className="mt-4 space-y-2.5 border-t border-border/60 pt-3">
-                                    {project.taskCount > 0 && (
+                                <div className="mt-4 space-y-2.5 border-t border-border/65 pt-3">
+                                    {project.taskCount > 0 ? (
                                         <div className="space-y-1">
-                                            <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+                                            <div className="flex items-center justify-between text-xs tabular-nums text-muted-foreground">
                                                 <span>
                                                     {done} of {project.taskCount} tasks done
                                                 </span>
@@ -362,8 +361,10 @@ export function ProjectsPage({
                                                 />
                                             </div>
                                         </div>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">No tasks queued yet</p>
                                     )}
-                                    <div className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+                                    <div className="flex items-center justify-between text-xs tabular-nums text-muted-foreground">
                                         <span>
                                             {project.openTaskCount} open · {project.noteCount} notes
                                         </span>

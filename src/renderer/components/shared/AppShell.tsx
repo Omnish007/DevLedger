@@ -6,6 +6,7 @@ import {
     CheckSquare2,
     FileText,
     FolderKanban,
+    PanelLeft,
     Plus,
     RefreshCw,
     Search,
@@ -41,6 +42,7 @@ import {
 } from '@/components/ui/command';
 import { NotificationsPopover } from '@/components/shared/NotificationsPopover';
 import { targetFromRecord } from '@/lib/navigation';
+import { formatRelative } from '@/lib/utils';
 
 export type ViewId = WorkspaceViewId;
 
@@ -86,6 +88,38 @@ export function AppShell({
     const [commandOpen, setCommandOpen] = useState(false);
     const [commandQuery, setCommandQuery] = useState('');
     const [quickResults, setQuickResults] = useState<SearchResult[]>([]);
+    const [viewportMode, setViewportMode] = useState<'desktop' | 'tablet' | 'mobile'>(() => {
+        if (typeof window === 'undefined') return 'desktop';
+        if (window.matchMedia('(max-width: 639px)').matches) return 'mobile';
+        if (window.matchMedia('(max-width: 899px)').matches) return 'tablet';
+        return 'desktop';
+    });
+    const [compactSidebarOpen, setCompactSidebarOpen] = useState(false);
+
+    useEffect(() => {
+        const mobileQuery = window.matchMedia('(max-width: 639px)');
+        const tabletQuery = window.matchMedia('(max-width: 899px)');
+        const syncViewport = () => {
+            const next = mobileQuery.matches ? 'mobile' : tabletQuery.matches ? 'tablet' : 'desktop';
+            setViewportMode(next);
+            if (next !== 'desktop') {
+                setCompactSidebarOpen(false);
+            }
+        };
+        syncViewport();
+        mobileQuery.addEventListener('change', syncViewport);
+        tabletQuery.addEventListener('change', syncViewport);
+        return () => {
+            mobileQuery.removeEventListener('change', syncViewport);
+            tabletQuery.removeEventListener('change', syncViewport);
+        };
+    }, []);
+
+    const isCompactViewport = viewportMode !== 'desktop';
+    const handleSelectView = (view: ViewId) => {
+        if (isCompactViewport) setCompactSidebarOpen(false);
+        onNavigate(view);
+    };
 
     useEffect(() => {
         const handler = (event: KeyboardEvent) => {
@@ -126,7 +160,7 @@ export function AppShell({
                     <SidebarMenuButton asChild isActive={activeView === item.id} tooltip={item.label}>
                         <button
                             type="button"
-                            onClick={() => onNavigate(item.id)}
+                            onClick={() => handleSelectView(item.id)}
                             aria-current={activeView === item.id ? 'page' : undefined}
                         >
                             <Icon aria-hidden="true" strokeWidth={1.75} />
@@ -148,12 +182,22 @@ export function AppShell({
         <SidebarProvider
             open={sidebarOpen}
             onOpenChange={onSidebarOpenChange}
+            data-viewport={viewportMode}
+            data-compact-open={compactSidebarOpen ? 'true' : 'false'}
             className="h-full min-h-0 w-full min-w-0"
         >
-            <div className="flex h-full min-h-0 w-full min-w-0 bg-background">
+            <div className="relative flex h-full min-h-0 w-full min-w-0 bg-background">
+                {isCompactViewport && compactSidebarOpen && (
+                    <button
+                        type="button"
+                        aria-label="Close navigation menu"
+                        onClick={() => setCompactSidebarOpen(false)}
+                        className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[1px]"
+                    />
+                )}
                 <Sidebar
-                    collapsible="icon"
-                    className="border-r border-sidebar-border [--sidebar-width:14.75rem] [--sidebar-width-icon:3.45rem]"
+                    collapsible={viewportMode === 'mobile' ? 'offcanvas' : 'icon'}
+                    className="border-r border-sidebar-border [--sidebar-width:15.75rem] [--sidebar-width-icon:3.45rem]"
                 >
                     <SidebarHeader className="px-3.5 pb-4 pt-4 group-data-[state=collapsed]/sidebar-provider:items-center group-data-[state=collapsed]/sidebar-provider:px-0">
                         <DevLedgerLogo />
@@ -183,15 +227,18 @@ export function AppShell({
                         <Button
                             variant="outline"
                             title="Quick capture (Ctrl+Shift+Space)"
-                            className="h-8 w-full justify-start gap-2 px-2.5 text-xs group-data-[state=collapsed]/sidebar-provider:mx-auto group-data-[state=collapsed]/sidebar-provider:size-8 group-data-[state=collapsed]/sidebar-provider:justify-center group-data-[state=collapsed]/sidebar-provider:p-0"
-                            onClick={onQuickCapture}
+                            className="h-9 w-full justify-start gap-2 px-2.5 text-xs group-data-[state=collapsed]/sidebar-provider:mx-auto group-data-[state=collapsed]/sidebar-provider:size-9 group-data-[state=collapsed]/sidebar-provider:justify-center group-data-[state=collapsed]/sidebar-provider:p-0"
+                            onClick={() => {
+                                if (viewportMode === 'mobile') setCompactSidebarOpen(false);
+                                onQuickCapture();
+                            }}
                         >
                             <Plus className="size-3.5 shrink-0" />
                             <span className="flex-1 truncate text-left group-data-[state=collapsed]/sidebar-provider:sr-only">
                                 Quick capture
                             </span>
-                            <Kbd className="px-1 text-[10px] tracking-tight group-data-[state=collapsed]/sidebar-provider:hidden">
-                                Ctrl⇧Space
+                            <Kbd className="px-1.5 text-[11px] tracking-tight group-data-[state=collapsed]/sidebar-provider:hidden">
+                                Ctrl ⇧ Space
                             </Kbd>
                         </Button>
                     </SidebarFooter>
@@ -200,12 +247,27 @@ export function AppShell({
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <header className="workspace-shell-header window-drag z-10 flex shrink-0 items-center justify-between px-4 sm:px-5">
                         <div className="window-no-drag flex min-w-0 items-center gap-1.5">
-                            <SidebarTrigger />
+                            {isCompactViewport ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Toggle navigation menu"
+                                    aria-expanded={compactSidebarOpen}
+                                    className="size-8 shrink-0"
+                                    onClick={() => setCompactSidebarOpen((v) => !v)}
+                                >
+                                    <PanelLeft className="size-4" />
+                                </Button>
+                            ) : (
+                                <SidebarTrigger />
+                            )}
                             {canGoBack && (
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     className="size-8"
+                                    title="Go back"
                                     aria-label="Go back"
                                     onClick={onGoBack}
                                 >
@@ -213,7 +275,7 @@ export function AppShell({
                                 </Button>
                             )}
                         </div>
-                        <div className="window-no-drag flex shrink-0 items-center gap-1.5">
+                        <div className="window-no-drag flex shrink-0 items-center gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -277,10 +339,15 @@ export function AppShell({
                                         );
                                     }}
                                 >
-                                    <span className="rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                                    <span className="rounded border border-border/70 bg-surface-subtle px-1.5 py-0.5 text-[11px] font-medium uppercase text-foreground/85">
                                         {result.type}
                                     </span>
-                                    <span className="truncate">{result.title}</span>
+                                    <span className="min-w-0 flex-1 truncate font-medium">
+                                        {result.title}
+                                    </span>
+                                    <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                                        {formatRelative(result.updatedAt)}
+                                    </span>
                                 </CommandItem>
                             ))}
                         </CommandGroup>

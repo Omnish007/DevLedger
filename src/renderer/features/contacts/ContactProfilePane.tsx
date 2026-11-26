@@ -69,66 +69,68 @@ export function ContactProfilePane({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 py-4 text-xs sm:grid-cols-3">
-                <div className="rounded-lg border border-border bg-surface-subtle/50 px-3 py-2.5">
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        <Mail className="size-3" />
+            <dl className="grid grid-cols-1 gap-4 py-4 text-xs sm:grid-cols-3">
+                <div className="min-w-0">
+                    <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Mail className="size-3.5" />
                         Email
-                    </p>
-                    {contact.email ? (
-                        <a
-                            href={`mailto:${contact.email}`}
-                            className="mt-1 block truncate font-medium text-foreground hover:underline"
-                        >
-                            {contact.email}
-                        </a>
-                    ) : (
-                        <p className="mt-1 text-muted-foreground">—</p>
-                    )}
+                    </dt>
+                    <dd className="mt-1">
+                        {contact.email ? (
+                            <a
+                                href={`mailto:${contact.email}`}
+                                className="inline-flex min-h-6 max-w-full items-center truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                            >
+                                {contact.email}
+                            </a>
+                        ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                    </dd>
                 </div>
-                <div className="rounded-lg border border-border bg-surface-subtle/50 px-3 py-2.5">
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        <Phone className="size-3" />
+                <div className="min-w-0">
+                    <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Phone className="size-3.5" />
                         Phone
-                    </p>
-                    {contact.phone ? (
-                        <a
-                            href={`tel:${contact.phone}`}
-                            className="mt-1 block truncate font-medium text-foreground hover:underline"
-                        >
-                            {contact.phone}
-                        </a>
-                    ) : (
-                        <p className="mt-1 text-muted-foreground">—</p>
-                    )}
+                    </dt>
+                    <dd className="mt-1">
+                        {contact.phone ? (
+                            <a
+                                href={`tel:${contact.phone}`}
+                                className="inline-flex min-h-6 max-w-full items-center truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                            >
+                                {contact.phone}
+                            </a>
+                        ) : (
+                            <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                    </dd>
                 </div>
-                <div className="rounded-lg border border-border bg-surface-subtle/50 px-3 py-2.5">
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        <Building2 className="size-3" />
+                <div className="min-w-0">
+                    <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Building2 className="size-3.5" />
                         Company
-                    </p>
-                    <p
-                        className={`mt-1 truncate ${contact.company ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
+                    </dt>
+                    <dd
+                        className={`mt-1 min-h-6 truncate text-sm ${contact.company ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
                     >
                         {contact.company || '—'}
-                    </p>
+                    </dd>
                 </div>
-            </div>
+            </dl>
 
             {contact.projectIds.length > 0 && (
                 <div className="py-4">
-                    <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                        Associated projects
-                    </p>
+                    <h3 className="mb-2 text-xs font-semibold text-muted-foreground">Associated projects</h3>
                     <div className="flex flex-wrap gap-1.5">
                         {contact.projectIds.map((pid) => (
                             <button
                                 key={pid}
                                 type="button"
                                 onClick={() => onNavigateTarget({ view: 'projects', recordId: pid })}
-                                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-subtle px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover"
+                                className="inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-surface-hover"
                             >
-                                <FolderKanban className="size-3 text-muted-foreground" />
+                                <FolderKanban className="size-3.5 text-muted-foreground" />
                                 {projectNames[pid] ?? 'Project'}
                             </button>
                         ))}
@@ -140,24 +142,22 @@ export function ContactProfilePane({
                 <div className="space-y-4 py-4">
                     {contact.notes && (
                         <div>
-                            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                Notes
-                            </p>
-                            <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
+                            <h3 className="mb-1.5 text-xs font-semibold text-muted-foreground">Notes</h3>
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                                 {contact.notes}
                             </p>
                         </div>
                     )}
                     {attributeEntries.length > 0 && (
                         <div>
-                            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            <h3 className="mb-2 text-xs font-semibold text-muted-foreground">
                                 Custom details
-                            </p>
-                            <dl className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                            </h3>
+                            <dl className="grid grid-cols-2 gap-3 rounded-lg bg-surface-subtle/55 p-3 text-xs sm:grid-cols-3">
                                 {attributeEntries.map(([key, value]) => (
-                                    <div key={key} className="rounded-md border border-border px-2.5 py-1.5">
-                                        <dt className="truncate text-[11px] text-muted-foreground">{key}</dt>
-                                        <dd className="mt-0.5 truncate font-medium text-foreground">
+                                    <div key={key} className="min-w-0">
+                                        <dt className="truncate text-xs text-muted-foreground">{key}</dt>
+                                        <dd className="mt-0.5 truncate text-sm font-medium text-foreground">
                                             {value}
                                         </dd>
                                     </div>
@@ -172,6 +172,7 @@ export function ContactProfilePane({
                 <RecordConnectionsPanel
                     entityType="contact"
                     entityId={contact.id}
+                    headingLevel="h3"
                     onNavigate={onNavigateTarget}
                 />
             </div>

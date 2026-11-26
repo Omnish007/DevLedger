@@ -13,8 +13,11 @@ test('adds a task dependency inside Task Inspector and rejects cycles', async ({
     await createTask(page, projectName, dependent);
 
     await page.getByRole('button', { name: dependent, exact: true }).click();
-    await page.getByRole('combobox', { name: /Add prerequisite task/i }).click();
-    await page.getByPlaceholder('Search workspace records…').fill(prerequisite);
+    await page
+        .getByRole('combobox')
+        .filter({ hasText: /Add prerequisite task/i })
+        .click();
+    await page.getByPlaceholder('Search tasks…').fill(prerequisite);
     await page.getByRole('option', { name: prerequisite }).click();
     await page.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(page.getByRole('dialog').getByText(prerequisite, { exact: true })).toBeVisible();

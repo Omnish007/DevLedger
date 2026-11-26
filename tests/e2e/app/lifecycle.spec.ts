@@ -13,7 +13,7 @@ test('persists a project across renderer reload and Electron process restart', a
     await expect(page.getByText(projectName, { exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'A clear view of your work.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await page.getByRole('button', { name: 'Projects', exact: true }).click();
     await expect(page.getByText(projectName, { exact: true })).toBeVisible();
 

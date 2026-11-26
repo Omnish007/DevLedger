@@ -36,19 +36,20 @@ test('creates a vault, protects a note, excludes it from search and unlocks it a
     const secretContent = `Private recovery test content ${data.label('vault-content', 'should-not-be-indexed')}`;
 
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Vault & Privacy', exact: true }).click();
     const vault = page
         .locator('section')
         .filter({ has: page.getByRole('heading', { name: 'Protected notes vault' }) });
     await vault.getByLabel('Master passphrase').fill(vaultPassphrase);
     await vault.getByLabel('Confirm passphrase').fill(vaultPassphrase);
     await vault.getByRole('button', { name: 'Create vault' }).click();
-    await expect(vault.getByText('Save this offline recovery key now')).toBeVisible({ timeout: 30_000 });
-    await vault.getByRole('checkbox', { name: 'I have saved this recovery key offline.' }).click();
-    await vault.getByRole('button', { name: 'Finish vault setup' }).click();
+    await expect(vault.getByText('Save offline recovery key (shown once)')).toBeVisible({ timeout: 30_000 });
+    await vault.getByRole('checkbox', { name: 'I have saved this recovery key safely.' }).click();
+    await vault.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
 
     await createNote(page, title, secretContent);
-    await page.getByRole('button', { name: 'Protect', exact: true }).click();
+    await page.getByRole('button', { name: 'Lock note', exact: true }).click();
     await expect(page.getByRole('button', { name: /Locked note/ })).toBeVisible();
 
     await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -63,6 +64,7 @@ test('creates a vault, protects a note, excludes it from search and unlocks it a
     await expect(desktop.page.getByRole('button', { name: 'Unlock note' })).toBeDisabled();
 
     await desktop.page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await desktop.page.getByRole('button', { name: 'Vault & Privacy', exact: true }).click();
     const lockedVault = desktop.page
         .locator('section')
         .filter({ has: desktop.page.getByRole('heading', { name: 'Protected notes vault' }) });
@@ -77,11 +79,11 @@ test('creates a vault, protects a note, excludes it from search and unlocks it a
     await desktop.page.getByRole('button', { name: 'Notes', exact: true }).click();
     await desktop.page.getByRole('button', { name: /Locked note/ }).click();
     await expect(desktop.page.getByPlaceholder('Untitled note')).toHaveValue(title);
-    await expect(desktop.page.locator('.notes-editor-content [contenteditable="true"]')).toContainText(
+    await expect(desktop.page.locator('.notes-writing-canvas [contenteditable="true"]')).toContainText(
         secretContent,
     );
-    await desktop.page.getByRole('button', { name: 'Lock now' }).click();
-    await expect(desktop.page.getByRole('heading', { name: 'Choose a note to open' })).toBeVisible();
+    await desktop.page.getByRole('button', { name: 'Lock', exact: true }).click();
+    await expect(desktop.page.getByRole('heading', { name: 'Protected note' })).toBeVisible();
 });
 
 test('creates an encrypted backup, rejects a wrong passphrase and restores a validated copy without replacing live data', async ({
@@ -102,31 +104,26 @@ test('creates an encrypted backup, rejects a wrong passphrase and restores a val
     await chooseBackupFile(desktop, backupPath);
 
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await page.getByPlaceholder('Backup passphrase (12+ characters)').fill(backupPassphrase);
+    await page.getByRole('button', { name: 'Backups & Restore', exact: true }).click();
+    await page.getByLabel('Backup passphrase').fill(backupPassphrase);
     await page.getByRole('button', { name: 'Create backup' }).click();
-    await expect(page.getByRole('status')).toContainText('Encrypted backup created:', { timeout: 60_000 });
+    await expect(page.getByRole('status')).toContainText('Encrypted backup saved:', { timeout: 60_000 });
     expect((await stat(backupPath)).size).toBeGreaterThan(128);
-    await page.getByRole('button', { name: 'I have stored this key' }).click();
+    await expect(page.getByText('Save portable recovery key (shown once)')).toBeVisible();
 
-    await page.getByPlaceholder('Backup passphrase').fill('wrong-backup-passphrase-2026');
+    await page.getByLabel(/Restore from archive/i).fill('wrong-backup-passphrase-2026');
     await page.getByRole('button', { name: 'Restore as copy' }).click();
     await expect(page.getByRole('alert')).toContainText(/backup passphrase is incorrect/i, {
         timeout: 60_000,
     });
 
-    await page.getByPlaceholder('Backup passphrase').fill(backupPassphrase);
+    await page.getByLabel(/Restore from archive/i).fill(backupPassphrase);
     await page.getByRole('button', { name: 'Restore as copy' }).click();
-    await expect(page.getByRole('heading', { name: 'Verified restore copy is ready' })).toBeVisible({
+    await expect(page.getByRole('status')).toContainText('Validated recovery copy ready:', {
         timeout: 60_000,
     });
-    await expect(page.getByText(/Your current workspace is unchanged/)).toBeVisible();
-    await expect(page.getByText(projectName, { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Activate and restart' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Activate staged restore' })).toBeEnabled();
 
-    const restorePathText = await page
-        .locator('section')
-        .filter({ has: page.getByRole('heading', { name: 'Encrypted backup and recovery copy' }) })
-        .getByText(/restore-copies/)
-        .textContent();
+    const restorePathText = await page.getByRole('status').textContent();
     expect(restorePathText).toContain(join(desktop.profileDirectory, 'restore-copies'));
 });

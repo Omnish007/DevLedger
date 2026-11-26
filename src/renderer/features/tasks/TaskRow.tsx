@@ -23,6 +23,7 @@ import type {
     TaskStatus,
     WorkspaceNavigationTarget,
 } from '@shared/contracts';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/utils';
@@ -102,7 +103,7 @@ export function TaskRow({
 
     return (
         <div
-            className={`task-row group grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/65 px-3 md:grid-cols-[minmax(240px,1.5fr)_136px_152px_96px_112px_104px] md:gap-3 md:px-4 ${contextOnly ? 'bg-surface-subtle/40 opacity-80' : ''} ${isRunning ? 'bg-primary/[0.04]' : ''}`}
+            className={`task-row group grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/65 px-3 @[780px]:grid-cols-[minmax(200px,1.5fr)_128px_138px_86px_106px_104px] @[780px]:gap-3 @[780px]:px-4 ${contextOnly ? 'bg-surface-subtle/40 opacity-80' : ''} ${isRunning ? 'bg-primary/[0.04]' : ''}`}
         >
             <div className="flex min-w-0 items-center gap-2">
                 {depth > 0 && (
@@ -115,7 +116,7 @@ export function TaskRow({
                 {hasChildren ? (
                     <button
                         type="button"
-                        className="grid size-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted"
+                        className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-surface-hover hover:text-foreground"
                         aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${task.title}`}
                         onClick={() => onToggleCollapse(task.id)}
                     >
@@ -126,11 +127,11 @@ export function TaskRow({
                         )}
                     </button>
                 ) : (
-                    <span className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="size-6 shrink-0" aria-hidden="true" />
                 )}
                 <button
                     type="button"
-                    className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                    className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                     aria-label={isCompleted ? 'Reopen task' : 'Complete task'}
                     onClick={() => onStatusChange(task.id, isCompleted ? 'not_started' : 'completed')}
                 >
@@ -153,98 +154,77 @@ export function TaskRow({
                         <button
                             type="button"
                             onClick={() => onInspect(task.id)}
-                            className={`max-w-full truncate text-left text-[13.5px] font-medium transition-colors hover:text-primary ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
+                            className={`inline-flex min-h-6 max-w-full items-center truncate text-left text-sm font-medium transition-colors hover:text-primary ${isCompleted ? 'text-muted-foreground line-through' : ''}`}
                         >
                             {task.title}
                         </button>
                         {isRunning && (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            <Badge variant="info" className="shrink-0">
                                 Running
-                            </span>
+                            </Badge>
                         )}
                     </div>
-                    {hasMetaLine && (
-                        <div className="mt-0.5 flex items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
-                            {relations?.waitingContactName ? (
-                                <button
-                                    type="button"
-                                    onClick={() => onInspect(task.id)}
-                                    className="inline-flex shrink-0 items-center gap-1 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info hover:bg-info/15"
-                                >
-                                    <UserRound className="size-2.5" />
-                                    Waiting: {relations.waitingContactName}
-                                </button>
-                            ) : relations?.activeBlockerReason ? (
-                                <button
-                                    type="button"
-                                    onClick={() => onInspect(task.id)}
-                                    className="inline-flex max-w-[190px] shrink-0 items-center gap-1 truncate rounded bg-warning/12 px-1.5 py-0.5 text-[10px] font-medium text-warning hover:bg-warning/20"
-                                >
-                                    Blocked: {relations.activeBlockerReason}
-                                </button>
-                            ) : null}
-                            {(relations?.dependsOnOpen ?? 0) > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={() => onInspect(task.id)}
-                                    className="inline-flex max-w-[180px] shrink-0 items-center gap-1 rounded border border-border/80 bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
-                                >
-                                    <GitBranch className="size-2.5 shrink-0" />
-                                    <span className="truncate">
-                                        {relations!.dependsOnOpen === 1 && relations!.firstPrereqTitle
-                                            ? `After ${relations!.firstPrereqTitle}`
-                                            : `${relations!.dependsOnOpen} prerequisites`}
-                                    </span>
-                                </button>
-                            )}
-                            {(relations?.blocksCount ?? 0) > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={() => onInspect(task.id)}
-                                    className="inline-flex shrink-0 items-center gap-1 rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
-                                >
-                                    Unlocks {relations!.blocksCount}
-                                </button>
-                            )}
-                            {(relations?.linkCount ?? 0) > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={() => onInspect(task.id)}
-                                    className="inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
-                                >
-                                    <Link2 className="size-2.5" />
-                                    {relations!.linkCount}
-                                </button>
-                            )}
-                            {task.description && <span className="min-w-0 truncate">{task.description}</span>}
-                            {task.parentId && <span className="shrink-0">· Subtask</span>}
-                            {task.estimateMinutes !== null && (
-                                <span className="shrink-0 tabular-nums">· {task.estimateMinutes}m</span>
-                            )}
-                            <span className="task-inline-context shrink-0">
-                                · {projectName} · {task.status.replaceAll('_', ' ')}
+                    <div className="mt-1 flex items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
+                        {relations?.waitingContactName ? (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-info-subtle px-1.5 py-0.5 text-xs font-medium text-info-foreground">
+                                <UserRound className="size-3" />
+                                Waiting: {relations.waitingContactName}
                             </span>
-                        </div>
-                    )}
+                        ) : relations?.activeBlockerReason ? (
+                            <span className="inline-flex max-w-[200px] shrink-0 items-center gap-1 truncate rounded bg-warning-subtle px-1.5 py-0.5 text-xs font-medium text-warning-foreground">
+                                Blocked: {relations.activeBlockerReason}
+                            </span>
+                        ) : null}
+                        {(relations?.dependsOnOpen ?? 0) > 0 && (
+                            <span className="inline-flex max-w-[180px] shrink-0 items-center gap-1 rounded border border-border/80 bg-surface-subtle px-1.5 py-0.5 text-xs text-muted-foreground">
+                                <GitBranch className="size-3 shrink-0" />
+                                <span className="truncate">
+                                    {relations!.dependsOnOpen === 1 && relations!.firstPrereqTitle
+                                        ? `After ${relations!.firstPrereqTitle}`
+                                        : `${relations!.dependsOnOpen} prerequisites`}
+                                </span>
+                            </span>
+                        )}
+                        {(relations?.blocksCount ?? 0) > 0 && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-surface-subtle px-1.5 py-0.5 text-xs text-muted-foreground">
+                                Unlocks {relations!.blocksCount}
+                            </span>
+                        )}
+                        {(relations?.linkCount ?? 0) > 0 && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-subtle px-1.5 py-0.5 text-xs text-muted-foreground">
+                                <Link2 className="size-3" />
+                                {relations!.linkCount}
+                            </span>
+                        )}
+                        {task.description && <span className="min-w-0 truncate">{task.description}</span>}
+                        {task.parentId && <span className="shrink-0">· Subtask</span>}
+                        {task.estimateMinutes !== null && (
+                            <span className="shrink-0 tabular-nums">· {task.estimateMinutes}m</span>
+                        )}
+                        <span className="shrink-0 capitalize @[780px]:hidden">
+                            {hasMetaLine ? '· ' : ''}
+                            {projectName} · {task.status.replaceAll('_', ' ')}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div className="hidden min-w-0 md:block">
+            <div className="hidden min-w-0 @[780px]:block">
                 <button
                     type="button"
                     onClick={() => onNavigateTarget({ view: 'projects', recordId: task.projectId })}
-                    className="inline-flex max-w-full items-center rounded-md bg-surface-subtle/80 px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="inline-flex min-h-6 max-w-full items-center rounded-md bg-surface-subtle/90 px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                     <span className="truncate">{projectName}</span>
                 </button>
             </div>
 
-            <div className="task-status-cell hidden md:block">
+            <div className="task-status-cell hidden @[780px]:block">
                 <Select value={task.status} onValueChange={(v) => onStatusChange(task.id, v as TaskStatus)}>
                     <SelectTrigger
                         aria-label={`Status for ${task.title}`}
                         size="sm"
-                        className="h-7 w-full whitespace-nowrap border-border/60 bg-surface-subtle/45 px-2.5 text-xs font-medium shadow-none hover:border-border hover:bg-surface-subtle"
+                        className="h-8 w-full whitespace-nowrap border-border/75 bg-surface-subtle/50 px-2.5 text-xs font-medium shadow-none hover:border-border hover:bg-surface-subtle"
                     >
                         <SelectValue />
                     </SelectTrigger>
@@ -263,7 +243,7 @@ export function TaskRow({
                 </Select>
             </div>
 
-            <div className="task-priority-cell hidden items-center gap-1.5 text-xs capitalize md:flex">
+            <div className="task-priority-cell hidden items-center gap-1.5 text-xs capitalize @[780px]:flex">
                 <span className={`size-2 rounded-full ${PRIORITY_TONE[task.priority]}`} aria-hidden="true" />
                 <span
                     className={
@@ -275,7 +255,7 @@ export function TaskRow({
             </div>
 
             <div
-                className={`task-due-cell hidden items-center gap-1.5 text-xs tabular-nums md:flex ${overdue ? 'font-medium text-danger' : 'text-muted-foreground'}`}
+                className={`task-due-cell hidden items-center gap-1.5 text-xs tabular-nums @[780px]:flex ${overdue ? 'font-medium text-danger' : 'text-muted-foreground'}`}
             >
                 {rawDue ? (
                     <>
@@ -291,7 +271,7 @@ export function TaskRow({
                 <Button
                     size="icon"
                     variant="ghost"
-                    className="size-7 text-muted-foreground opacity-70 transition-opacity hover:text-foreground group-hover:opacity-100"
+                    className="size-8 text-muted-foreground opacity-75 transition-opacity hover:text-foreground group-hover:opacity-100"
                     aria-label={`Edit ${task.title}`}
                     onClick={() => onEdit(task)}
                 >
@@ -301,7 +281,7 @@ export function TaskRow({
                     <Button
                         size="icon"
                         variant="secondary"
-                        className="size-7"
+                        className="size-8"
                         aria-label={`Stop timer for ${task.title}`}
                         title="Stop timer"
                         disabled={busy}
@@ -313,7 +293,7 @@ export function TaskRow({
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="size-7 text-muted-foreground opacity-70 transition-opacity hover:text-foreground group-hover:opacity-100"
+                        className="size-8 text-muted-foreground opacity-75 transition-opacity hover:text-foreground group-hover:opacity-100"
                         aria-label={`Start timer for ${task.title}`}
                         title="Start timer"
                         disabled={
@@ -327,7 +307,7 @@ export function TaskRow({
                 <Button
                     size="icon"
                     variant="ghost"
-                    className="size-7 text-muted-foreground opacity-70 transition-opacity hover:text-danger group-hover:opacity-100"
+                    className="size-8 text-muted-foreground opacity-75 transition-opacity hover:text-danger group-hover:opacity-100"
                     aria-label={`Move ${task.title} to trash`}
                     disabled={busy}
                     onClick={() => onDelete(task)}
