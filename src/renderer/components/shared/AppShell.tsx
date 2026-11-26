@@ -13,6 +13,7 @@ import {
     Users,
 } from 'lucide-react';
 import type { SearchResult, WorkspaceNavigationTarget, WorkspaceViewId } from '@shared/contracts';
+import { DevLedgerLogo } from '@/components/shared/BrandMark';
 import { Button } from '@/components/ui/button';
 import {
     Sidebar,
@@ -155,14 +156,7 @@ export function AppShell({
                     className="border-r border-sidebar-border [--sidebar-width:14.75rem] [--sidebar-width-icon:3.45rem]"
                 >
                     <SidebarHeader className="px-3.5 pb-4 pt-4 group-data-[state=collapsed]/sidebar-provider:items-center group-data-[state=collapsed]/sidebar-provider:px-0">
-                        <div className="flex min-h-9 items-center gap-2.5">
-                            <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground text-background">
-                                <BookOpen className="size-4" strokeWidth={1.85} />
-                            </div>
-                            <div className="min-w-0 group-data-[state=collapsed]/sidebar-provider:hidden">
-                                <div className="text-[14px] font-semibold tracking-tight">DevLedger</div>
-                            </div>
-                        </div>
+                        <DevLedgerLogo />
                     </SidebarHeader>
 
                     <SidebarContent className="gap-4 px-2.5 py-1 group-data-[state=collapsed]/sidebar-provider:px-2">

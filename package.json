@@ -3,12 +3,15 @@
     "version": "0.1.0",
     "private": true,
     "description": "A private, local-first workspace for software projects, developer operations and technical knowledge.",
-    "author": "DevLedger",
+    "homepage": "https://devledger.app",
+    "desktopName": "devledger.desktop",
+    "author": "DevLedger <dev@devledger.app>",
     "license": "UNLICENSED",
     "type": "module",
     "main": "out/main/index.cjs",
     "scripts": {
         "tokens:build": "node scripts/build-tokens.mjs",
+        "brand:icons": "node scripts/generate-brand-assets.mjs",
         "predev": "npm run tokens:build && npm run build:worker",
         "prebuild": "npm run tokens:build && npm run format && npm run build:worker",
         "dev": "electron-vite dev",
@@ -109,11 +112,18 @@
         "appId": "com.devledger.desktop",
         "productName": "DevLedger",
         "directories": {
-            "output": "release"
+            "output": "release",
+            "buildResources": "build"
         },
         "files": [
             "out/**",
             "package.json"
+        ],
+        "extraResources": [
+            {
+                "from": "resources",
+                "to": "resources"
+            }
         ],
         "asar": true,
         "asarUnpack": [
@@ -124,18 +134,32 @@
             "main": "out/main/index.cjs"
         },
         "linux": {
+            "icon": "build/icons",
+            "maintainer": "DevLedger <dev@devledger.app>",
+            "syncDesktopName": true,
             "target": [
                 "AppImage",
                 "deb"
             ],
-            "category": "Office"
+            "category": "Development;Office;",
+            "synopsis": "Private, local-first workspace for software projects, developer operations and technical knowledge.",
+            "desktop": {
+                "entry": {
+                    "Name": "DevLedger",
+                    "GenericName": "Developer Workspace",
+                    "StartupWMClass": "devledger-desktop",
+                    "Keywords": "notes;tasks;projects;markdown;developer;local;"
+                }
+            }
         },
         "win": {
+            "icon": "build/icon.ico",
             "target": [
                 "nsis"
             ]
         },
         "mac": {
+            "icon": "build/icon.icns",
             "target": [
                 "dmg"
             ]

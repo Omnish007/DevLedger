@@ -8,6 +8,7 @@ import { registerIpcHandlers } from './ipc/register.js';
 import { AutomaticBackupManager } from './services/automatic-backup.js';
 import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
 import { DesktopWindowManager } from './desktop-window-manager.js';
+import { resolveAppIconPath } from './app-icon.js';
 import { DocumentWorkerSupervisor } from './document-worker-supervisor.js';
 import { ReminderDeliveryController } from './reminder-delivery.js';
 import { dispatchDeliveredNotifications } from './notification-dispatcher.js';
@@ -89,6 +90,8 @@ function autoLockVault(): void {
 async function initialize(): Promise<void> {
     await app.whenReady();
     app.setAppUserModelId(APP_ID);
+    const dockIcon = resolveAppIconPath();
+    if (process.platform === 'darwin' && dockIcon && app.dock) app.dock.setIcon(dockIcon);
     Menu.setApplicationMenu(null);
     const dataDirectory = app.getPath('userData');
     const hasCustomTestData =

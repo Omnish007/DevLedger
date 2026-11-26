@@ -8,6 +8,7 @@ import type {
     VaultStatus,
 } from '@shared/contracts';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { DevLedgerLogo } from '@/components/shared/BrandMark';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -309,6 +310,10 @@ export function SettingsPage(props: Props) {
                             </section>
 
                             <section className="workspace-surface space-y-3 p-5">
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+                                    <DevLedgerLogo subtitle="Local-first workspace" />
+                                    <Badge variant="outline">v{props.metadata?.version ?? '—'}</Badge>
+                                </div>
                                 <h3 className="text-sm font-semibold">Local workspace data</h3>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <code className="min-w-0 flex-1 break-all rounded-md bg-surface-subtle px-3 py-2 font-mono">

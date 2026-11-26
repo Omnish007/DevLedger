@@ -2,6 +2,7 @@ import { BrowserWindow, globalShortcut, nativeTheme, session, shell } from 'elec
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
+import { resolveAppIconPath } from './app-icon.js';
 
 export class DesktopWindowManager {
     private primaryWindow: BrowserWindow | null = null;
@@ -83,6 +84,7 @@ export class DesktopWindowManager {
     }
 
     private createWindow(capture = false): BrowserWindow {
+        const iconPath = resolveAppIconPath();
         const window = new BrowserWindow({
             width: capture ? 620 : 1440,
             height: capture ? 460 : 940,
@@ -90,6 +92,7 @@ export class DesktopWindowManager {
             minHeight: capture ? 360 : 700,
             show: false,
             title: capture ? 'Quick capture — DevLedger' : 'DevLedger',
+            ...(iconPath ? { icon: iconPath } : {}),
             autoHideMenuBar: true,
             backgroundColor: nativeTheme.shouldUseDarkColors ? '#111214' : '#f7f7f6',
             ...(capture ? { resizable: true, alwaysOnTop: true, minimizable: false } : { resizable: true }),

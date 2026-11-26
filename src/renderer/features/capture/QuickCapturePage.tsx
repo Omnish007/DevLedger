@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ArrowDownToLine, Command, FolderKanban, X } from 'lucide-react';
+import { ArrowDownToLine, FolderKanban, X } from 'lucide-react';
 import { friendlyError } from '@/lib/utils';
+import { DevLedgerIcon } from '@/components/shared/BrandMark';
 import { Button } from '@/components/ui/button';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { Input } from '@/components/ui/input';
@@ -33,9 +34,7 @@ export function QuickCapturePage({ onSave }: Props) {
     return (
         <main className="capture-window flex h-full flex-col bg-background">
             <header className="window-drag flex h-12 items-center gap-2 border-b border-border px-4">
-                <div className="grid size-6 place-items-center rounded-md bg-primary text-primary-foreground">
-                    <Command className="size-3.5" />
-                </div>
+                <DevLedgerIcon className="size-6 shrink-0" />
                 <div className="flex-1 text-xs font-semibold">Quick capture</div>
                 <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     Ctrl ⇧ Space

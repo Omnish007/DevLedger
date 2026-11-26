@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { FileText, FolderKanban, FolderOpen, Plus, Settings2 } from 'lucide-react';
+import { DevLedgerIcon } from '@/components/shared/BrandMark';
 import {
     Sidebar,
     SidebarContent,
@@ -37,7 +38,12 @@ export const WorkspaceNavigation: Story = {
             <SidebarProvider>
                 <Sidebar collapsible="icon">
                     <SidebarHeader>
-                        <strong className="px-2 text-sm">DevLedger</strong>
+                        <div className="flex items-center gap-2 px-1 py-0.5">
+                            <DevLedgerIcon className="size-7 shrink-0" />
+                            <strong className="text-sm group-data-[state=collapsed]/sidebar-provider:hidden">
+                                DevLedger
+                            </strong>
+                        </div>
                     </SidebarHeader>
                     <SidebarContent>
                         <SidebarGroup>

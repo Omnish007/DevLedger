@@ -1,4 +1,5 @@
 import { BrowserWindow, Notification } from 'electron';
+import { resolveAppIconPath } from './app-icon.js';
 import type { InboxNotification } from './services/notification-inbox.js';
 
 const entityRouteMap: Record<string, 'projects' | 'notes' | 'tasks' | 'documents' | 'contacts'> = {
@@ -18,11 +19,13 @@ export function dispatchDeliveredNotifications(
     let nativeShown = false;
     if (Notification.isSupported()) {
         nativeShown = true;
+        const iconPath = resolveAppIconPath();
         const batch = items.slice(0, 3);
         for (const item of batch) {
             const toastNotification = new Notification({
                 title: item.title || 'DevLedger Reminder',
                 body: item.body || 'Reminder is due.',
+                ...(iconPath ? { icon: iconPath } : {}),
                 silent: false,
             });
             toastNotification.on('click', () => {
@@ -47,6 +50,7 @@ export function dispatchDeliveredNotifications(
             const overflow = new Notification({
                 title: 'DevLedger',
                 body: `${items.length - 3} more reminder${items.length - 3 === 1 ? '' : 's'} added to your inbox.`,
+                ...(iconPath ? { icon: iconPath } : {}),
                 silent: true,
             });
             overflow.on('click', () => {

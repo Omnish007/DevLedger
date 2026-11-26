@@ -25,6 +25,6 @@ export default defineConfig({
             },
         },
         build: { outDir: resolve('out/renderer'), emptyOutDir: true },
-        server: { strictPort: true, port: 5173 },
+        server: { strictPort: true, port: 3000 },
     },
 });

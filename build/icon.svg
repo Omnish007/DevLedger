@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+    <defs>
+        <linearGradient id="bg-grad" x1="128" y1="64" x2="896" y2="960" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#1B2232" />
+            <stop offset="55%" stop-color="#121722" />
+            <stop offset="100%" stop-color="#0B0E15" />
+        </linearGradient>
+        <radialGradient id="bg-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 196) rotate(48) scale(640)">
+            <stop offset="0%" stop-color="#4F7DF3" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="#4F7DF3" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="rim-grad" x1="512" y1="64" x2="512" y2="960" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.20" />
+            <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.06" />
+            <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.03" />
+        </linearGradient>
+        <linearGradient id="spine-grad" x1="296" y1="216" x2="296" y2="808" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#6FA2FA" />
+            <stop offset="48%" stop-color="#3B6EE8" />
+            <stop offset="100%" stop-color="#254EB8" />
+        </linearGradient>
+        <linearGradient id="page-grad" x1="560" y1="216" x2="560" y2="808" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFFFFF" />
+            <stop offset="100%" stop-color="#E6ECF7" />
+        </linearGradient>
+        <linearGradient id="ribbon-grad" x1="674" y1="216" x2="674" y2="352" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#6094F6" />
+            <stop offset="100%" stop-color="#2958CE" />
+        </linearGradient>
+        <linearGradient id="cursor-grad" x1="564" y1="548" x2="684" y2="594" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#3E71EA" />
+            <stop offset="100%" stop-color="#2550C2" />
+        </linearGradient>
+    </defs>
+
+    <!-- Layered Outer Ambient Shadow (librsvg-safe, no filter tags) -->
+    <rect x="52" y="76" width="920" height="908" rx="220" fill="#04060A" fill-opacity="0.18" />
+    <rect x="60" y="72" width="904" height="900" rx="212" fill="#04060A" fill-opacity="0.24" />
+
+    <!-- Outer Obsidian Squircle -->
+    <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#bg-grad)" />
+    <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#bg-glow)" />
+    <rect x="66" y="66" width="892" height="892" rx="206" stroke="url(#rim-grad)" stroke-width="4" />
+
+    <!-- Layered Folio Shadow -->
+    <rect x="242" y="232" width="540" height="598" rx="64" fill="#04060B" fill-opacity="0.28" />
+    <rect x="246" y="226" width="532" height="594" rx="58" fill="#04060B" fill-opacity="0.22" />
+
+    <!-- Ivory Page Body -->
+    <path
+        d="M340 216H714C749.346 216 778 244.654 778 280V744C778 779.346 749.346 808 714 808H340V216Z"
+        fill="url(#page-grad)"
+    />
+    <!-- Subtle Spine Fold Shadow on Page -->
+    <rect x="348" y="216" width="22" height="592" fill="#0F172A" fill-opacity="0.09" />
+
+    <!-- Cobalt-Indigo Bound Spine -->
+    <path
+        d="M246 264C246 237.49 267.49 216 294 216H352V808H294C267.49 808 246 786.51 246 760V264Z"
+        fill="url(#spine-grad)"
+    />
+    <!-- Subtle Spine Specular Edge -->
+    <path
+        d="M294 218H350V222H294C269.699 222 250 241.699 250 266V760C250 762 246 762 246 760V264C246 237.49 267.49 218 294 218Z"
+        fill="#FFFFFF"
+        fill-opacity="0.22"
+    />
+
+    <!-- Spine Binding Notches -->
+    <rect x="272" y="318" width="44" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.32" />
+    <rect x="272" y="362" width="44" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.20" />
+    <rect x="272" y="662" width="44" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.20" />
+
+    <!-- Bookmark Tab -->
+    <path d="M640 216H708V346L674 322L640 346V216Z" fill="url(#ribbon-grad)" />
+
+    <!-- Developer Chevron (>) -->
+    <path
+        d="M432 404L532 486L432 568"
+        stroke="#111622"
+        stroke-width="48"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+    />
+
+    <!-- Active Ledger Prompt Bar (_) -->
+    <rect x="564" y="544" width="120" height="46" rx="23" fill="url(#cursor-grad)" />
+
+    <!-- Precision Ledger Rules -->
+    <rect x="424" y="646" width="260" height="24" rx="12" fill="#B8C4D9" />
+    <rect x="424" y="698" width="180" height="24" rx="12" fill="#CFD8E8" />
+</svg>
