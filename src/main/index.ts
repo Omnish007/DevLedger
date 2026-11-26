@@ -14,6 +14,7 @@ import { ReminderDeliveryController } from './reminder-delivery.js';
 import { dispatchDeliveredNotifications } from './notification-dispatcher.js';
 import { AutomaticBackupJobScheduler } from './automatic-backup-job-scheduler.js';
 import { hasStagedRestore, promoteStagedRestore } from './services/restore-activation.js';
+import { readAppSettingJson } from './services/app-settings-store.ts';
 
 const APP_ID = 'com.devledger.desktop';
 // Isolated user data for Playwright only; this cannot be enabled in packaged builds.
@@ -66,10 +67,8 @@ function autoLockVault(): void {
     if (!vaultService?.status().unlocked || !database?.open) return;
     let timeoutMinutes = 15;
     try {
-        const setting = database
-            .prepare("SELECT value_json FROM app_settings WHERE key = 'vault.autoLockMinutes'")
-            .get() as { value_json: string } | undefined;
-        if (setting) timeoutMinutes = Number(JSON.parse(setting.value_json));
+        const setting = readAppSettingJson<unknown>(database, 'vault.autoLockMinutes');
+        if (setting !== undefined) timeoutMinutes = Number(setting);
     } catch {
         return;
     }
@@ -123,25 +122,20 @@ async function initialize(): Promise<void> {
     if (!database) throw new Error('Database unavailable after initialization.');
     reminderDelivery = new ReminderDeliveryController(
         database,
-        services.jobs,
         (items) => {
             dispatchDeliveredNotifications(items, windowManager.openMainWindow, () => isShuttingDown);
         },
         () => isShuttingDown,
     );
-    const deviceUnlockSetting = database
-        .prepare("SELECT value_json FROM app_settings WHERE key = 'vault.deviceUnlockEnabled'")
-        .get() as { value_json: string } | undefined;
-    if (deviceUnlockSetting) {
+    const deviceUnlock = readAppSettingJson<unknown>(database, 'vault.deviceUnlockEnabled');
+    if (deviceUnlock === true) {
         try {
-            if (JSON.parse(deviceUnlockSetting.value_json) === true) {
-                const unlocked = await services.vaultDeviceKeyStore.unlock(services.vault);
-                if (unlocked) console.info('[DevLedger] Vault unlocked using the OS credential store.');
-                else
-                    console.warn(
-                        '[DevLedger] Device unlock is enabled but no protected key is available; unlock with the master passphrase or recovery key.',
-                    );
-            }
+            const unlocked = await services.vaultDeviceKeyStore.unlock(services.vault);
+            if (unlocked) console.info('[DevLedger] Vault unlocked using the OS credential store.');
+            else
+                console.warn(
+                    '[DevLedger] Device unlock is enabled but no protected key is available; unlock with the master passphrase or recovery key.',
+                );
         } catch (error) {
             console.warn(
                 '[DevLedger] Device unlock was unavailable; the vault remains locked.',
@@ -176,16 +170,9 @@ async function initialize(): Promise<void> {
                 error instanceof Error ? error.message : 'Unknown error',
             ),
         );
-    try {
-        const themeRow = database.prepare("SELECT value_json FROM app_settings WHERE key = 'theme'").get() as
-            { value_json: string } | undefined;
-        if (themeRow) {
-            const parsedTheme = JSON.parse(themeRow.value_json) as unknown;
-            nativeTheme.themeSource =
-                parsedTheme === 'light' || parsedTheme === 'dark' ? parsedTheme : 'system';
-        }
-    } catch {
-        /* Keep system theme fallback if a preference cannot be read. */
+    const parsedTheme = readAppSettingJson<unknown>(database, 'theme');
+    if (parsedTheme !== undefined) {
+        nativeTheme.themeSource = parsedTheme === 'light' || parsedTheme === 'dark' ? parsedTheme : 'system';
     }
     documentWorkerSupervisor.start(resolveWorkspaceDatabasePath(dataDirectory));
     windowManager.createMainWindow();
@@ -204,17 +191,8 @@ async function initialize(): Promise<void> {
     vaultAutoLockInterval.unref();
 
     let configuredShortcut = 'CommandOrControl+Shift+Space';
-    try {
-        const row = database
-            .prepare("SELECT value_json FROM app_settings WHERE key = 'shortcuts.quickCapture'")
-            .get() as { value_json: string } | undefined;
-        if (row) {
-            const value = JSON.parse(row.value_json) as unknown;
-            if (isQuickCaptureShortcut(value)) configuredShortcut = value;
-        }
-    } catch {
-        /* Keep the safe default shortcut if a preference cannot be read. */
-    }
+    const storedShortcut = readAppSettingJson<unknown>(database, 'shortcuts.quickCapture');
+    if (isQuickCaptureShortcut(storedShortcut)) configuredShortcut = storedShortcut;
     if (!windowManager.setQuickCaptureShortcut(configuredShortcut)) {
         console.warn('[DevLedger] Configured global quick-capture shortcut is unavailable.');
         if (configuredShortcut !== 'CommandOrControl+Shift+Space')

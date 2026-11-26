@@ -12,6 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SmartDateOptionsFooter } from './SmartDateOptionsFooter';
+import { SmartDateRangeSummary } from './SmartDateRangeSummary';
 import {
     buildDateAttrsFromSelection,
     isoDateToLocalDate,
@@ -30,7 +31,7 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
     const [format, setFormat] = useState<SmartDateDisplayFormat>('relative');
     const [endDate, setEndDate] = useState<string | null>(null);
     const [displayMonth, setDisplayMonth] = useState<Date>(() => new Date());
-    const presets = useMemo(() => getSmartDatePresets(), []);
+    const presets = getSmartDatePresets();
 
     const preview = useMemo((): { parsed: SmartDateReference | null; error: string } => {
         if (value.trim()) {
@@ -180,28 +181,12 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                     </div>
 
                     {rangeMode && (
-                        <div className="flex items-center justify-between rounded-md bg-surface-subtle/70 px-2.5 py-1 text-[11px] text-muted-foreground">
-                            <span>
-                                Start:{' '}
-                                <strong className="font-medium text-foreground">
-                                    {preview.parsed
-                                        ? formatNotionDateLabel({
-                                              date: preview.parsed.date,
-                                              format: 'full',
-                                          })
-                                        : 'Pick start'}
-                                </strong>
-                            </span>
-                            <span>→</span>
-                            <span>
-                                End:{' '}
-                                <strong className="font-medium text-foreground">
-                                    {endDate
-                                        ? formatNotionDateLabel({ date: endDate, format: 'full' })
-                                        : 'Pick end'}
-                                </strong>
-                            </span>
-                        </div>
+                        <SmartDateRangeSummary
+                            startDate={preview.parsed?.date}
+                            endDate={endDate}
+                            emptyStartLabel="Pick start"
+                            emptyEndLabel="Pick end"
+                        />
                     )}
 
                     <div className="rounded-xl border border-border/75 bg-card/70 p-0.5">

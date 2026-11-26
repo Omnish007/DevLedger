@@ -1,40 +1,8 @@
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { lstat } from 'node:fs/promises';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { resolve } from 'node:path';
 import type Database from 'better-sqlite3';
+import { isPathInside as pathInside, sha256File as hashFile } from './fs-safety.ts';
 import type { MaintenanceJobContext } from './maintenance-shared.ts';
-
-function pathInside(parent: string, candidate: string): boolean {
-    const rel = relative(resolve(parent), resolve(candidate));
-    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-}
-
-function hashFile(filePath: string, signal: AbortSignal): Promise<string> {
-    return new Promise((resolveHash, reject) => {
-        if (signal.aborted) {
-            reject(signal.reason ?? new Error('Storage audit cancelled.'));
-            return;
-        }
-        const hash = createHash('sha256');
-        const stream = createReadStream(filePath);
-        const cleanup = () => signal.removeEventListener('abort', abort);
-        const abort = () =>
-            stream.destroy(
-                signal.reason instanceof Error ? signal.reason : new Error('Storage audit cancelled.'),
-            );
-        signal.addEventListener('abort', abort, { once: true });
-        stream.on('data', (chunk: string | Buffer) => hash.update(chunk));
-        stream.on('error', (error) => {
-            cleanup();
-            reject(error);
-        });
-        stream.on('end', () => {
-            cleanup();
-            resolveHash(hash.digest('hex'));
-        });
-    });
-}
 
 export async function auditLocalDocumentStorage(
     db: Database.Database,

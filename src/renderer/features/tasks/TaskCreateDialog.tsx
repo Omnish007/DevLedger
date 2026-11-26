@@ -1,14 +1,10 @@
 import type { UseFormReturn } from 'react-hook-form';
 import { ListPlus } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { Textarea } from '@/components/ui/textarea';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { SmartDateField } from '@/components/shared/SmartDateField';
 import type { CreateTaskForm } from './task-form-schema';
+import { TaskFormDialogFooter, TaskScheduleFields, TaskTextFields } from './TaskFormFields';
 
 interface Props {
     open: boolean;
@@ -37,6 +33,7 @@ export function TaskCreateDialog({
 }: Props) {
     const parentId = form.watch('parentId');
     const dueAt = form.watch('dueAt');
+    const errorMessage = form.formState.errors.root?.message || error;
 
     return (
         <Dialog
@@ -60,48 +57,19 @@ export function TaskCreateDialog({
 
                 <form onSubmit={onSubmit} noValidate>
                     <div className="space-y-5 px-6 py-5">
-                        <div className="space-y-3">
-                            <label className="block space-y-1.5 text-xs font-medium">
-                                <span>Title</span>
-                                <Input
-                                    autoFocus
-                                    {...form.register('title')}
-                                    placeholder="What needs to be done?"
-                                    maxLength={240}
-                                    className="h-10 text-sm font-medium"
-                                    aria-invalid={Boolean(form.formState.errors.title)}
-                                />
-                                {form.formState.errors.title && (
-                                    <p className="text-[11px] text-danger" role="alert">
-                                        {form.formState.errors.title.message}
-                                    </p>
-                                )}
-                            </label>
-                            <label className="block space-y-1.5 text-xs font-medium">
-                                <span>
-                                    Description{' '}
-                                    <span className="font-normal text-muted-foreground">(optional)</span>
-                                </span>
-                                <Textarea
-                                    aria-label="Task description"
-                                    {...form.register('description')}
-                                    placeholder="Add context, links or acceptance notes…"
-                                    rows={3}
-                                    className="resize-y"
-                                />
-                                {form.formState.errors.description && (
-                                    <p className="text-[11px] text-danger" role="alert">
-                                        {form.formState.errors.description.message}
-                                    </p>
-                                )}
-                            </label>
-                        </div>
+                        <TaskTextFields
+                            autoFocusTitle
+                            titleProps={form.register('title')}
+                            titlePlaceholder="What needs to be done?"
+                            titleError={form.formState.errors.title?.message}
+                            descriptionProps={form.register('description')}
+                            descriptionAriaLabel="Task description"
+                            descriptionPlaceholder="Add context, links or acceptance notes…"
+                            descriptionError={form.formState.errors.description?.message}
+                        />
 
-                        <div className="space-y-3.5 rounded-xl border border-border/80 bg-surface-subtle/30 p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                Schedule & properties
-                            </p>
-                            <div className="grid gap-3.5 sm:grid-cols-2">
+                        <TaskScheduleFields
+                            leadingField={
                                 <div className="space-y-1.5 text-xs font-medium">
                                     <span>Project</span>
                                     <RemoteRecordPicker
@@ -121,22 +89,11 @@ export function TaskCreateDialog({
                                         </p>
                                     )}
                                 </div>
-
-                                <label className="block space-y-1.5 text-xs font-medium">
-                                    <span>Priority</span>
-                                    <NativeSelect
-                                        aria-label="Priority"
-                                        {...form.register('priority')}
-                                        className="h-9 w-full text-xs"
-                                    >
-                                        <NativeSelectOption value="low">Low</NativeSelectOption>
-                                        <NativeSelectOption value="medium">Medium</NativeSelectOption>
-                                        <NativeSelectOption value="high">High</NativeSelectOption>
-                                        <NativeSelectOption value="urgent">Urgent</NativeSelectOption>
-                                    </NativeSelect>
-                                </label>
-
-                                <div className="sm:col-span-2">
+                            }
+                            priorityProps={form.register('priority')}
+                            priorityAriaLabel="Priority"
+                            dueDateField={
+                                <>
                                     <SmartDateField
                                         label="Due date & time"
                                         value={dueAt}
@@ -153,72 +110,26 @@ export function TaskCreateDialog({
                                             {form.formState.errors.dueAt.message}
                                         </p>
                                     )}
-                                </div>
-
-                                <label className="block space-y-1.5 text-xs font-medium">
-                                    <span>
-                                        Estimate{' '}
-                                        <span className="font-normal text-muted-foreground">(optional)</span>
-                                    </span>
-                                    <div className="relative">
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            max="525600"
-                                            {...form.register('estimate')}
-                                            placeholder="e.g. 45"
-                                            className="pr-11"
-                                            aria-invalid={Boolean(form.formState.errors.estimate)}
-                                        />
-                                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                            min
-                                        </span>
-                                    </div>
-                                    {form.formState.errors.estimate && (
-                                        <p className="text-[11px] text-danger" role="alert">
-                                            {form.formState.errors.estimate.message}
-                                        </p>
-                                    )}
-                                </label>
-
-                                <div className="space-y-1.5 text-xs font-medium">
-                                    <span>
-                                        Parent task{' '}
-                                        <span className="font-normal text-muted-foreground">(optional)</span>
-                                    </span>
-                                    <RemoteRecordPicker
-                                        entityType="task"
-                                        value={parentId}
-                                        onValueChange={(value) => form.setValue('parentId', value)}
-                                        projectId={selectedProject || null}
-                                        includeCompleted={false}
-                                        disabled={!selectedProject}
-                                        placeholder={
-                                            selectedProject ? 'Top-level task' : 'Select a project first'
-                                        }
-                                        selectedLabel={selectedParentLabel}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {(form.formState.errors.root?.message || error) && (
-                            <Alert variant="destructive" className="py-2.5">
-                                <AlertDescription>
-                                    {form.formState.errors.root?.message || error}
-                                </AlertDescription>
-                            </Alert>
-                        )}
+                                </>
+                            }
+                            estimateProps={form.register('estimate')}
+                            estimatePlaceholder="e.g. 45"
+                            estimateError={form.formState.errors.estimate?.message}
+                            parentId={parentId}
+                            parentProjectId={selectedProject || null}
+                            parentDisabled={!selectedProject}
+                            parentPlaceholder={selectedProject ? 'Top-level task' : 'Select a project first'}
+                            selectedParentLabel={selectedParentLabel}
+                            onParentChange={(value) => form.setValue('parentId', value)}
+                        />
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 border-t border-border/75 bg-surface-subtle/45 px-6 py-3.5">
-                        <Button type="button" variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={busy}>
-                            {busy ? 'Creating…' : 'Create task'}
-                        </Button>
-                    </div>
+                    <TaskFormDialogFooter
+                        errorMessage={errorMessage}
+                        busy={busy}
+                        submitLabel={busy ? 'Creating…' : 'Create task'}
+                        onClose={onClose}
+                    />
                 </form>
             </DialogContent>
         </Dialog>

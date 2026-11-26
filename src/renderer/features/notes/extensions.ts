@@ -21,6 +21,7 @@ import { SmartDateChipView, type SmartDateNodeOptions } from './SmartDateChipVie
 import {
     attachSyncedReminderId,
     computeReminderDueIso,
+    extractReminderContextText,
     schedulePendingDatePicker,
 } from './smart-date-ui-helpers';
 
@@ -178,7 +179,7 @@ export function createNoteExtensions(
             char: '@',
             minQueryLength: 0,
             allowSpaces: true,
-            debounce: 80,
+            debounce: 0,
             allowedPrefixes: [' ', '\n', '(', '['],
             command: ({ editor, range, props }) => {
                 const item = props as unknown as AtSuggestionItem;
@@ -192,14 +193,16 @@ export function createNoteExtensions(
                             { type: 'text', text: ' ' },
                         ])
                         .run();
-                    if (item.attrs.isReminder && !item.openPicker && dateOptions.onReminderSync) {
+                    if (item.attrs.isReminder && dateOptions.onReminderSync) {
                         const dueIso =
                             item.attrs.isoUtc ?? computeReminderDueIso(item.attrs.date, item.attrs.time);
+                        const contextText = extractReminderContextText(editor, range.from);
                         void dateOptions
-                            .onReminderSync(item.attrs, dueIso)
+                            .onReminderSync(item.attrs, dueIso, contextText)
                             .then((id) =>
                                 attachSyncedReminderId(editor, item.attrs.date, id, item.attrs.time),
-                            );
+                            )
+                            .catch((caught) => dateOptions.onReminderError?.(caught));
                     }
                     return;
                 }

@@ -137,7 +137,9 @@ export class NotificationInboxService {
         const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)));
         const filters: string[] = [];
         const params: unknown[] = [];
-        if (filter !== 'all') {
+        if (filter === 'all') {
+            filters.push("status != 'dismissed'");
+        } else {
             filters.push('status = ?');
             params.push(filter);
         }

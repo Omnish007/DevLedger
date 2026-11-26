@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
     AlertTriangle,
-    ArrowRight,
     ArrowUpRight,
     CalendarClock,
-    CheckCircle2,
     Clock3,
     FolderKanban,
     GitBranch,
@@ -23,13 +21,12 @@ import type {
     TimeEntryRecord,
     WorkspaceNavigationTarget,
 } from '@shared/contracts';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { RecordConnectionsPanel } from '@/components/shared/RecordConnectionsPanel';
 import { TaskBlockerSection } from './TaskBlockerSection';
+import { TaskDependencySection } from './TaskDependencySection';
 import { TaskTimeSection } from './TaskTimeSection';
 import { statuses } from './task-form-schema';
 import { formatDate, friendlyError } from '@/lib/utils';
@@ -49,15 +46,6 @@ interface TaskInspectorSheetProps {
     onRefreshParent: () => Promise<void>;
 }
 
-const DEP_STATUS_DOT: Record<string, string> = {
-    completed: 'bg-success',
-    cancelled: 'bg-muted-foreground/40',
-    blocked: 'bg-warning',
-    waiting: 'bg-info',
-    in_progress: 'bg-primary',
-    not_started: 'bg-muted-foreground/50',
-};
-
 export function TaskInspectorSheet({
     task,
     projectName,
@@ -76,7 +64,6 @@ export function TaskInspectorSheet({
     const [dependsOn, setDependsOn] = useState<string[]>([]);
     const [blocks, setBlocks] = useState<string[]>([]);
     const [depSummaries, setDepSummaries] = useState<Record<string, RecordSummary>>({});
-    const [prereqId, setPrereqId] = useState('');
     const [timePage, setTimePage] = useState<PageResult<TimeEntryRecord>>({
         items: [],
         total: 0,
@@ -128,7 +115,6 @@ export function TaskInspectorSheet({
 
     useEffect(() => {
         setTimeOffset(0);
-        setPrereqId('');
         setError('');
     }, [task?.id]);
     useEffect(() => {
@@ -360,113 +346,16 @@ export function TaskInspectorSheet({
                                 />
                             </div>
 
-                            <section className="space-y-3 rounded-xl border border-border/80 bg-card p-4 text-xs shadow-[var(--shadow-xs)]">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                        <GitBranch className="size-3.5 text-muted-foreground" />
-                                        Dependency flow
-                                    </h3>
-                                    <Badge variant="secondary" className="tabular-nums">
-                                        {dependsOn.length + blocks.length}
-                                    </Badge>
-                                </div>
-                                <div className="flex gap-2">
-                                    <RemoteRecordPicker
-                                        entityType="task"
-                                        projectId={task.projectId}
-                                        excludeId={task.id}
-                                        value={prereqId}
-                                        onValueChange={setPrereqId}
-                                        placeholder="Add prerequisite task…"
-                                        className="flex-1"
-                                    />
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        className="h-9 shrink-0"
-                                        disabled={!prereqId}
-                                        onClick={() =>
-                                            void window.devLedger.operations
-                                                .addDependency(task.id, prereqId)
-                                                .then(() => {
-                                                    setPrereqId('');
-                                                    return refreshBoth();
-                                                })
-                                                .catch((e) =>
-                                                    setError(friendlyError(e, 'Could not add dependency.')),
-                                                )
-                                        }
-                                    >
-                                        Add
-                                    </Button>
-                                </div>
-                                {[
-                                    {
-                                        label: 'Prerequisites (must finish first)',
-                                        list: dependsOn,
-                                        directionIcon: ArrowRight,
-                                        onRemoveDep: (id: string) =>
-                                            window.devLedger.operations.removeDependency(task.id, id),
-                                    },
-                                    {
-                                        label: 'Unlocks downstream (waiting on this task)',
-                                        list: blocks,
-                                        directionIcon: CheckCircle2,
-                                        onRemoveDep: (id: string) =>
-                                            window.devLedger.operations.removeDependency(id, task.id),
-                                    },
-                                ].map(
-                                    (group) =>
-                                        group.list.length > 0 && (
-                                            <div key={group.label} className="space-y-1.5">
-                                                <p className="text-[11px] font-medium text-muted-foreground">
-                                                    {group.label}
-                                                </p>
-                                                <div className="divide-y divide-border/75 rounded-lg border border-border/80 bg-surface-subtle/25">
-                                                    {group.list.map((id) => {
-                                                        const summary = depSummaries[`task:${id}`];
-                                                        const depStatus = summary?.status ?? 'not_started';
-                                                        const isDone = depStatus === 'completed';
-                                                        return (
-                                                            <div
-                                                                key={id}
-                                                                className="flex items-center gap-2 px-3 py-2"
-                                                            >
-                                                                <span
-                                                                    className={`size-2 shrink-0 rounded-full ${DEP_STATUS_DOT[depStatus] ?? 'bg-muted-foreground/50'}`}
-                                                                    aria-hidden="true"
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    className={`inline-flex min-h-6 min-w-0 flex-1 items-center truncate text-left font-medium hover:text-primary hover:underline ${isDone ? 'text-muted-foreground line-through' : ''}`}
-                                                                    onClick={() => openLinkedTask(id)}
-                                                                >
-                                                                    {summary?.title ?? 'Linked task'}
-                                                                </button>
-                                                                <span className="shrink-0 text-[11px] capitalize text-muted-foreground">
-                                                                    {depStatus.replaceAll('_', ' ')}
-                                                                </span>
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                                                                    onClick={() =>
-                                                                        void group
-                                                                            .onRemoveDep(id)
-                                                                            .then(refreshBoth)
-                                                                    }
-                                                                >
-                                                                    Remove
-                                                                </Button>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        ),
-                                )}
-                            </section>
+                            <TaskDependencySection
+                                taskId={task.id}
+                                projectId={task.projectId}
+                                dependsOn={dependsOn}
+                                blocks={blocks}
+                                depSummaries={depSummaries}
+                                onOpenLinkedTask={openLinkedTask}
+                                onRefreshBoth={refreshBoth}
+                                onError={setError}
+                            />
 
                             <div className="rounded-xl border border-border/80 bg-card p-4 shadow-[var(--shadow-xs)]">
                                 <TaskTimeSection

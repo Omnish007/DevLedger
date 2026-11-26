@@ -4,6 +4,7 @@ import type { SearchResult, SemanticIndexReport } from '../../shared/contracts.j
 import { stripHtmlToPlainText } from '../../domain/html-text.ts';
 import { splitIntoChunks, vectorBandBuckets } from '../../domain/vector-search.ts';
 import { formatTextForEmbeddingModel, resolveEmbeddingModel } from './ai-models.ts';
+import { writeAppSetting } from './app-settings-store.ts';
 import type { EmbeddingAdapter } from './embeddings.ts';
 
 interface EmbeddingServiceStatus {
@@ -86,13 +87,7 @@ export class SemanticIndexer {
     }
 
     private saveSetting(key: string, value: unknown): void {
-        const timestamp = new Date().toISOString();
-        this.db
-            .prepare(
-                `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-            )
-            .run(key, JSON.stringify(value), timestamp);
+        writeAppSetting(this.db, key, value);
     }
 
     private insertChunkStatements() {

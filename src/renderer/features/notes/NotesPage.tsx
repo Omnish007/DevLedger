@@ -11,7 +11,7 @@ import {
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
-import { BookOpen, Check, Clock3, Link2, LockKeyhole, Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { BookOpen, Plus } from 'lucide-react';
 import type {
     ContactRecord,
     NoteInput,
@@ -21,28 +21,25 @@ import type {
     WorkspaceNavigationTarget,
 } from '@shared/contracts';
 import type { SmartDateReference } from '@domain/smart-date-markdown';
-import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
-import { useConfirm } from '@/components/shared/ConfirmProvider';
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+import { useConfirm } from '@/components/shared/confirm-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useProjectNames } from '@/hooks/useProjectNames';
 import { formatRelative, friendlyError } from '@/lib/utils';
 import { createNoteExtensions } from './extensions';
 import { exportMarkdownFromEditor, importMarkdownIntoEditor } from './note-markdown-io';
+import { NoteEditorHeader, type NoteSaveState } from './NoteEditorHeader';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
 import { NoteContactDialog, NoteInspectorDrawer } from './NoteInspectorDrawer';
+import { NoteLockedPlaceholder } from './NoteLockedPlaceholder';
 import { NotesSidebar } from './NotesSidebar';
 import { NoteTableOverlay } from './NoteTableOverlay';
-import { attachSyncedReminderId, computeReminderDueIso } from './smart-date-ui-helpers';
-
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+import {
+    attachSyncedReminderId,
+    computeReminderDueIso,
+    extractReminderContextText,
+} from './smart-date-ui-helpers';
 
 interface Props {
     notes: NoteRecord[];
@@ -58,10 +55,13 @@ interface Props {
     ) => Promise<ProtectedNoteRecord>;
     onLock: (id: string) => Promise<void>;
     onUnlock: (id: string) => Promise<ProtectedNoteRecord>;
+    onUnprotect?: (id: string) => Promise<NoteRecord>;
     onDelete: (id: string) => Promise<void>;
     onRegisterFlush: (flush: (() => Promise<boolean>) | null) => void;
     onNavigateTarget: (target: WorkspaceNavigationTarget) => void;
 }
+
+const NOTES_PAGE_SIZE = 50;
 
 export function NotesPage({
     focusNoteId,
@@ -73,6 +73,7 @@ export function NotesPage({
     onSaveLocked,
     onLock,
     onUnlock,
+    onUnprotect,
     onDelete,
     onRegisterFlush,
     onNavigateTarget,
@@ -87,7 +88,6 @@ export function NotesPage({
     const [loadedNotesOffset, setLoadedNotesOffset] = useState(0);
     const [notesLoading, setNotesLoading] = useState(true);
     const notesRequest = useRef(0);
-    const notesPageSize = 50;
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [filter, setFilter] = useState('');
     const [filterProjectId, setFilterProjectId] = useState(focusProjectId || '');
@@ -97,32 +97,41 @@ export function NotesPage({
     const [content, setContent] = useState('');
     const [projectId, setProjectId] = useState('');
     const [contactPreview, setContactPreview] = useState<ContactRecord | null>(null);
-    const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+    const [pickedProjectNames, setPickedProjectNames] = useState<Record<string, string>>({});
     const [connectionCount, setConnectionCount] = useState(0);
-    const [projectIdRef, selectedIdRef, titleRef, lockedRef] = [
-        useRef(projectId),
-        useRef(selectedId),
-        useRef(title),
-        useRef(false),
-    ];
+
+    const projectIdRef = useRef(projectId);
+    const selectedIdRef = useRef(selectedId);
+    const titleRef = useRef(title);
+    const lockedRef = useRef(false);
     projectIdRef.current = projectId;
     selectedIdRef.current = selectedId;
     titleRef.current = title;
-    const [saveState, setSaveState] = useState<SaveState>('idle');
+
+    const [saveState, setSaveState] = useState<NoteSaveState>('idle');
     const [error, setError] = useState('');
     const [unlockedNote, setUnlockedNote] = useState<ProtectedNoteRecord | null>(null);
-    const [revision, isDirty] = [useRef(0), useRef(false)];
+    const revision = useRef(0);
+    const isDirty = useRef(false);
     const isMountedRef = useRef(true);
+    const writingCanvasRef = useRef<HTMLDivElement | null>(null);
+
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
         };
     }, []);
+
     const selected = (
         unlockedNote?.id === selectedId ? unlockedNote : (pageNotes.find((n) => n.id === selectedId) ?? null)
     ) as NoteRecord | ProtectedNoteRecord | null;
     lockedRef.current = Boolean(selected?.locked);
+
+    const selectedSyncRef = useRef({ selected, unlockedNote });
+    selectedSyncRef.current = { selected, unlockedNote };
+    const pageNotesRef = useRef(pageNotes);
+    pageNotesRef.current = pageNotes;
 
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 1040px)');
@@ -138,7 +147,7 @@ export function NotesPage({
             setNotesLoading(true);
             try {
                 const page = await window.devLedger.notes.listPage({
-                    limit: notesPageSize,
+                    limit: NOTES_PAGE_SIZE,
                     offset: requestedOffset,
                     query: deferredFilter,
                     projectId: filterProjectId || null,
@@ -160,25 +169,13 @@ export function NotesPage({
     useEffect(() => {
         void loadNotesPage().catch((c: unknown) => setError(friendlyError(c, 'Notes could not be loaded.')));
     }, [loadNotesPage]);
-    useEffect(() => {
-        const ids = [
-            ...new Set(pageNotes.map((n) => n.projectId).filter((id): id is string => Boolean(id))),
-        ].slice(0, 200);
-        let active = true;
-        void window.devLedger.projects
-            .getNames(ids)
-            .then((names) => {
-                if (active) setProjectNames((c) => ({ ...c, ...names }));
-            })
-            .catch(() => undefined);
-        return () => {
-            active = false;
-        };
-    }, [pageNotes]);
+
+    const { projectNames: resolvedProjectNames } = useProjectNames(pageNotes.map((n) => n.projectId));
+    const projectNames = { ...resolvedProjectNames, ...pickedProjectNames };
 
     const currentSelectedId = selected?.id ?? null;
     const currentSelectedLocked = Boolean(selected?.locked);
-    const writingCanvasRef = useRef<HTMLDivElement | null>(null);
+    const unlockedRecordId = unlockedNote?.id ?? null;
 
     useEffect(() => {
         if (!currentSelectedId || currentSelectedLocked) {
@@ -200,9 +197,16 @@ export function NotesPage({
     }, [currentSelectedId, currentSelectedLocked, inspectorOpen]);
 
     const syncNoteReminder = useCallback(
-        async (attrs: SmartDateReference, dueAtIso: string | null): Promise<string | null> => {
+        async (
+            attrs: SmartDateReference,
+            dueAtIso: string | null,
+            noteText?: string,
+        ): Promise<string | null> => {
             const noteId = selectedIdRef.current;
-            if (!noteId || lockedRef.current) return attrs.reminderId ?? null;
+            if (!noteId) return attrs.reminderId ?? null;
+            if (lockedRef.current) {
+                throw new Error('Remove the vault lock from this note to schedule reminders.');
+            }
             if (!dueAtIso) {
                 if (attrs.reminderId)
                     await window.devLedger.operations
@@ -218,11 +222,12 @@ export function NotesPage({
                 );
                 return updated.id;
             }
+            const contextMessage = noteText?.trim() || attrs.source || titleRef.current || 'Note reminder';
             const created = await window.devLedger.operations.createReminder(
                 'note',
                 noteId,
                 dueAtIso,
-                attrs.source || titleRef.current || 'Note reminder',
+                contextMessage,
             );
             return created.id;
         },
@@ -244,7 +249,11 @@ export function NotesPage({
                         })
                     ).items,
                 () => projectIdRef.current,
-                { onReminderSync: syncNoteReminder },
+                {
+                    onReminderSync: syncNoteReminder,
+                    onReminderError: (caught) =>
+                        setError(friendlyError(caught, 'Reminder could not be scheduled.')),
+                },
             ),
         ],
         [syncNoteReminder],
@@ -265,6 +274,92 @@ export function NotesPage({
         },
     });
 
+    const persistSelectedRef = useRef<() => Promise<void>>(async () => undefined);
+    persistSelectedRef.current = async () => {
+        if (!selectedId) return;
+        const input = { title, content, projectId: projectId || null };
+        if (selected?.locked) {
+            const u = await onSaveLocked(selectedId, input);
+            setUnlockedNote(u);
+            setPageNotes((c) =>
+                c.map((i) => (i.id === u.id ? { ...i, projectId: u.projectId, updatedAt: u.updatedAt } : i)),
+            );
+        } else {
+            const u = await onUpdate(selectedId, input);
+            setPageNotes((c) => c.map((i) => (i.id === u.id ? u : i)));
+        }
+    };
+
+    const flushBeforeNavigation = useCallback(async (): Promise<boolean> => {
+        if (!selectedIdRef.current || !isDirty.current) return true;
+        setSaveState('saving');
+        try {
+            await persistSelectedRef.current();
+            isDirty.current = false;
+            setSaveState('saved');
+            setError('');
+            return true;
+        } catch (caught) {
+            setSaveState('error');
+            setError(friendlyError(caught, 'Save failed.'));
+            return false;
+        }
+    }, []);
+
+    const unlockSelected = useCallback(
+        async (id: string) => {
+            try {
+                const n = await onUnlock(id);
+                setUnlockedNote(n);
+                setTitle(n.title);
+                setContent(n.content);
+                setProjectId(n.projectId ?? '');
+                if (editor && !editor.isDestroyed) {
+                    editor.commands.setContent(n.content || '', { emitUpdate: false });
+                }
+                setError('');
+                setSaveState('idle');
+                isDirty.current = false;
+                setSelectedId(id);
+            } catch (caught) {
+                setError(friendlyError(caught, 'Unlock failed.'));
+            }
+        },
+        [editor, onUnlock],
+    );
+
+    const selectNote = useCallback(
+        async (id: string) => {
+            if (id === selectedIdRef.current || !(await flushBeforeNavigation())) return;
+            revision.current += 1;
+            setUnlockedNote(null);
+            const listMatch = pageNotesRef.current.find((i) => i.id === id);
+            if (listMatch?.locked) {
+                if (vaultStatus.unlocked) {
+                    await unlockSelected(id);
+                    return;
+                }
+                setSelectedId(id);
+                return;
+            }
+            try {
+                const detail = await window.devLedger.notes.get(id);
+                if (!isMountedRef.current) return;
+                setPageNotes((c) =>
+                    c.some((i) => i.id === id) ? c.map((i) => (i.id === id ? detail : i)) : [detail, ...c],
+                );
+                if (detail.locked && vaultStatus.unlocked) {
+                    await unlockSelected(id);
+                    return;
+                }
+                setSelectedId(id);
+            } catch (caught) {
+                if (isMountedRef.current) setError(friendlyError(caught, 'Note could not be opened.'));
+            }
+        },
+        [flushBeforeNavigation, unlockSelected, vaultStatus.unlocked],
+    );
+
     useEffect(() => {
         if (
             !selectedId &&
@@ -273,9 +368,20 @@ export function NotesPage({
             pageNotes.length &&
             !notesLoading &&
             loadedNotesOffset === notesOffset
-        )
+        ) {
             void selectNote(pageNotes[0]!.id);
-    }, [pageNotes, selectedId, deferredFilter, focusNoteId, notesLoading, loadedNotesOffset, notesOffset]);
+        }
+    }, [
+        pageNotes,
+        selectedId,
+        deferredFilter,
+        focusNoteId,
+        notesLoading,
+        loadedNotesOffset,
+        notesOffset,
+        selectNote,
+    ]);
+
     useEffect(() => {
         if (vaultStatus.unlocked) return;
         setUnlockedNote((prev) => {
@@ -290,36 +396,36 @@ export function NotesPage({
             return null;
         });
     }, [vaultStatus.unlocked, editor]);
+
     useEffect(() => {
-        if (selected) {
-            if (selected.locked && !unlockedNote) {
+        const { selected: activeNote, unlockedNote: activeUnlocked } = selectedSyncRef.current;
+        if (activeNote) {
+            if (activeNote.locked && !activeUnlocked) {
                 setTitle('');
                 setContent('');
-                setProjectId(selected.projectId ?? '');
+                setProjectId(activeNote.projectId ?? '');
                 setSaveState('idle');
                 setError('');
                 isDirty.current = false;
                 if (editor && !editor.isDestroyed) editor.commands.clearContent(false);
                 return;
             }
-            setTitle(selected.title);
-            setContent(selected.content);
-            setProjectId(selected.projectId ?? '');
+            setTitle(activeNote.title);
+            setContent(activeNote.content);
+            setProjectId(activeNote.projectId ?? '');
             setSaveState('idle');
             setError('');
             isDirty.current = false;
-            if (!selected.locked && editor && !editor.isDestroyed) {
-                editor.commands.setContent(selected.content || '', { emitUpdate: false });
+            if (!activeNote.locked && editor && !editor.isDestroyed) {
+                editor.commands.setContent(activeNote.content || '', { emitUpdate: false });
             }
         } else if (selectedId === null) {
             setTitle('');
             setContent('');
             setProjectId('');
-            if (editor && !editor.isDestroyed) {
-                editor.commands.clearContent(false);
-            }
+            if (editor && !editor.isDestroyed) editor.commands.clearContent(false);
         }
-    }, [selectedId, selected?.id, selected?.locked, unlockedNote?.id, editor]);
+    }, [selectedId, currentSelectedId, currentSelectedLocked, unlockedRecordId, editor]);
 
     useEffect(() => {
         if (focusProjectId && !focusNoteId) {
@@ -330,76 +436,8 @@ export function NotesPage({
         }
         if (!focusNoteId) return;
         void selectNote(focusNoteId).finally(() => onConsumeFocus?.());
-    }, [focusNoteId, focusProjectId, onConsumeFocus]);
+    }, [focusNoteId, focusProjectId, onConsumeFocus, selectNote]);
 
-    function importMarkdownFile(event: ChangeEvent<HTMLInputElement>) {
-        void importMarkdownIntoEditor(
-            event,
-            editor,
-            () =>
-                confirm({
-                    title: 'Replace note contents?',
-                    description: 'Importing Markdown replaces the current note body.',
-                    confirmLabel: 'Replace',
-                    destructive: true,
-                }),
-            (html) => {
-                setContent(html);
-                isDirty.current = true;
-                setSaveState('idle');
-            },
-            setError,
-        );
-    }
-    function exportMarkdownFile() {
-        exportMarkdownFromEditor(editor, title, setError);
-    }
-    function insertSmartDateReference(reference: SmartDateReference) {
-        if (!editor || editor.isDestroyed) return;
-        editor
-            .chain()
-            .focus()
-            .insertContent([
-                { type: 'smartDate', attrs: reference },
-                { type: 'text', text: ' ' },
-            ])
-            .run();
-        if (reference.isReminder)
-            void syncNoteReminder(
-                reference,
-                reference.isoUtc ?? computeReminderDueIso(reference.date, reference.time),
-            ).then((id) => attachSyncedReminderId(editor, reference.date, id, reference.time));
-        setError('');
-    }
-    async function handleEditorClick(event: MouseEvent<HTMLDivElement>) {
-        const contactId = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-contact-id]')
-            ?.dataset['contactId'];
-        if (!contactId) return;
-        event.preventDefault();
-        try {
-            const c = await window.devLedger.contacts.get(contactId);
-            if (c) setContactPreview(c);
-            else setError('Contact not found.');
-        } catch (caught) {
-            setError(friendlyError(caught, 'Contact details unavailable.'));
-        }
-    }
-    async function persistSelected(): Promise<void> {
-        if (!selectedId) return;
-        const input = { title, content, projectId: projectId || null };
-        if (selected?.locked) {
-            const u = await onSaveLocked(selectedId, input);
-            setUnlockedNote(u);
-            setPageNotes((c) =>
-                c.map((i) => (i.id === u.id ? { ...i, projectId: u.projectId, updatedAt: u.updatedAt } : i)),
-            );
-        } else {
-            const u = await onUpdate(selectedId, input);
-            setPageNotes((c) => c.map((i) => (i.id === u.id ? u : i)));
-        }
-    }
-    const persistSelectedRef = useRef(persistSelected);
-    persistSelectedRef.current = persistSelected;
     useEffect(() => {
         if (!selectedId || !isDirty.current) return;
         const currentRevision = ++revision.current;
@@ -421,71 +459,73 @@ export function NotesPage({
         }, 700);
         return () => window.clearTimeout(timer);
     }, [selectedId, title, content, projectId]);
-    async function flushBeforeNavigation(): Promise<boolean> {
-        if (!selectedId || !isDirty.current) return true;
-        setSaveState('saving');
-        try {
-            await persistSelected();
-            isDirty.current = false;
-            setSaveState('saved');
-            setError('');
-            return true;
-        } catch (caught) {
-            setSaveState('error');
-            setError(friendlyError(caught, 'Save failed.'));
-            return false;
-        }
-    }
+
     useEffect(() => {
         onRegisterFlush(() => flushBeforeNavigation());
         return () => onRegisterFlush(null);
-    }, [selectedId, title, content, projectId, selected?.locked, onRegisterFlush]);
-    async function selectNote(id: string) {
-        if (id === selectedId || !(await flushBeforeNavigation())) return;
-        revision.current += 1;
-        setUnlockedNote(null);
-        const listMatch = pageNotes.find((i) => i.id === id);
-        if (listMatch?.locked) {
-            if (vaultStatus.unlocked) {
-                await unlockSelected(id);
-                return;
-            }
-            setSelectedId(id);
-            return;
+    }, [flushBeforeNavigation, onRegisterFlush]);
+
+    function importMarkdownFile(event: ChangeEvent<HTMLInputElement>) {
+        void importMarkdownIntoEditor(
+            event,
+            editor,
+            () =>
+                confirm({
+                    title: 'Replace note contents?',
+                    description: 'Importing Markdown replaces the current note body.',
+                    confirmLabel: 'Replace',
+                    destructive: true,
+                }),
+            (html) => {
+                setContent(html);
+                isDirty.current = true;
+                setSaveState('idle');
+            },
+            setError,
+        );
+    }
+
+    function exportMarkdownFile() {
+        exportMarkdownFromEditor(editor, title, setError);
+    }
+
+    function insertSmartDateReference(reference: SmartDateReference) {
+        if (!editor || editor.isDestroyed) return;
+        editor
+            .chain()
+            .focus()
+            .insertContent([
+                { type: 'smartDate', attrs: reference },
+                { type: 'text', text: ' ' },
+            ])
+            .run();
+        if (reference.isReminder) {
+            const contextText = extractReminderContextText(editor);
+            void syncNoteReminder(
+                reference,
+                reference.isoUtc ?? computeReminderDueIso(reference.date, reference.time),
+                contextText,
+            )
+                .then((id) => attachSyncedReminderId(editor, reference.date, id, reference.time))
+                .catch((caught) => setError(friendlyError(caught, 'Reminder could not be scheduled.')));
         }
+        setError('');
+    }
+
+    async function handleEditorClick(event: MouseEvent<HTMLDivElement>) {
+        const contactId = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-contact-id]')
+            ?.dataset['contactId'];
+        if (!contactId) return;
+        event.preventDefault();
         try {
-            const detail = await window.devLedger.notes.get(id);
-            if (!isMountedRef.current) return;
-            setPageNotes((c) =>
-                c.some((i) => i.id === id) ? c.map((i) => (i.id === id ? detail : i)) : [detail, ...c],
-            );
-            if (detail.locked && vaultStatus.unlocked) {
-                await unlockSelected(id);
-                return;
-            }
-            setSelectedId(id);
+            const c = await window.devLedger.contacts.get(contactId);
+            if (c) setContactPreview(c);
+            else setError('Contact not found.');
         } catch (caught) {
-            if (isMountedRef.current) setError(friendlyError(caught, 'Note could not be opened.'));
+            setError(friendlyError(caught, 'Contact details unavailable.'));
         }
     }
-    async function unlockSelected(id: string) {
-        try {
-            const n = await onUnlock(id);
-            setUnlockedNote(n);
-            setTitle(n.title);
-            setContent(n.content);
-            setProjectId(n.projectId ?? '');
-            if (editor && !editor.isDestroyed) {
-                editor.commands.setContent(n.content || '', { emitUpdate: false });
-            }
-            setError('');
-            setSaveState('idle');
-            isDirty.current = false;
-            setSelectedId(id);
-        } catch (caught) {
-            setError(friendlyError(caught, 'Unlock failed.'));
-        }
-    }
+
     async function createNote() {
         if (!(await flushBeforeNavigation())) return;
         if (filter) setFilter('');
@@ -494,11 +534,12 @@ export function NotesPage({
             content: '',
             projectId: filterProjectId || null,
         });
-        setPageNotes((c) => [note, ...c.filter((i) => i.id !== note.id)].slice(0, notesPageSize));
+        setPageNotes((c) => [note, ...c.filter((i) => i.id !== note.id)].slice(0, NOTES_PAGE_SIZE));
         setNotesTotal((t) => t + 1);
         setNotesOffset(0);
         setSelectedId(note.id);
     }
+
     async function createLinkedTaskFromNote() {
         if (!selectedId || !projectId) return;
         try {
@@ -513,6 +554,7 @@ export function NotesPage({
             setError(friendlyError(caught, 'Task could not be created from note.'));
         }
     }
+
     async function lockSelected() {
         if (!selectedId || !selected || !(await flushBeforeNavigation())) return;
         if (selected.locked && unlockedNote?.id === selectedId) {
@@ -541,6 +583,31 @@ export function NotesPage({
             setError(friendlyError(caught, 'Note lock failed.'));
         }
     }
+
+    async function removeLockSelected() {
+        if (!selectedId || !selected?.locked || !onUnprotect || !(await flushBeforeNavigation())) return;
+        if (
+            !(await confirm({
+                title: 'Remove lock from note?',
+                description: 'This note will be stored unencrypted again and included in workspace search.',
+                confirmLabel: 'Remove lock',
+            }))
+        )
+            return;
+        try {
+            const unprotected = await onUnprotect(selectedId);
+            setUnlockedNote(null);
+            setTitle(unprotected.title);
+            setContent(unprotected.content);
+            setProjectId(unprotected.projectId ?? '');
+            isDirty.current = false;
+            setPageNotes((c) => c.map((i) => (i.id === unprotected.id ? unprotected : i)));
+            void loadNotesPage();
+        } catch (caught) {
+            setError(friendlyError(caught, 'Vault lock could not be removed.'));
+        }
+    }
+
     async function removeSelected() {
         if (!selectedId || selected?.locked || !(await flushBeforeNavigation())) return;
         if (
@@ -560,7 +627,7 @@ export function NotesPage({
         setNotesTotal((t) => Math.max(0, t - 1));
         setSelectedId(null);
         if (!remaining.length && notesOffset > 0) {
-            const nextOffset = Math.max(0, notesOffset - notesPageSize);
+            const nextOffset = Math.max(0, notesOffset - NOTES_PAGE_SIZE);
             setNotesOffset(nextOffset);
             await loadNotesPage(nextOffset);
         }
@@ -581,7 +648,7 @@ export function NotesPage({
                     notes={pageNotes}
                     total={notesTotal}
                     offset={notesOffset}
-                    pageSize={notesPageSize}
+                    pageSize={NOTES_PAGE_SIZE}
                     loading={notesLoading}
                     selectedId={selectedId}
                     filter={filter}
@@ -610,133 +677,33 @@ export function NotesPage({
                 <section className="notes-editor-pane flex h-full min-h-0 min-w-0 flex-col">
                     {selected ? (
                         selected.locked && !unlockedNote ? (
-                            <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-                                <LockKeyhole className="mb-3 size-6 text-muted-foreground" />
-                                <h2 className="text-sm font-semibold">Protected note</h2>
-                                <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                                    Encrypted at rest.{' '}
-                                    {vaultStatus.unlocked
-                                        ? 'Unlock to view contents.'
-                                        : 'Unlock the vault in Settings first.'}
-                                </p>
-                                <Button
-                                    className="mt-4"
-                                    size="sm"
-                                    disabled={!vaultStatus.unlocked}
-                                    onClick={() => void unlockSelected(selected.id)}
-                                >
-                                    Unlock note
-                                </Button>
-                                {error && (
-                                    <p role="alert" className="mt-3 text-xs text-danger">
-                                        {error}
-                                    </p>
-                                )}
-                            </div>
+                            <NoteLockedPlaceholder
+                                vaultUnlocked={vaultStatus.unlocked}
+                                error={error}
+                                onUnlock={() => void unlockSelected(selected.id)}
+                            />
                         ) : (
                             <>
-                                <div className="notes-editor-header flex shrink-0 flex-wrap items-center justify-between gap-2 px-5 py-2.5 sm:px-6">
-                                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                                        <Breadcrumb className="min-w-0">
-                                            <BreadcrumbList className="flex-nowrap gap-1 text-xs">
-                                                <BreadcrumbItem className="shrink-0">
-                                                    <BookOpen className="size-3.5 shrink-0" />
-                                                    <BreadcrumbPage>Notes</BreadcrumbPage>
-                                                </BreadcrumbItem>
-                                                <BreadcrumbSeparator className="shrink-0" />
-                                                <BreadcrumbItem className="min-w-0">
-                                                    <BreadcrumbPage className="max-w-[160px] truncate sm:max-w-[240px]">
-                                                        {selected.title || 'Untitled note'}
-                                                    </BreadcrumbPage>
-                                                </BreadcrumbItem>
-                                            </BreadcrumbList>
-                                        </Breadcrumb>
-                                        <span className="shrink-0 text-xs text-muted-foreground">
-                                            {saveState === 'saving' ? (
-                                                <span className="inline-flex items-center gap-1">
-                                                    <Clock3 className="size-3" />
-                                                    Saving…
-                                                </span>
-                                            ) : saveState === 'saved' ? (
-                                                <span className="inline-flex items-center gap-1 text-success">
-                                                    <Check className="size-3" />
-                                                    Saved
-                                                </span>
-                                            ) : saveState === 'error' ? (
-                                                <span className="inline-flex items-center gap-1 text-danger">
-                                                    <ShieldAlert className="size-3" />
-                                                    Save failed
-                                                </span>
-                                            ) : null}
-                                        </span>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1.5">
-                                        <RemoteRecordPicker
-                                            entityType="project"
-                                            value={projectId}
-                                            onValueChange={(v) => {
-                                                isDirty.current = true;
-                                                setProjectId(v);
-                                            }}
-                                            onChoiceChange={(c) => {
-                                                if (c)
-                                                    setProjectNames((cur) => ({ ...cur, [c.id]: c.label }));
-                                            }}
-                                            placeholder="No project"
-                                            selectedLabel={projectNames[projectId]}
-                                            className="h-8 w-44 text-xs sm:w-56"
-                                        />
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-8 gap-1.5 px-2.5 text-xs"
-                                            onClick={() => setInspectorOpen(true)}
-                                        >
-                                            <Link2 className="size-3.5" />
-                                            <span>Connections</span>
-                                            {connectionCount > 0 && (
-                                                <span className="rounded bg-primary/12 px-1.5 py-0.5 font-mono text-xs font-semibold text-primary tabular-nums">
-                                                    {connectionCount}
-                                                </span>
-                                            )}
-                                        </Button>
-                                        {selected.locked ? (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8"
-                                                onClick={() => void lockSelected()}
-                                            >
-                                                <LockKeyhole className="size-3.5" />
-                                                Lock
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="size-8 text-muted-foreground hover:text-danger"
-                                                title="Move note to trash"
-                                                aria-label="Delete note"
-                                                onClick={() => void removeSelected()}
-                                            >
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
-                                        )}
-                                        {!selected.locked && vaultStatus.configured && (
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="size-8"
-                                                title="Lock note in vault"
-                                                aria-label="Lock note"
-                                                onClick={() => void lockSelected()}
-                                            >
-                                                <LockKeyhole className="size-3.5" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
+                                <NoteEditorHeader
+                                    noteTitle={selected.title}
+                                    locked={selected.locked}
+                                    vaultConfigured={vaultStatus.configured}
+                                    projectId={projectId}
+                                    projectLabel={projectNames[projectId]}
+                                    saveState={saveState}
+                                    connectionCount={connectionCount}
+                                    onProjectChange={(v) => {
+                                        isDirty.current = true;
+                                        setProjectId(v);
+                                    }}
+                                    onProjectChoice={(c) => {
+                                        if (c) setPickedProjectNames((cur) => ({ ...cur, [c.id]: c.label }));
+                                    }}
+                                    onOpenInspector={() => setInspectorOpen(true)}
+                                    onLockSelected={() => void lockSelected()}
+                                    onRemoveLock={() => void removeLockSelected()}
+                                    onDeleteSelected={() => void removeSelected()}
+                                />
                                 <NoteEditorToolbar
                                     editor={editor}
                                     onInsertDate={insertSmartDateReference}

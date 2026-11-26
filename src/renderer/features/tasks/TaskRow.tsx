@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/utils';
 import { statuses } from './task-form-schema';
+import { TASK_PRIORITY_TONE, TASK_STATUS_DOT } from './task-metadata';
 
 interface TaskRowProps {
     task: TaskRecord;
@@ -48,22 +49,6 @@ interface TaskRowProps {
     onDelete: (task: TaskRecord) => void;
     onNavigateTarget: (target: WorkspaceNavigationTarget) => void;
 }
-
-const PRIORITY_TONE: Record<TaskRecord['priority'], string> = {
-    urgent: 'bg-danger',
-    high: 'bg-warning',
-    medium: 'bg-primary',
-    low: 'bg-muted-foreground/50',
-};
-
-const STATUS_DOT: Record<TaskStatus, string> = {
-    not_started: 'bg-muted-foreground/50',
-    in_progress: 'bg-primary',
-    waiting: 'bg-info',
-    blocked: 'bg-warning',
-    completed: 'bg-success',
-    cancelled: 'bg-muted-foreground/40',
-};
 
 export function TaskRow({
     task,
@@ -233,7 +218,7 @@ export function TaskRow({
                             <SelectItem key={s.value} value={s.value}>
                                 <span className="inline-flex items-center gap-2 whitespace-nowrap">
                                     <span
-                                        className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[s.value]}`}
+                                        className={`size-1.5 shrink-0 rounded-full ${TASK_STATUS_DOT[s.value]}`}
                                     />
                                     {s.label}
                                 </span>
@@ -244,7 +229,10 @@ export function TaskRow({
             </div>
 
             <div className="task-priority-cell hidden items-center gap-1.5 text-xs capitalize @[680px]:flex">
-                <span className={`size-2 rounded-full ${PRIORITY_TONE[task.priority]}`} aria-hidden="true" />
+                <span
+                    className={`size-2 rounded-full ${TASK_PRIORITY_TONE[task.priority]}`}
+                    aria-hidden="true"
+                />
                 <span
                     className={
                         task.priority === 'urgent' ? 'font-medium text-danger' : 'text-muted-foreground'

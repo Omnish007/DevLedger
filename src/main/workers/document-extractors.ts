@@ -1,12 +1,10 @@
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, stat } from 'node:fs/promises';
-import { isAbsolute, relative, resolve, sep, join } from 'node:path';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { readFile, stat, mkdtemp, rm } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import unzipper from 'unzipper';
+import { isPathInside as pathInside, sha256File as hashFile } from '../services/fs-safety.js';
 import { columnIndex, decodeXml, xmlText } from './document-text.js';
 
 const execFileAsync = promisify(execFile);
@@ -20,10 +18,6 @@ export interface DocumentRow {
     size_bytes: number;
 }
 
-function pathInside(parent: string, candidate: string): boolean {
-    const rel = relative(resolve(parent), resolve(candidate));
-    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-}
 async function readEntry(
     entry: { path: string; stream(): AsyncIterable<Buffer | Uint8Array> },
     maxBytes = MAX_EXTRACTED_BYTES,
@@ -39,17 +33,6 @@ async function readEntry(
         chunks.push(chunk);
     }
     return Buffer.concat(chunks, size);
-}
-function hashFile(filePath: string): Promise<string> {
-    return new Promise((resolveHash, reject) => {
-        const hash = createHash('sha256');
-        const stream = createReadStream(filePath);
-        stream.on('data', (chunk) => {
-            hash.update(chunk);
-        });
-        stream.on('error', reject);
-        stream.on('end', () => resolveHash(hash.digest('hex')));
-    });
 }
 function validateArchive(archive: {
     files: Array<{

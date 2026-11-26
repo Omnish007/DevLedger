@@ -1,12 +1,5 @@
-import {
-    useCallback,
-    useEffect,
-    useRef,
-    useState,
-    type MouseEvent as ReactMouseEvent,
-    type RefObject,
-} from 'react';
-import { useEditorState, type Editor } from '@tiptap/react';
+import type { RefObject } from 'react';
+import type { Editor } from '@tiptap/react';
 import {
     ArrowDown,
     ArrowLeft,
@@ -22,53 +15,10 @@ import {
     Trash2,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { NoteTableDragPreview, type TableDragIndicator } from './NoteTableDragPreview';
-import {
-    commitColumnWidthsPct,
-    commitRowHeight,
-    readDomColumnPcts,
-    resolveCellDocPos,
-    setColumnWidthPreset,
-} from './note-table-sizing';
-
-interface ColDivider {
-    colIndex: number;
-    left: number;
-}
-
-interface RowDivider {
-    rowIndex: number;
-    rowEl: HTMLTableRowElement;
-    top: number;
-    height: number;
-}
-
-interface OverlayMetrics {
-    tableLeft: number;
-    tableTop: number;
-    tableWidth: number;
-    tableHeight: number;
-    rowTop: number;
-    rowHeight: number;
-    colLeft: number;
-    colWidth: number;
-    colIndex: number;
-    rowCount: number;
-    colCount: number;
-    colDividers: ColDivider[];
-    rowDividers: RowDivider[];
-}
-
-function findSelectionCell(editor: Editor | null): HTMLTableCellElement | null {
-    if (!editor || editor.isDestroyed || !editor.isActive('table')) return null;
-    try {
-        const { node } = editor.view.domAtPos(editor.state.selection.from);
-        const element = node instanceof HTMLElement ? node : node.parentElement;
-        return element?.closest<HTMLTableCellElement>('td, th') ?? null;
-    } catch {
-        return null;
-    }
-}
+import { NoteTableDragPreview } from './NoteTableDragPreview';
+import { startTableColumnResizeDrag, startTableRowResizeDrag } from './note-table-resize-drag';
+import { commitRowHeight, resolveCellDocPos, setColumnWidthPreset } from './note-table-sizing';
+import { useNoteTableOverlayState } from './useNoteTableOverlayState';
 
 export function NoteTableOverlay({
     editor,
@@ -77,187 +27,21 @@ export function NoteTableOverlay({
     editor: Editor | null;
     canvasRef: RefObject<HTMLDivElement | null>;
 }) {
-    const [activeTarget, setActiveTarget] = useState<{
-        tableEl: HTMLTableElement;
-        cellEl: HTMLTableCellElement;
-    } | null>(null);
-    const [metrics, setMetrics] = useState<OverlayMetrics | null>(null);
-    const [colMenuOpen, setColMenuOpen] = useState(false);
-    const [rowMenuOpen, setRowMenuOpen] = useState(false);
-    const [dragIndicator, setDragIndicator] = useState<TableDragIndicator | null>(null);
-
-    const hideTimerRef = useRef<number | null>(null);
-    const openMenuRef = useRef(false);
-    const isDraggingRef = useRef(false);
-    openMenuRef.current = colMenuOpen || rowMenuOpen;
-
-    const selectionState = useEditorState({
-        editor,
-        selector: ({ editor: instance }) => ({
-            inTable: Boolean(instance && !instance.isDestroyed && instance.isActive('table')),
-            canMerge: Boolean(instance && !instance.isDestroyed && instance.can().mergeCells()),
-            canSplit: Boolean(instance && !instance.isDestroyed && instance.can().splitCell()),
-        }),
-    });
-
-    const clearHideTimer = useCallback(() => {
-        if (hideTimerRef.current !== null) {
-            window.clearTimeout(hideTimerRef.current);
-            hideTimerRef.current = null;
-        }
-    }, []);
-
-    const scheduleHide = useCallback(() => {
-        clearHideTimer();
-        hideTimerRef.current = window.setTimeout(() => {
-            if (openMenuRef.current || isDraggingRef.current) return;
-            const selCell = findSelectionCell(editor);
-            const selTable = selCell?.closest('table') ?? null;
-            if (selCell && selTable) {
-                setActiveTarget({ tableEl: selTable, cellEl: selCell });
-            } else {
-                setActiveTarget(null);
-            }
-        }, 180);
-    }, [clearHideTimer, editor]);
-
-    const measure = useCallback(() => {
-        const canvas = canvasRef.current;
-        if (!canvas || !activeTarget) {
-            setMetrics(null);
-            return;
-        }
-        const { tableEl, cellEl } = activeTarget;
-        if (!canvas.contains(tableEl) || !tableEl.contains(cellEl)) {
-            setMetrics(null);
-            return;
-        }
-        const rowEl = cellEl.closest('tr');
-        if (!rowEl) {
-            setMetrics(null);
-            return;
-        }
-        const canvasRect = canvas.getBoundingClientRect();
-        const tableRect = tableEl.getBoundingClientRect();
-        const rowRect = rowEl.getBoundingClientRect();
-        const cellRect = cellEl.getBoundingClientRect();
-        const firstRow = tableEl.rows[0];
-
-        const colDividers: ColDivider[] = [];
-        if (firstRow && firstRow.cells.length > 1) {
-            for (let i = 0; i < firstRow.cells.length - 1; i++) {
-                const colCellRect = firstRow.cells[i]!.getBoundingClientRect();
-                colDividers.push({ colIndex: i, left: colCellRect.right - canvasRect.left });
-            }
-        }
-
-        const rowDividers: RowDivider[] = [];
-        for (let r = 0; r < tableEl.rows.length; r++) {
-            const tr = tableEl.rows[r]!;
-            const rRect = tr.getBoundingClientRect();
-            rowDividers.push({
-                rowIndex: r,
-                rowEl: tr,
-                top: rRect.bottom - canvasRect.top,
-                height: rRect.height,
-            });
-        }
-
-        let colIndex = 0;
-        const siblings = rowEl.cells;
-        for (let i = 0; i < siblings.length; i++) {
-            if (siblings[i] === cellEl) break;
-            colIndex += Math.max(1, siblings[i]!.colSpan || 1);
-        }
-
-        setMetrics({
-            tableLeft: tableRect.left - canvasRect.left,
-            tableTop: tableRect.top - canvasRect.top,
-            tableWidth: tableRect.width,
-            tableHeight: tableRect.height,
-            rowTop: rowRect.top - canvasRect.top,
-            rowHeight: rowRect.height,
-            colLeft: cellRect.left - canvasRect.left,
-            colWidth: cellRect.width,
-            colIndex,
-            rowCount: tableEl.rows.length,
-            colCount: firstRow?.cells.length ?? 0,
-            colDividers,
-            rowDividers,
-        });
-    }, [activeTarget, canvasRef]);
-
-    useEffect(() => {
-        measure();
-        if (!activeTarget) return;
-        const onScrollOrResize = () => window.requestAnimationFrame(measure);
-        window.addEventListener('resize', onScrollOrResize);
-        const scrollParent = canvasRef.current?.closest('.notes-editor-scroll');
-        scrollParent?.addEventListener('scroll', onScrollOrResize, { passive: true });
-        const observer = new ResizeObserver(onScrollOrResize);
-        observer.observe(activeTarget.tableEl);
-        return () => {
-            window.removeEventListener('resize', onScrollOrResize);
-            scrollParent?.removeEventListener('scroll', onScrollOrResize);
-            observer.disconnect();
-        };
-    }, [activeTarget, canvasRef, measure]);
-
-    useEffect(() => {
-        if (!editor || editor.isDestroyed) return;
-        const syncFromEditor = () => {
-            if (openMenuRef.current || isDraggingRef.current) return;
-            const selCell = findSelectionCell(editor);
-            const selTable = selCell?.closest('table') ?? null;
-            if (selCell && selTable) {
-                setActiveTarget({ tableEl: selTable, cellEl: selCell });
-            } else if (!hideTimerRef.current) {
-                setActiveTarget((prev) => (prev && canvasRef.current?.contains(prev.tableEl) ? prev : null));
-            }
-            window.requestAnimationFrame(measure);
-        };
-        editor.on('selectionUpdate', syncFromEditor);
-        editor.on('transaction', syncFromEditor);
-        return () => {
-            editor.off('selectionUpdate', syncFromEditor);
-            editor.off('transaction', syncFromEditor);
-        };
-    }, [canvasRef, editor, measure]);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const onMouseMove = (event: MouseEvent) => {
-            if (isDraggingRef.current) return;
-            const target = event.target as HTMLElement | null;
-            if (target?.closest('[data-table-overlay="true"]')) {
-                clearHideTimer();
-                return;
-            }
-            const cell = target?.closest<HTMLTableCellElement>('.prose-editor td, .prose-editor th');
-            const table = cell?.closest('table');
-            if (cell && table) {
-                clearHideTimer();
-                if (!openMenuRef.current) {
-                    setActiveTarget((prev) =>
-                        prev?.tableEl === table && prev.cellEl === cell
-                            ? prev
-                            : { tableEl: table, cellEl: cell },
-                    );
-                }
-            } else {
-                scheduleHide();
-            }
-        };
-        const onMouseLeave = () => scheduleHide();
-        canvas.addEventListener('mousemove', onMouseMove, { passive: true });
-        canvas.addEventListener('mouseleave', onMouseLeave);
-        return () => {
-            clearHideTimer();
-            canvas.removeEventListener('mousemove', onMouseMove);
-            canvas.removeEventListener('mouseleave', onMouseLeave);
-        };
-    }, [canvasRef, clearHideTimer, scheduleHide]);
+    const {
+        activeTarget,
+        metrics,
+        colMenuOpen,
+        setColMenuOpen,
+        rowMenuOpen,
+        setRowMenuOpen,
+        dragIndicator,
+        setDragIndicator,
+        isDraggingRef,
+        selectionState,
+        clearHideTimer,
+        scheduleHide,
+        measure,
+    } = useNoteTableOverlayState(editor, canvasRef);
 
     function runOnTargetCell(cellEl: HTMLTableCellElement | undefined, action: () => boolean | undefined) {
         if (!editor || editor.isDestroyed) return;
@@ -291,162 +75,6 @@ export function NoteTableOverlay({
         editor.chain().focus().setTextSelection(pos).addColumnAfter().run();
     }
 
-    function startColumnResize(event: ReactMouseEvent<HTMLDivElement>, divider: ColDivider) {
-        if (!editor || !activeTarget || !metrics || !canvasRef.current) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const { tableEl, cellEl } = activeTarget;
-        const canvas = canvasRef.current;
-        const startX = event.clientX;
-        const totalWidth = Math.max(120, tableEl.getBoundingClientRect().width);
-        const startPcts = readDomColumnPcts(tableEl);
-        if (divider.colIndex + 1 >= startPcts.length) return;
-        const headerRow = tableEl.rows[0];
-        const canvasRect = canvas.getBoundingClientRect();
-        const leftHeaderRect = headerRow?.cells[divider.colIndex]?.getBoundingClientRect();
-        const leftColLeft = leftHeaderRect
-            ? leftHeaderRect.left - canvasRect.left
-            : divider.left - (startPcts[divider.colIndex]! / 100) * totalWidth;
-        const initialLeftCellWidth = Math.round(
-            leftHeaderRect?.width ?? (startPcts[divider.colIndex]! / 100) * totalWidth,
-        );
-
-        isDraggingRef.current = true;
-        clearHideTimer();
-        document.body.style.cursor = 'col-resize';
-        const pairSum = startPcts[divider.colIndex]! + startPcts[divider.colIndex + 1]!;
-        const minPct = Math.max(10, Number(((56 / totalWidth) * 100).toFixed(1)));
-        let latestPcts = [...startPcts];
-
-        const publishColPreview = (leftPct: number, rightPct: number) => {
-            const leftColWidth = Math.round((leftPct / 100) * totalWidth);
-            const rightColWidth = Math.round((rightPct / 100) * totalWidth);
-            const splitX = leftColLeft + leftColWidth;
-            const deltaPx = leftColWidth - initialLeftCellWidth;
-            const clamped = leftPct <= minPct + 0.05 || rightPct <= minPct + 0.05;
-            setDragIndicator({
-                kind: 'col',
-                colIndex: divider.colIndex,
-                left: splitX,
-                startLeft: divider.left,
-                leftColLeft,
-                leftColWidth,
-                rightColWidth,
-                leftPct: Math.round(leftPct),
-                rightPct: Math.round(rightPct),
-                deltaPx,
-                clamped,
-                label: `${leftColWidth}px (${Math.round(leftPct)}%) ↔ ${rightColWidth}px (${Math.round(rightPct)}%)`,
-            });
-        };
-
-        publishColPreview(startPcts[divider.colIndex]!, startPcts[divider.colIndex + 1]!);
-
-        const onMove = (moveEvent: MouseEvent) => {
-            const deltaPct = ((moveEvent.clientX - startX) / totalWidth) * 100;
-            const leftPct = Number(
-                Math.min(pairSum - minPct, Math.max(minPct, startPcts[divider.colIndex]! + deltaPct)).toFixed(
-                    1,
-                ),
-            );
-            const rightPct = Number((pairSum - leftPct).toFixed(1));
-            latestPcts = [...startPcts];
-            latestPcts[divider.colIndex] = leftPct;
-            latestPcts[divider.colIndex + 1] = rightPct;
-            // Do not mutate ProseMirror DOM styles mid-drag; ProseMirror's DOMObserver
-            // replaces table/cell elements and tears down the active drag overlay.
-            publishColPreview(leftPct, rightPct);
-        };
-
-        const onUp = () => {
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-            isDraggingRef.current = false;
-            document.body.style.cursor = '';
-            setDragIndicator(null);
-            commitColumnWidthsPct(editor, cellEl, latestPcts);
-            window.requestAnimationFrame(measure);
-        };
-
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    }
-
-    function startRowResize(event: ReactMouseEvent<HTMLDivElement>, divider: RowDivider) {
-        if (!editor || !activeTarget || !canvasRef.current) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const canvas = canvasRef.current;
-        const canvasRect = canvas.getBoundingClientRect();
-        const startY = event.clientY;
-        const startHeight = Math.round(divider.height);
-        const rowRect = divider.rowEl.getBoundingClientRect();
-        const rowTop = rowRect.top - canvasRect.top;
-        const targetCell = divider.rowEl.cells[0];
-        if (!targetCell) return;
-
-        // Measure minimum intrinsic cell content height once so shrinking preview accurately shows content clamping.
-        let minContentHeight = 36;
-        for (let i = 0; i < divider.rowEl.cells.length; i += 1) {
-            const cell = divider.rowEl.cells[i]!;
-            const computed = window.getComputedStyle(cell);
-            const padY = (parseFloat(computed.paddingTop) || 0) + (parseFloat(computed.paddingBottom) || 0);
-            let innerHeight = 0;
-            for (let c = 0; c < cell.children.length; c += 1) {
-                innerHeight += cell.children[c]!.getBoundingClientRect().height;
-            }
-            minContentHeight = Math.max(minContentHeight, Math.ceil(innerHeight + padY + 4));
-        }
-
-        isDraggingRef.current = true;
-        clearHideTimer();
-        document.body.style.cursor = 'row-resize';
-        let latestHeight = startHeight;
-
-        const publishRowPreview = (targetHeight: number) => {
-            const actualHeight = Math.max(minContentHeight, targetHeight);
-            const clampedToContent = targetHeight < minContentHeight;
-            const deltaPx = actualHeight - startHeight;
-            setDragIndicator({
-                kind: 'row',
-                rowIndex: divider.rowIndex,
-                rowTop,
-                top: rowTop + actualHeight,
-                startTop: divider.top,
-                actualHeight,
-                targetHeight,
-                deltaPx,
-                clampedToContent,
-                label: clampedToContent
-                    ? `Row ${divider.rowIndex + 1} · ${actualHeight}px (min content)`
-                    : `Row ${divider.rowIndex + 1} · ${actualHeight}px${deltaPx === 0 ? '' : ` (${deltaPx > 0 ? `+${deltaPx}` : deltaPx}px)`}`,
-            });
-        };
-
-        publishRowPreview(startHeight);
-
-        const onMove = (moveEvent: MouseEvent) => {
-            latestHeight = Math.min(
-                420,
-                Math.max(36, Math.round(startHeight + (moveEvent.clientY - startY))),
-            );
-            publishRowPreview(latestHeight);
-        };
-
-        const onUp = () => {
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-            isDraggingRef.current = false;
-            document.body.style.cursor = '';
-            setDragIndicator(null);
-            commitRowHeight(editor, targetCell, Math.max(minContentHeight, latestHeight));
-            window.requestAnimationFrame(measure);
-        };
-
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
-    }
-
     if (!editor || editor.isDestroyed || !activeTarget || !metrics) return null;
 
     const itemCls =
@@ -469,7 +97,21 @@ export function NoteTableOverlay({
                         aria-orientation="vertical"
                         aria-label={`Resize column ${divider.colIndex + 1}`}
                         title="Drag to resize column width · Double-click to equalize"
-                        onMouseDown={(e) => startColumnResize(e, divider)}
+                        onMouseDown={(e) => {
+                            if (!canvasRef.current) return;
+                            startTableColumnResizeDrag({
+                                event: e,
+                                divider,
+                                editor,
+                                tableEl: activeTarget.tableEl,
+                                cellEl: activeTarget.cellEl,
+                                canvas: canvasRef.current,
+                                isDraggingRef,
+                                clearHideTimer,
+                                setDragIndicator,
+                                onSettled: measure,
+                            });
+                        }}
                         onDoubleClick={(e) => {
                             e.preventDefault();
                             setColumnWidthPreset(
@@ -508,7 +150,19 @@ export function NoteTableOverlay({
                         aria-orientation="horizontal"
                         aria-label={`Resize row ${divider.rowIndex + 1}`}
                         title="Drag to resize row height · Double-click to reset"
-                        onMouseDown={(e) => startRowResize(e, divider)}
+                        onMouseDown={(e) => {
+                            if (!canvasRef.current) return;
+                            startTableRowResizeDrag({
+                                event: e,
+                                divider,
+                                editor,
+                                canvas: canvasRef.current,
+                                isDraggingRef,
+                                clearHideTimer,
+                                setDragIndicator,
+                                onSettled: measure,
+                            });
+                        }}
                         onDoubleClick={(e) => {
                             e.preventDefault();
                             const firstCell = divider.rowEl.cells[0];

@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog } from 'electron';
+import { app } from 'electron';
 import { z } from 'zod';
+import { readAppSettingJson } from '../services/app-settings-store.ts';
 import {
     stageRestoreCopy,
     hasPromotedRestore,
@@ -11,20 +12,17 @@ import {
     validateExternalBackupDirectory,
 } from '../services/external-backup.ts';
 import type { IpcHandlerContext, IpcRegistrar } from './contracts.ts';
+import { showOpenDialogForEvent, showSaveDialogForEvent } from './dialogs.ts';
 import { noInput } from './schemas.ts';
 
 export function registerBackupHandlers(register: IpcRegistrar, context: IpcHandlerContext): void {
     const { dependencies, workspace, backups } = context;
     register('backup:create', z.string().min(12).max(1024), async (passphrase, event) => {
-        const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
-        const options = {
+        const selection = await showSaveDialogForEvent(event, {
             title: 'Create encrypted DevLedger backup',
             defaultPath: `DevLedger-${new Date().toISOString().slice(0, 10)}.nsbackup`,
             filters: [{ name: 'DevLedger encrypted backup', extensions: ['nsbackup'] }],
-        };
-        const selection = owner
-            ? await dialog.showSaveDialog(owner, options)
-            : await dialog.showSaveDialog(options);
+        });
         if (selection.canceled || !selection.filePath) return null;
         return backups.createEncryptedBackup(selection.filePath, passphrase);
     });
@@ -32,15 +30,11 @@ export function registerBackupHandlers(register: IpcRegistrar, context: IpcHandl
         'backup:restoreAsCopy',
         z.tuple([z.string().min(1).max(1024), z.boolean()]),
         async ([secret, recovery], event) => {
-            const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
-            const options = {
+            const selection = await showOpenDialogForEvent(event, {
                 title: 'Choose encrypted DevLedger backup',
-                properties: ['openFile'] as Array<'openFile'>,
+                properties: ['openFile'],
                 filters: [{ name: 'DevLedger encrypted backup', extensions: ['nsbackup'] }],
-            };
-            const selection = owner
-                ? await dialog.showOpenDialog(owner, options)
-                : await dialog.showOpenDialog(options);
+            });
             if (selection.canceled || selection.filePaths.length === 0) return null;
             return backups.restoreAsCopy(selection.filePaths[0]!, secret, recovery);
         },
@@ -66,15 +60,11 @@ export function registerBackupHandlers(register: IpcRegistrar, context: IpcHandl
     );
 
     register('backup:chooseExternalDestination', noInput, async (_input, event) => {
-        const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
-        const options = {
+        const selection = await showOpenDialogForEvent(event, {
             title: 'Choose an independent backup destination',
-            properties: ['openDirectory'] as Array<'openDirectory'>,
+            properties: ['openDirectory'],
             message: 'Choose an external drive or a directory on a separate storage device.',
-        };
-        const selection = owner
-            ? await dialog.showOpenDialog(owner, options)
-            : await dialog.showOpenDialog(options);
+        });
         if (selection.canceled || selection.filePaths.length === 0) return null;
         const destination = await validateExternalBackupDirectory(
             selection.filePaths[0]!,
@@ -95,30 +85,18 @@ export function registerBackupHandlers(register: IpcRegistrar, context: IpcHandl
         workspace.setSetting('backup.externalLastError', null);
     });
     register('backup:chooseOfflineDestination', noInput, async (_input, event) => {
-        const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
-        const options = {
+        const selection = await showOpenDialogForEvent(event, {
             title: 'Choose a separate removable/offline backup drive',
-            properties: ['openDirectory'] as Array<'openDirectory'>,
+            properties: ['openDirectory'],
             message:
                 'Choose another drive that is physically separate from both the computer and the first backup destination.',
-        };
-        const selection = owner
-            ? await dialog.showOpenDialog(owner, options)
-            : await dialog.showOpenDialog(options);
+        });
         if (selection.canceled || selection.filePaths.length === 0) return null;
-        const externalSetting = dependencies.db
-            .prepare("SELECT value_json FROM app_settings WHERE key = 'backup.externalDirectory'")
-            .get() as { value_json: string } | undefined;
-        if (!externalSetting)
+        const externalDirectory = readAppSettingJson<unknown>(dependencies.db, 'backup.externalDirectory');
+        if (externalDirectory === undefined)
             throw new Error(
                 'Configure the first independent backup destination before adding a second drive.',
             );
-        let externalDirectory: unknown;
-        try {
-            externalDirectory = JSON.parse(externalSetting.value_json) as unknown;
-        } catch {
-            externalDirectory = null;
-        }
         if (typeof externalDirectory !== 'string' || !externalDirectory)
             throw new Error('The first backup destination is not configured.');
         const destination = await validateDistinctExternalBackupDirectory(

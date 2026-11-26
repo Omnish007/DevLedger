@@ -1,8 +1,9 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { access, lstat, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { lstat, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { basename, isAbsolute, join, resolve, sep } from 'node:path';
+import { pathExists as exists, isPathInside as isInside, sha256File } from './fs-safety.ts';
 
+export { exists, isInside };
 export const MARKER_NAME = '.restore-activation.json';
 const ROLLBACK_ROOT = '.restore-rollback';
 const RESTORE_OBJECT_BATCH_SIZE = 200;
@@ -18,18 +19,6 @@ export interface RestoreMarker {
     createdAt: string;
 }
 
-export async function exists(path: string): Promise<boolean> {
-    try {
-        await access(path);
-        return true;
-    } catch {
-        return false;
-    }
-}
-export function isInside(parent: string, candidate: string): boolean {
-    const rel = relative(resolve(parent), resolve(candidate));
-    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-}
 export function assertRestoreDirectory(dataDirectory: string, restoreDirectory: string): string {
     const root = resolve(dataDirectory, 'restore-copies');
     const candidate = resolve(restoreDirectory);
@@ -113,16 +102,6 @@ interface RestoreDocumentReference {
 interface RestoreReadDatabase {
     prepare(sql: string): { all(...parameters: unknown[]): unknown[] };
     close(): void;
-}
-
-async function sha256File(path: string): Promise<string> {
-    return new Promise((resolveHash, reject) => {
-        const hash = createHash('sha256');
-        const stream = createReadStream(path);
-        stream.on('data', (chunk: string | Buffer) => hash.update(chunk));
-        stream.once('error', reject);
-        stream.once('end', () => resolveHash(hash.digest('hex')));
-    });
 }
 
 /** Verify that every non-deleted document still points to its exact restored object bytes. */

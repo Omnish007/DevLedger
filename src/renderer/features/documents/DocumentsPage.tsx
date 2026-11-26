@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useState } from 'react';
 import { AlertCircle, ArrowUpRight, FileText, FolderOpen, Plus, RefreshCw } from 'lucide-react';
 import type { DocumentRecord, WorkspaceNavigationTarget } from '@shared/contracts';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -8,6 +8,9 @@ import { SearchFilterInput } from '@/components/shared/SearchFilterInput';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useInitialProjectFilter } from '@/hooks/useInitialProjectFilter';
+import { usePaginatedFetch } from '@/hooks/usePaginatedFetch';
+import { useProjectNames } from '@/hooks/useProjectNames';
 import { formatBytes, formatDate, friendlyError } from '@/lib/utils';
 
 interface Props {
@@ -37,6 +40,8 @@ const statusVariant: Record<DocumentRecord['status'], 'secondary' | 'success' | 
     needs_attention: 'warning',
 };
 
+const PAGE_SIZE = 40;
+
 export function DocumentsPage({
     initialProjectId,
     onConsumeFocus,
@@ -46,70 +51,42 @@ export function DocumentsPage({
     onNavigateTarget,
     refresh,
 }: Props) {
-    const [projectId, setProjectId] = useState(initialProjectId || 'all');
+    const { projectId, setProjectId, offset, setOffset } = useInitialProjectFilter(
+        initialProjectId,
+        'all',
+        onConsumeFocus,
+    );
     const [query, setQuery] = useState('');
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState('');
     const [noticeIsError, setNoticeIsError] = useState(false);
-    const [pageError, setPageError] = useState('');
     const [protectWithVault, setProtectWithVault] = useState(false);
     const deferredQuery = useDeferredValue(query.trim());
-    const [projectNames, setProjectNames] = useState<Record<string, string>>({});
-    const [visible, setVisible] = useState<DocumentRecord[]>([]);
-    const [total, setTotal] = useState(0);
-    const [offset, setOffset] = useState(0);
-    const [pageLoading, setPageLoading] = useState(true);
-    const requestRef = useRef(0);
-    const pageSize = 40;
 
-    useEffect(() => {
-        if (initialProjectId) {
-            setProjectId(initialProjectId);
-            setOffset(0);
-            onConsumeFocus?.();
-        }
-    }, [initialProjectId, onConsumeFocus]);
-
-    const loadPage = useCallback(
-        async (requestedOffset = offset) => {
-            const requestId = ++requestRef.current;
-            setPageLoading(true);
-            try {
-                const page = await window.devLedger.documents.listPage({
-                    limit: pageSize,
-                    offset: requestedOffset,
-                    query: deferredQuery,
-                    projectId: projectId === 'all' ? null : projectId,
-                });
-                if (requestId === requestRef.current) {
-                    setVisible(page.items);
-                    setTotal(page.total);
-                    setPageError('');
-                    const ids = [
-                        ...new Set(
-                            page.items.map((d) => d.projectId).filter((id): id is string => Boolean(id)),
-                        ),
-                    ];
-                    void window.devLedger.projects
-                        .getNames(ids)
-                        .then((names) => {
-                            if (requestId === requestRef.current)
-                                setProjectNames((c) => ({ ...c, ...names }));
-                        })
-                        .catch(() => undefined);
-                }
-            } finally {
-                if (requestId === requestRef.current) setPageLoading(false);
-            }
-        },
-        [deferredQuery, offset, projectId],
+    const fetchDocuments = useCallback(
+        (requestedOffset: number) =>
+            window.devLedger.documents.listPage({
+                limit: PAGE_SIZE,
+                offset: requestedOffset,
+                query: deferredQuery,
+                projectId: projectId === 'all' ? null : projectId,
+            }),
+        [deferredQuery, projectId],
     );
 
-    useEffect(() => {
-        void loadPage().catch((cause: unknown) =>
-            setPageError(friendlyError(cause, 'Documents could not be loaded.')),
-        );
-    }, [loadPage]);
+    const {
+        items: visible,
+        total,
+        loading: pageLoading,
+        error: pageError,
+        loadPage,
+    } = usePaginatedFetch({
+        fetcher: fetchDocuments,
+        offset,
+        errorFallback: 'Documents could not be loaded.',
+    });
+
+    const { projectNames } = useProjectNames(visible.map((d) => d.projectId));
 
     async function importFile() {
         setBusy(true);
@@ -325,7 +302,7 @@ export function DocumentsPage({
 
             <PageControls
                 offset={offset}
-                limit={pageSize}
+                limit={PAGE_SIZE}
                 total={total}
                 disabled={pageLoading}
                 onPageChange={setOffset}

@@ -146,6 +146,18 @@ test('parseSmartDate supports full Notion-style @date expressions, named months,
     assert.equal(remind.time, '09:00');
     assert.equal(remind.isReminder, true);
 
+    const timeOnlyReminder = parseSmartDate('@r 3:45pm', fixedNow);
+    assert.equal(timeOnlyReminder.kind, 'datetime');
+    assert.equal(timeOnlyReminder.date, '2026-03-18');
+    assert.equal(timeOnlyReminder.time, '15:45');
+    assert.equal(timeOnlyReminder.isReminder, true);
+
+    const time24hReminder = parseSmartDate('@remind 21:15', fixedNow);
+    assert.equal(time24hReminder.kind, 'datetime');
+    assert.equal(time24hReminder.date, '2026-03-18');
+    assert.equal(time24hReminder.time, '21:15');
+    assert.equal(time24hReminder.isReminder, true);
+
     assert.throws(() => parseSmartDate('@', fixedNow), SmartDateError);
     assert.throws(() => parseSmartDate('@in a few days', fixedNow), SmartDateError);
 });

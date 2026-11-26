@@ -51,18 +51,22 @@ function Calendar({
                     root: cn(defaults.root, 'w-full', classNames?.root),
                     months: cn(
                         defaults.months,
-                        'relative flex w-full flex-col gap-4 sm:flex-row',
+                        'relative flex w-full max-w-none flex-col gap-4 sm:flex-row',
                         classNames?.months,
                     ),
-                    month: cn(defaults.month, 'flex w-full flex-col gap-2.5', classNames?.month),
+                    month: cn(
+                        defaults.month,
+                        'flex w-full min-w-0 flex-1 flex-col gap-2.5',
+                        classNames?.month,
+                    ),
                     month_caption: cn(
                         defaults.month_caption,
-                        'flex h-9 items-center justify-center px-10',
+                        'flex h-9 w-full items-center justify-center px-10',
                         classNames?.month_caption,
                     ),
                     caption_label: cn(
                         defaults.caption_label,
-                        'inline-flex select-none items-center gap-1 text-[13px] font-semibold tracking-tight text-foreground',
+                        'pointer-events-none inline-flex select-none items-center gap-1 text-[13px] font-semibold tracking-tight text-foreground',
                         classNames?.caption_label,
                     ),
                     dropdowns: cn(
@@ -72,16 +76,16 @@ function Calendar({
                     ),
                     dropdown_root: cn(
                         defaults.dropdown_root,
-                        'relative inline-flex h-8 items-center rounded-lg border border-border/90 bg-card px-2.5 text-xs font-medium shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle has-[select:focus-visible]:border-ring/75 has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring/20 [&>select>option]:bg-popover [&>select>option]:text-popover-foreground',
+                        'relative inline-flex h-8 items-center rounded-lg border border-border/90 bg-card px-2.5 text-xs font-medium shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle [&>select>option]:bg-popover [&>select>option]:text-popover-foreground',
                         classNames?.dropdown_root,
                     ),
                     dropdown: cn(
                         defaults.dropdown,
-                        'absolute inset-0 z-10 cursor-pointer opacity-0',
+                        'absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 outline-none focus:outline-none focus-visible:outline-none',
                         classNames?.dropdown,
                     ),
-                    months_dropdown: cn(defaults.months_dropdown, 'relative', classNames?.months_dropdown),
-                    years_dropdown: cn(defaults.years_dropdown, 'relative', classNames?.years_dropdown),
+                    months_dropdown: cn(defaults.months_dropdown, classNames?.months_dropdown),
+                    years_dropdown: cn(defaults.years_dropdown, classNames?.years_dropdown),
                     nav: cn(
                         defaults.nav,
                         'pointer-events-none absolute inset-x-0 top-0 z-20 flex h-9 items-center justify-between',
@@ -103,7 +107,7 @@ function Calendar({
                     month_grid: cn(defaults.month_grid, 'w-full border-collapse', classNames?.month_grid),
                     weekdays: cn(
                         defaults.weekdays,
-                        'grid grid-cols-7 border-b border-border/50 pb-1.5',
+                        'grid w-full grid-cols-7 border-b border-border/50 pb-1.5',
                         classNames?.weekdays,
                     ),
                     weekday: cn(
@@ -111,10 +115,10 @@ function Calendar({
                         'flex h-7 items-center justify-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground',
                         classNames?.weekday,
                     ),
-                    week: cn(defaults.week, 'mt-1 grid grid-cols-7', classNames?.week),
+                    week: cn(defaults.week, 'mt-1 grid w-full grid-cols-7', classNames?.week),
                     day: cn(
                         defaults.day,
-                        'relative flex h-[var(--cell-size)] items-center justify-center p-0 text-center text-sm',
+                        'relative flex h-[var(--cell-size)] w-full items-center justify-center p-0 text-center text-sm',
                         classNames?.day,
                     ),
                     day_button: cn(

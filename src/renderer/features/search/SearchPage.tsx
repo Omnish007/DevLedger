@@ -1,13 +1,14 @@
-import { PageHeader } from '@/components/shared/PageHeader';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { AlertCircle, Search as SearchIcon, Sparkles, X } from 'lucide-react';
 import type { AiSummary, EntityType, OllamaStatus, SearchResult } from '@shared/contracts';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
-import { friendlyError } from '@/lib/utils';
 import { stripHtmlToPlainText } from '@domain/html-text';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useProjectNames } from '@/hooks/useProjectNames';
+import { friendlyError } from '@/lib/utils';
+import { SearchAiAnswerCard } from './SearchAiAnswerCard';
 import { SearchResultsList, SearchSyntaxPopover } from './SearchResultsList';
 
 type Props = {
@@ -18,20 +19,19 @@ type Props = {
     onSummarize: (query: string, projectId?: string | null) => Promise<AiSummary>;
 };
 
+const PAGE_SIZE = 20;
+
 export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus, onSummarize }: Props) {
     const [query, setQuery] = useState('');
     const [projectId, setProjectId] = useState('all');
+    const [pickedProjectLabels, setPickedProjectLabels] = useState<Record<string, string>>({});
     const [typeFilter, setTypeFilter] = useState<'all' | EntityType>('all');
     const [results, setResults] = useState<SearchResult[]>([]);
-    const [projectNames, setProjectNames] = useState<Record<string, string>>({});
     const [page, setPage] = useState(1);
-    const pageSize = 20;
-    const filteredResults = useMemo(
-        () => (typeFilter === 'all' ? results : results.filter((item) => item.type === typeFilter)),
-        [results, typeFilter],
-    );
-    const pageCount = Math.max(1, Math.ceil(filteredResults.length / pageSize));
-    const visibleResults = filteredResults.slice((page - 1) * pageSize, page * pageSize);
+    const filteredResults =
+        typeFilter === 'all' ? results : results.filter((item) => item.type === typeFilter);
+    const pageCount = Math.max(1, Math.ceil(filteredResults.length / PAGE_SIZE));
+    const visibleResults = filteredResults.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     const [busy, setBusy] = useState(false);
     const [aiBusy, setAiBusy] = useState(false);
     const [error, setError] = useState('');
@@ -45,21 +45,8 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
     const semanticRequestSequence = useRef(0);
     const summaryRequestSequence = useRef(0);
 
-    useEffect(() => {
-        const ids = [
-            ...new Set(results.map((result) => result.projectId).filter((id): id is string => Boolean(id))),
-        ].slice(0, 200);
-        let active = true;
-        void window.devLedger.projects
-            .getNames(ids)
-            .then((names) => {
-                if (active) setProjectNames((current) => ({ ...current, ...names }));
-            })
-            .catch(() => undefined);
-        return () => {
-            active = false;
-        };
-    }, [results]);
+    const { projectNames: resolvedProjectNames } = useProjectNames(results.map((r) => r.projectId));
+    const projectNames = { ...resolvedProjectNames, ...pickedProjectLabels };
 
     async function requestSummary(queryValue = query, scope = projectId) {
         if (!queryValue.trim()) return;
@@ -180,18 +167,15 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
             );
     }
 
-    const typeCounts = useMemo(() => {
-        const counts: Record<'all' | EntityType, number> = {
-            all: results.length,
-            note: 0,
-            task: 0,
-            project: 0,
-            document: 0,
-            contact: 0,
-        };
-        for (const item of results) counts[item.type] += 1;
-        return counts;
-    }, [results]);
+    const typeCounts: Record<'all' | EntityType, number> = {
+        all: results.length,
+        note: 0,
+        task: 0,
+        project: 0,
+        document: 0,
+        contact: 0,
+    };
+    for (const item of results) typeCounts[item.type] += 1;
 
     return (
         <div className="workspace-page page-search mx-auto">
@@ -268,7 +252,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                             value={projectId === 'all' ? '' : projectId}
                             onValueChange={(value) => setProjectId(value || 'all')}
                             onChoiceChange={(c) => {
-                                if (c) setProjectNames((cur) => ({ ...cur, [c.id]: c.label }));
+                                if (c) setPickedProjectLabels((cur) => ({ ...cur, [c.id]: c.label }));
                             }}
                             placeholder="All projects"
                             selectedLabel={projectId === 'all' ? undefined : projectNames[projectId]}
@@ -359,30 +343,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 )}
 
                 {aiEnabled && aiSummary && (
-                    <section className="rounded-[var(--workspace-radius)] border border-border bg-surface-subtle/55 p-4 shadow-[var(--shadow-xs)]">
-                        <div className="mb-2 flex items-center gap-2">
-                            <Sparkles className="size-3.5 text-primary" />
-                            <h2 className="text-xs font-semibold">AI Answer</h2>
-                            <Badge variant="secondary">{aiSummary.model}</Badge>
-                            {aiSummary.cached && <Badge variant="outline">Cached</Badge>}
-                        </div>
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                            {aiSummary.summary}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2.5">
-                            {aiSummary.citations.map((source, index) => (
-                                <button
-                                    key={`${source.type}:${source.id}`}
-                                    type="button"
-                                    onClick={() => onOpenResult(source)}
-                                    className="inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-xs font-medium transition-colors hover:border-border hover:bg-surface-hover"
-                                >
-                                    <span className="font-mono text-xs text-primary">[{index + 1}]</span>
-                                    <span className="truncate">{source.title}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </section>
+                    <SearchAiAnswerCard aiSummary={aiSummary} onOpenResult={onOpenResult} />
                 )}
 
                 {searched && (

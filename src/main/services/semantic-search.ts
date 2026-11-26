@@ -9,6 +9,7 @@ import {
 } from '../../domain/vector-search.ts';
 import { parseSearchQuery } from '../../domain/search-query.ts';
 import { formatTextForEmbeddingModel } from './ai-models.ts';
+import { readAppSettingJson } from './app-settings-store.ts';
 import type { EmbeddingAdapter } from './embeddings.ts';
 
 export class SemanticSearchService {
@@ -70,16 +71,12 @@ export class SemanticSearchService {
         const filters = parseSearchQuery(normalized);
         if (!filters.text)
             throw new Error('Add a text phrase for semantic search; structured filters alone use FTS5.');
-        const modelRow = this.db
-            .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.semantic.activeModel'")
-            .get() as { value_json: string } | undefined;
-        const generationRow = this.db
-            .prepare("SELECT value_json FROM app_settings WHERE key = 'ai.semantic.activeGeneration'")
-            .get() as { value_json: string } | undefined;
-        if (!modelRow || !generationRow)
+        const configuredModel = readAppSettingJson<unknown>(this.db, 'ai.semantic.activeModel');
+        const configuredGeneration = readAppSettingJson<unknown>(this.db, 'ai.semantic.activeGeneration');
+        if (configuredModel === undefined || configuredGeneration === undefined)
             throw new Error('Build the local semantic index in Settings before enabling semantic search.');
-        const model = String(JSON.parse(modelRow.value_json));
-        const generation = String(JSON.parse(generationRow.value_json));
+        const model = String(configuredModel);
+        const generation = String(configuredGeneration);
         this.ensureVectorBuckets(model, generation);
         const formattedQuery = formatTextForEmbeddingModel(filters.text, model, 'query');
         const [queryVector] = await this.embeddingAdapter.embed([formattedQuery], model);

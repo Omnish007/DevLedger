@@ -580,6 +580,17 @@
     color: var(--popover-foreground);
     font-size: 0.8125rem;
 }
+.rdp-root .rdp-months {
+    width: 100%;
+    max-width: 100%;
+}
+.rdp-root .rdp-month {
+    width: 100%;
+    min-width: 0;
+}
+.rdp-root .rdp-day {
+    width: 100%;
+}
 .rdp-root .rdp-nav {
     z-index: 20;
     inset-inline: 0;
@@ -639,17 +650,6 @@
     background: color-mix(in oklab, var(--primary) 9%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 42%, transparent);
 }
-.rdp-root .rdp-today:not(.rdp-selected) .rdp-day_button::after {
-    content: '';
-    position: absolute;
-    bottom: 3px;
-    left: 50%;
-    width: 4px;
-    height: 4px;
-    border-radius: 9999px;
-    transform: translateX(-50%);
-    background: var(--primary);
-}
 .rdp-root .rdp-outside .rdp-day_button {
     color: var(--muted-foreground);
     opacity: 0.42;
@@ -657,6 +657,11 @@
 .rdp-root .rdp-day_button:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+}
+.rdp-root .rdp-dropdown:focus,
+.rdp-root .rdp-dropdown:focus-visible,
+.rdp-root .rdp-dropdown:focus-visible ~ .rdp-caption_label {
+    outline: none;
 }
 .rdp-root .rdp-disabled .rdp-day_button {
     color: var(--muted-foreground);

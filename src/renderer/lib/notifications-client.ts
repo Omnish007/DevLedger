@@ -9,7 +9,18 @@ import { targetFromRecord } from './navigation';
 
 export const NOTIFICATION_UPDATED_EVENT = 'devledger:notifications-updated';
 const NAVIGABLE_ENTITIES = new Set<string>(['project', 'note', 'task', 'document', 'contact']);
-const shownIds = new Set<string>();
+const shownToastIds = new Set<string>();
+const shownPushIds = new Set<string>();
+
+function rememberBounded(set: Set<string>, id: string): boolean {
+    if (set.has(id)) return false;
+    set.add(id);
+    if (set.size > 300) {
+        const oldest = set.values().next().value;
+        if (oldest) set.delete(oldest);
+    }
+    return true;
+}
 
 export function emitNotificationsUpdated(): void {
     if (typeof window !== 'undefined') window.dispatchEvent(new Event(NOTIFICATION_UPDATED_EVENT));
@@ -32,6 +43,15 @@ export async function requestWebNotificationPermission(): Promise<WebPushPermiss
     }
 }
 
+function resolveNotificationAssetUrl(asset: string): string | undefined {
+    if (typeof window === 'undefined' || !window.location?.href) return undefined;
+    try {
+        return new URL(asset, window.location.href).href;
+    } catch {
+        return undefined;
+    }
+}
+
 function showBrowserPush(
     item: NotificationRecord,
     onNavigateTarget: (target: WorkspaceNavigationTarget) => void,
@@ -43,8 +63,12 @@ function showBrowserPush(
     )
         return;
     try {
+        const icon = resolveNotificationAssetUrl('./android-chrome-192x192.png');
+        const badge = resolveNotificationAssetUrl('./favicon-32x32.png');
         const push = new Notification(item.title, {
             body: item.body,
+            ...(icon ? { icon } : {}),
+            ...(badge ? { badge } : {}),
             tag: `devledger:${item.id}`,
         });
         push.onclick = () => {
@@ -62,56 +86,57 @@ function showBrowserPush(
 export function dispatchRendererNotifications(
     payload: NotificationDeliveryPayload,
     onNavigateTarget: (target: WorkspaceNavigationTarget) => void,
-    options: { allowWebPush?: boolean; alwaysWebPush?: boolean } = {},
+    options: { allowInApp?: boolean; allowWebPush?: boolean; alwaysWebPush?: boolean } = {},
 ): void {
-    const { allowWebPush = true, alwaysWebPush = false } = options;
+    const { allowInApp = true, allowWebPush = true, alwaysWebPush = false } = options;
     if (!payload.notifications.length) return;
     emitNotificationsUpdated();
 
     for (const item of payload.notifications) {
-        if (shownIds.has(item.id)) continue;
-        shownIds.add(item.id);
-        if (shownIds.size > 300) {
-            const oldest = shownIds.values().next().value;
-            if (oldest) shownIds.delete(oldest);
-        }
-
-        const canJump = Boolean(item.entityId && NAVIGABLE_ENTITIES.has(item.entityType));
-        toast.info(item.title, {
-            id: `notif-${item.id}`,
-            description: item.body,
-            duration: 12_000,
-            action: canJump
-                ? {
-                      label: `Open ${item.entityType}`,
-                      onClick: () => {
-                          if (typeof window.devLedger?.notifications?.markRead === 'function') {
-                              void window.devLedger.notifications
-                                  .markRead(item.id)
-                                  .then(emitNotificationsUpdated)
-                                  .catch(() => undefined);
-                          }
-                          onNavigateTarget(targetFromRecord(item.entityType as EntityType, item.entityId!));
-                      },
-                  }
-                : undefined,
-            cancel:
-                item.kind === 'reminder' && item.reminderId
+        if (allowInApp && rememberBounded(shownToastIds, item.id)) {
+            const canJump = Boolean(item.entityId && NAVIGABLE_ENTITIES.has(item.entityType));
+            toast.info(item.title, {
+                id: `notif-${item.id}`,
+                description: item.body,
+                duration: 12_000,
+                action: canJump
                     ? {
-                          label: 'Snooze 15m',
+                          label: `Open ${item.entityType}`,
                           onClick: () => {
-                              if (typeof window.devLedger?.notifications?.snooze === 'function') {
+                              if (typeof window.devLedger?.notifications?.markRead === 'function') {
                                   void window.devLedger.notifications
-                                      .snooze(item.id, 15)
+                                      .markRead(item.id)
                                       .then(emitNotificationsUpdated)
                                       .catch(() => undefined);
                               }
+                              onNavigateTarget(
+                                  targetFromRecord(item.entityType as EntityType, item.entityId!),
+                              );
                           },
                       }
                     : undefined,
-        });
+                cancel:
+                    item.kind === 'reminder' && item.reminderId
+                        ? {
+                              label: 'Snooze 15m',
+                              onClick: () => {
+                                  if (typeof window.devLedger?.notifications?.snooze === 'function') {
+                                      void window.devLedger.notifications
+                                          .snooze(item.id, 15)
+                                          .then(emitNotificationsUpdated)
+                                          .catch(() => undefined);
+                                  }
+                              },
+                          }
+                        : undefined,
+            });
+        }
 
-        if (allowWebPush && (!payload.nativeShown || alwaysWebPush)) {
+        if (
+            allowWebPush &&
+            (!payload.nativeShown || alwaysWebPush) &&
+            rememberBounded(shownPushIds, item.id)
+        ) {
             showBrowserPush(item, onNavigateTarget);
         }
     }

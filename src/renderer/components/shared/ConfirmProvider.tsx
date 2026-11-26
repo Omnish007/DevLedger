@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AlertTriangle, ShieldAlert, Trash2 } from 'lucide-react';
 import {
     AlertDialog,
@@ -10,20 +10,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-export interface ConfirmOptions {
-    title: string;
-    description: string;
-    confirmLabel?: string;
-    cancelLabel?: string;
-    destructive?: boolean;
-    tone?: 'danger' | 'warning' | 'neutral';
-}
+import { ConfirmContext, type ConfirmFunction, type ConfirmOptions } from './confirm-context';
 
 type ConfirmRequest = ConfirmOptions & { id: number };
-type ConfirmFunction = (options: ConfirmOptions) => Promise<boolean>;
-
-const ConfirmContext = createContext<ConfirmFunction | null>(null);
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
     const [request, setRequest] = useState<ConfirmRequest | null>(null);
@@ -107,10 +96,4 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             </AlertDialog>
         </ConfirmContext.Provider>
     );
-}
-
-export function useConfirm(): ConfirmFunction {
-    const confirm = useContext(ConfirmContext);
-    if (!confirm) throw new Error('useConfirm must be used inside ConfirmProvider.');
-    return confirm;
 }

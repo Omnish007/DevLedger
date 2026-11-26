@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BellRing, CalendarDays, Trash2 } from 'lucide-react';
 import type { ReactNodeViewProps } from '@tiptap/react';
 import { NodeViewWrapper } from '@tiptap/react';
@@ -10,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { friendlyError } from '@/lib/utils';
 import { SmartDateOptionsFooter, type RemindOffset } from './SmartDateOptionsFooter';
+import { SmartDateRangeSummary } from './SmartDateRangeSummary';
 import {
     buildDateAttrsFromSelection,
     computeReminderDueIso,
     consumePendingDatePicker,
+    extractReminderContextText,
     getReminderUrgency,
     isoDateToLocalDate,
     parseIntoDateAttrs,
@@ -22,11 +24,15 @@ import {
 
 export interface SmartDateNodeOptions {
     onReminderSync?:
-        ((attrs: SmartDateReference, dueAtIso: string | null) => Promise<string | null>) | undefined;
+        | ((attrs: SmartDateReference, dueAtIso: string | null, noteText?: string) => Promise<string | null>)
+        | undefined;
+    onReminderError?: ((error: unknown) => void) | undefined;
 }
 
 export function SmartDateChipView({
     node,
+    editor,
+    getPos,
     updateAttributes,
     deleteNode,
     extension,
@@ -46,7 +52,14 @@ export function SmartDateChipView({
     const [rangeEnabled, setRangeEnabled] = useState(() => Boolean(endDate));
     const [displayMonth, setDisplayMonth] = useState<Date>(() => isoDateToLocalDate(date) ?? new Date());
     const [remindOffset, setRemindOffset] = useState<RemindOffset>(() => (isReminder ? '0' : 'none'));
-    const presets = useMemo(() => getSmartDatePresets().slice(0, 4), []);
+    const activeReminderIdRef = useRef<string | null>(reminderId);
+    const prevReminderIdPropRef = useRef<string | null>(reminderId);
+    if (reminderId !== prevReminderIdPropRef.current) {
+        prevReminderIdPropRef.current = reminderId;
+        activeReminderIdRef.current = reminderId;
+    }
+    const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
+    const presets = getSmartDatePresets().slice(0, 4);
 
     useEffect(() => {
         if (!consumePendingDatePicker(date, time, isReminder)) return;
@@ -57,36 +70,49 @@ export function SmartDateChipView({
     }, [date, endDate, time, isReminder]);
 
     const urgency = isReminder ? getReminderUrgency(date, time) : null;
+    const displayLabel = date
+        ? formatNotionDateLabel({ date, time, endDate, format })
+        : String(node.attrs['source'] ?? 'Date');
 
-    const displayLabel = useMemo(
-        () =>
-            date
-                ? formatNotionDateLabel({ date, time, endDate, format })
-                : String(node.attrs['source'] ?? 'Date'),
-        [date, time, endDate, format, node.attrs],
-    );
+    function currentReminderId(): string | null {
+        return activeReminderIdRef.current ?? reminderId;
+    }
 
-    async function syncAndCommit(nextAttrs: SmartDateReference, offset = remindOffset) {
+    function syncAndCommit(nextAttrs: SmartDateReference, offset = remindOffset): Promise<void> {
         updateAttributes(nextAttrs);
-        if (!options.onReminderSync) return;
-        if (!nextAttrs.isReminder) {
-            if (nextAttrs.reminderId) {
-                await options.onReminderSync(nextAttrs, null).catch(() => undefined);
-                updateAttributes({ ...nextAttrs, reminderId: null });
+        if (!options.onReminderSync) return Promise.resolve();
+        const runSync = syncQueueRef.current.then(async () => {
+            const currentId = nextAttrs.reminderId ?? currentReminderId();
+            const syncedAttrs = { ...nextAttrs, reminderId: currentId };
+            if (!syncedAttrs.isReminder) {
+                if (currentId) {
+                    await options.onReminderSync!(syncedAttrs, null).catch(() => undefined);
+                    activeReminderIdRef.current = null;
+                    updateAttributes({ reminderId: null });
+                }
+                return;
             }
-            return;
-        }
-        try {
-            const dueAtIso = computeReminderDueIso(
-                nextAttrs.date,
-                nextAttrs.time,
-                offset === 'none' ? 0 : Number(offset),
-            );
-            const nextId = await options.onReminderSync(nextAttrs, dueAtIso);
-            updateAttributes({ ...nextAttrs, reminderId: nextId });
-        } catch (caught) {
-            setDraftError(friendlyError(caught, 'Reminder could not be updated.'));
-        }
+            try {
+                const dueAtIso = computeReminderDueIso(
+                    syncedAttrs.date,
+                    syncedAttrs.time,
+                    offset === 'none' ? 0 : Number(offset),
+                );
+                const noteText = extractReminderContextText(
+                    editor,
+                    typeof getPos === 'function' ? getPos() : undefined,
+                );
+                const nextId = await options.onReminderSync!(syncedAttrs, dueAtIso, noteText);
+                activeReminderIdRef.current = nextId;
+                updateAttributes({ reminderId: nextId });
+                setDraftError('');
+            } catch (caught) {
+                setDraftError(friendlyError(caught, 'Reminder could not be updated.'));
+                options.onReminderError?.(caught);
+            }
+        });
+        syncQueueRef.current = runSync.catch(() => undefined);
+        return runSync;
     }
 
     async function applyDraft() {
@@ -96,7 +122,7 @@ export function SmartDateChipView({
                 format,
                 endDate: rangeEnabled ? endDate : null,
                 forceReminder: isReminder || undefined,
-                reminderId,
+                reminderId: currentReminderId(),
             });
             setDisplayMonth(isoDateToLocalDate(next.date) ?? displayMonth);
             if (next.isReminder) setRemindOffset('0');
@@ -109,22 +135,30 @@ export function SmartDateChipView({
     }
 
     async function handleRemove() {
-        if (reminderId && options.onReminderSync) {
-            const currentAttrs: SmartDateReference = {
-                date,
-                time,
-                isoUtc: node.attrs['isoUtc'] ? String(node.attrs['isoUtc']) : null,
-                timezone: String(node.attrs['timezone'] ?? ''),
-                source: displayLabel,
-                endDate,
-                format,
-                isReminder,
-                reminderId,
-            };
-            await options.onReminderSync(currentAttrs, null).catch(() => undefined);
-        }
+        const snapshotAttrs: SmartDateReference = {
+            date,
+            time,
+            isoUtc: node.attrs['isoUtc'] ? String(node.attrs['isoUtc']) : null,
+            timezone: String(node.attrs['timezone'] ?? ''),
+            source: displayLabel,
+            endDate,
+            format,
+            isReminder,
+            reminderId: currentReminderId(),
+        };
         setOpen(false);
         deleteNode();
+        if (!options.onReminderSync) return;
+        const removeTask = syncQueueRef.current.then(async () => {
+            const latestId = currentReminderId();
+            if (!latestId) return;
+            await options.onReminderSync!({ ...snapshotAttrs, reminderId: latestId }, null).catch(
+                () => undefined,
+            );
+            activeReminderIdRef.current = null;
+        });
+        syncQueueRef.current = removeTask.catch(() => undefined);
+        await removeTask;
     }
 
     const startObj = isoDateToLocalDate(date);
@@ -249,12 +283,24 @@ export function SmartDateChipView({
                                     variant="outline"
                                     className="h-6 px-2 text-[11px]"
                                     onClick={() => {
-                                        const next = parseIntoDateAttrs(preset.token, {
+                                        const currentId = currentReminderId();
+                                        const parsed = parseIntoDateAttrs(preset.token, {
                                             format,
                                             endDate: rangeEnabled ? endDate : null,
                                             forceReminder: isReminder || undefined,
-                                            reminderId,
+                                            reminderId: currentId,
                                         });
+                                        const next =
+                                            parsed.time == null && time
+                                                ? buildDateAttrsFromSelection({
+                                                      date: parsed.date,
+                                                      endDate: parsed.endDate ?? null,
+                                                      time,
+                                                      format,
+                                                      isReminder: Boolean(parsed.isReminder),
+                                                      reminderId: currentId,
+                                                  })
+                                                : parsed;
                                         setDisplayMonth(isoDateToLocalDate(next.date) ?? displayMonth);
                                         void syncAndCommit(
                                             next,
@@ -268,23 +314,12 @@ export function SmartDateChipView({
                         </div>
 
                         {rangeEnabled && (
-                            <div className="flex items-center justify-between rounded-md bg-surface-subtle/70 px-2.5 py-1 text-[11px] text-muted-foreground">
-                                <span>
-                                    Start:{' '}
-                                    <strong className="font-medium text-foreground">
-                                        {formatNotionDateLabel({ date, format: 'full' })}
-                                    </strong>
-                                </span>
-                                <span>→</span>
-                                <span>
-                                    End:{' '}
-                                    <strong className="font-medium text-foreground">
-                                        {endDate
-                                            ? formatNotionDateLabel({ date: endDate, format: 'full' })
-                                            : 'Pick date'}
-                                    </strong>
-                                </span>
-                            </div>
+                            <SmartDateRangeSummary
+                                startDate={date}
+                                endDate={endDate}
+                                emptyStartLabel="Pick date"
+                                emptyEndLabel="Pick date"
+                            />
                         )}
 
                         <div className="rounded-xl border border-border/75 bg-card/70 p-0.5">
@@ -310,7 +345,7 @@ export function SmartDateChipView({
                                                 time,
                                                 format,
                                                 isReminder,
-                                                reminderId,
+                                                reminderId: currentReminderId(),
                                             }),
                                         );
                                     }}
@@ -335,7 +370,7 @@ export function SmartDateChipView({
                                                 time,
                                                 format,
                                                 isReminder,
-                                                reminderId,
+                                                reminderId: currentReminderId(),
                                             }),
                                         );
                                     }}
@@ -366,7 +401,7 @@ export function SmartDateChipView({
                                         time,
                                         format,
                                         isReminder,
-                                        reminderId,
+                                        reminderId: currentReminderId(),
                                     }),
                                 );
                             }}
@@ -380,7 +415,7 @@ export function SmartDateChipView({
                                         time: checked ? (time ?? '09:00') : null,
                                         format,
                                         isReminder,
-                                        reminderId,
+                                        reminderId: currentReminderId(),
                                     }),
                                 )
                             }
@@ -392,7 +427,7 @@ export function SmartDateChipView({
                                         time: nextTime,
                                         format,
                                         isReminder,
-                                        reminderId,
+                                        reminderId: currentReminderId(),
                                     }),
                                 )
                             }
@@ -405,7 +440,7 @@ export function SmartDateChipView({
                                         time,
                                         format: nextFormat,
                                         isReminder,
-                                        reminderId,
+                                        reminderId: currentReminderId(),
                                     }),
                                 )
                             }
@@ -420,7 +455,7 @@ export function SmartDateChipView({
                                         time,
                                         format,
                                         isReminder: nextOffset !== 'none',
-                                        reminderId,
+                                        reminderId: currentReminderId(),
                                     }),
                                     nextOffset,
                                 );

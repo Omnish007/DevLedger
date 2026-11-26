@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useConfirm } from '@/components/shared/ConfirmProvider';
+import { useConfirm } from '@/components/shared/confirm-context';
 import { friendlyError } from '@/lib/utils';
 
 interface SettingsBackupTabProps {

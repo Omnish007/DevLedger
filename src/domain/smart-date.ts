@@ -8,21 +8,10 @@ import {
     resolveUpcomingYearDate,
     toDateString,
 } from './smart-date-notion.ts';
+import { SmartDateError, type SmartDateDisplayFormat, type SmartDateResult } from './smart-date-types.ts';
 
-export type SmartDateDisplayFormat = 'relative' | 'full' | 'short' | 'iso';
-
-export type SmartDateResult =
-    | { kind: 'date'; date: string; source: string; isReminder?: boolean }
-    | { kind: 'datetime'; date: string; time: string; isoUtc: string; source: string; isReminder?: boolean };
-
-export class SmartDateError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'SmartDateError';
-    }
-}
-
-export { formatNotionDateLabel };
+export { SmartDateError, formatNotionDateLabel };
+export type { SmartDateDisplayFormat, SmartDateResult };
 
 function formatSmartDateResult(
     date: Date,
@@ -120,6 +109,11 @@ export function parseSmartDate(input: string, now = new Date()): SmartDateResult
             timeText = relative.timeOverride.text;
         }
         return formatSmartDateResult(relative.date, value, hour, minute, timeText, isReminder);
+    }
+
+    if (!datePart && hour !== null && minute !== null && timeText !== null) {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+        return formatSmartDateResult(today, value, hour, minute, timeText, isReminder);
     }
 
     throw new SmartDateError(

@@ -11,6 +11,7 @@ import { stripHtmlToPlainText } from '../../../domain/html-text.ts';
 import { resolveRecordSummaries } from '../operations-mappers.ts';
 import { WorkspaceTasksService } from './tasks.ts';
 
+import { listAppSettings, writeAppSetting } from '../app-settings-store.ts';
 import { nowIso, mapNote, mapTask } from './base.ts';
 
 function extractOpenNoteChecklists(
@@ -61,23 +62,14 @@ function extractOpenNoteChecklists(
 
 export class WorkspaceDashboardService extends WorkspaceTasksService {
     getSettings(): Record<string, unknown> {
-        const rows = this.db.prepare('SELECT key, value_json FROM app_settings').all() as Array<{
-            key: string;
-            value_json: string;
-        }>;
-        return Object.fromEntries(rows.map((row) => [row.key, JSON.parse(row.value_json) as unknown]));
+        return listAppSettings(this.db);
     }
 
     setSetting(key: string, value: unknown): void {
         if (!/^[a-z][a-z0-9_.-]{0,63}$/i.test(key)) throw new Error('Invalid settings key.');
         const json = JSON.stringify(value);
         if (json.length > 20_000) throw new Error('Settings values must be smaller than 20 KB.');
-        this.db
-            .prepare(
-                `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-            )
-            .run(key, json, nowIso());
+        writeAppSetting(this.db, key, value, nowIso());
     }
 
     dashboardSummary(): DashboardSummary {

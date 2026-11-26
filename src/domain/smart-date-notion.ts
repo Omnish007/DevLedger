@@ -1,4 +1,4 @@
-import { SmartDateError, type SmartDateDisplayFormat } from './smart-date.ts';
+import { SmartDateError, type SmartDateDisplayFormat } from './smart-date-types.ts';
 
 export const WEEKDAYS: Record<string, number> = {
     sunday: 0,
@@ -86,46 +86,53 @@ export function extractTimeSuffix(raw: string): {
     minute: number | null;
     timeText: string | null;
 } {
-    const named = /^(.*?)(?:\s+at)?\s+(noon|midnight|morning|evening)$/i.exec(raw);
-    if (named) {
-        const keyword = named[2]!.toLowerCase();
+    const trimmed = raw.trim();
+    const named = /^(.*?)(?:\s+at)?\s+(noon|midnight|morning|evening)$/i.exec(trimmed);
+    const bareNamed = !named ? /^(?:at\s+)?(noon|midnight|morning|evening)$/i.exec(trimmed) : null;
+    const namedKeyword = named?.[2] ?? bareNamed?.[1];
+    if (namedKeyword) {
+        const keyword = namedKeyword.toLowerCase();
         const hour = keyword === 'midnight' ? 0 : keyword === 'morning' ? 9 : keyword === 'noon' ? 12 : 18;
         return {
-            datePart: named[1]!.trim(),
+            datePart: (named?.[1] ?? '').trim(),
             hour,
             minute: 0,
             timeText: `${String(hour).padStart(2, '0')}:00`,
         };
     }
-    const ampm = /^(.*?)(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i.exec(raw);
-    if (ampm) {
-        const rawHour = Number(ampm[2]);
-        const minute = ampm[3] ? Number(ampm[3]) : 0;
-        const meridiem = ampm[4]!.toLowerCase();
+    const ampm = /^(.*?)(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i.exec(trimmed);
+    const bareAmpm = !ampm ? /^(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i.exec(trimmed) : null;
+    const ampmMatch = ampm ?? bareAmpm;
+    if (ampmMatch) {
+        const rawHour = Number(ampm ? ampm[2] : bareAmpm![1]);
+        const minuteText = ampm ? ampm[3] : bareAmpm![2];
+        const minute = minuteText ? Number(minuteText) : 0;
+        const meridiem = (ampm ? ampm[4] : bareAmpm![3])!.toLowerCase();
         if (rawHour < 1 || rawHour > 12 || minute < 0 || minute > 59)
             throw new SmartDateError('Invalid 12-hour time.');
         const hour = meridiem === 'am' ? (rawHour === 12 ? 0 : rawHour) : rawHour === 12 ? 12 : rawHour + 12;
         return {
-            datePart: ampm[1]!.trim(),
+            datePart: (ampm?.[1] ?? '').trim(),
             hour,
             minute,
             timeText: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
         };
     }
-    const h24 = /^(.*?)(?:\s+at)?\s+(\d{1,2}):(\d{2})$/.exec(raw);
-    if (h24) {
-        const hour = Number(h24[2]);
-        const minute = Number(h24[3]);
+    const h24 = /^(.*?)(?:\s+at)?\s+(\d{1,2}):(\d{2})$/.exec(trimmed);
+    const bare24h = !h24 ? /^(?:at\s+)?(\d{1,2}):(\d{2})$/.exec(trimmed) : null;
+    if (h24 || bare24h) {
+        const hour = Number(h24 ? h24[2] : bare24h![1]);
+        const minute = Number(h24 ? h24[3] : bare24h![2]);
         if (hour < 0 || hour > 23 || minute < 0 || minute > 59)
             throw new SmartDateError('Time must use a valid 24-hour HH:mm value.');
         return {
-            datePart: h24[1]!.trim(),
+            datePart: (h24?.[1] ?? '').trim(),
             hour,
             minute,
             timeText: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
         };
     }
-    return { datePart: raw.trim(), hour: null, minute: null, timeText: null };
+    return { datePart: trimmed, hour: null, minute: null, timeText: null };
 }
 
 export function resolveUpcomingYearDate(

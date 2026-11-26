@@ -150,4 +150,30 @@ export function consumePendingDatePicker(date: string, time: string | null, isRe
     return true;
 }
 
+export function extractReminderContextText(
+    editor: Editor | null | undefined,
+    pos?: number,
+): string | undefined {
+    if (!editor || editor.isDestroyed) return undefined;
+    const clampedPos =
+        typeof pos === 'number' && Number.isFinite(pos)
+            ? Math.max(0, Math.min(pos, editor.state.doc.content.size))
+            : editor.state.selection.from;
+    const resolved = editor.state.doc.resolve(clampedPos);
+    for (let depth = resolved.depth; depth >= 0; depth -= 1) {
+        const block = resolved.node(depth);
+        if (!block.isTextblock) continue;
+        const text = block
+            .textBetween(0, block.content.size, ' ', (leaf) =>
+                leaf.type.name === 'mention'
+                    ? `@${String(leaf.attrs['label'] ?? leaf.attrs['id'] ?? '')}`
+                    : '',
+            )
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (text) return text.slice(0, 400);
+    }
+    return undefined;
+}
+
 export { toDateString };

@@ -44,6 +44,17 @@ export function dispatchDeliveredNotifications(
                     else sendTarget();
                 }
             });
+            toastNotification.on('failed', () => {
+                if (isShuttingDown()) return;
+                for (const win of BrowserWindow.getAllWindows()) {
+                    if (!win.isDestroyed() && !win.webContents.isLoading()) {
+                        win.webContents.send('notifications:delivered', {
+                            notifications: [item],
+                            nativeShown: false,
+                        });
+                    }
+                }
+            });
             toastNotification.show();
         }
         if (items.length > 3) {

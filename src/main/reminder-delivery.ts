@@ -1,8 +1,6 @@
 import type Database from 'better-sqlite3';
-import type { registerIpcHandlers } from './ipc/register.js';
-import type { InboxNotification } from './services/notification-inbox.js';
+import { NotificationInboxService, type InboxNotification } from './services/notification-inbox.js';
 
-type BackgroundJobs = ReturnType<typeof registerIpcHandlers>['jobs'];
 type NotifyReminders = (notifications: InboxNotification[]) => void;
 
 export class ReminderDeliveryController {
@@ -12,18 +10,13 @@ export class ReminderDeliveryController {
     private nextTimer: NodeJS.Timeout | null = null;
 
     private readonly db: Database.Database;
-    private readonly jobs: BackgroundJobs;
+    private readonly inbox: NotificationInboxService;
     private readonly notify: NotifyReminders;
     private readonly isShuttingDown: () => boolean;
 
-    constructor(
-        db: Database.Database,
-        jobs: BackgroundJobs,
-        notify: NotifyReminders,
-        isShuttingDown: () => boolean,
-    ) {
+    constructor(db: Database.Database, notify: NotifyReminders, isShuttingDown: () => boolean) {
         this.db = db;
-        this.jobs = jobs;
+        this.inbox = new NotificationInboxService(db);
         this.notify = notify;
         this.isShuttingDown = isShuttingDown;
     }
@@ -40,7 +33,7 @@ export class ReminderDeliveryController {
         if (!row?.next_due) return;
         const dueMs = Date.parse(row.next_due);
         if (!Number.isFinite(dueMs)) return;
-        const delay = Math.max(25, Math.min(60_000, dueMs - Date.now() + 50));
+        const delay = Math.max(15, Math.min(60_000, dueMs - Date.now() + 20));
         this.nextTimer = setTimeout(() => {
             this.nextTimer = null;
             void this.deliver();
@@ -71,17 +64,13 @@ export class ReminderDeliveryController {
         let hasMoreDue = false;
         let delivered: InboxNotification[] = [];
         try {
-            const result = await this.jobs.enqueueAndWait<{
-                count: number;
-                notifications?: InboxNotification[];
-                hasMore: boolean;
-            }>('notifications.deliver', 'system', 'reminders', {}, { timeoutMs: 20_000 });
-            hasMoreDue = Boolean(result?.hasMore);
-            delivered = Array.isArray(result?.notifications) ? result.notifications : [];
+            const result = this.inbox.processDueReminders();
+            hasMoreDue = result.hasMore;
+            delivered = result.notifications;
             if (!this.stopped && !this.isShuttingDown() && delivered.length) this.notify(delivered);
         } catch (error) {
             console.error(
-                '[DevLedger] Reminder delivery job failed:',
+                '[DevLedger] Reminder delivery failed:',
                 error instanceof Error ? error.message : 'Unknown error',
             );
         } finally {
@@ -90,7 +79,7 @@ export class ReminderDeliveryController {
                 this.continuation = setTimeout(() => {
                     this.continuation = null;
                     void this.deliver();
-                }, 100);
+                }, 50);
                 this.continuation.unref();
             } else {
                 this.scheduleNext();

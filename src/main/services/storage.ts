@@ -1,23 +1,16 @@
 import { randomUUID, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { unwrapAttachmentKey, wrapAttachmentKey, type WrappedAttachmentKey } from './attachment-crypto.ts';
+import { unwrapAttachmentKey, wrapAttachmentKey } from './attachment-crypto.ts';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { access, chmod, lstat, mkdir, open, rename, rm, stat } from 'node:fs/promises';
-import { basename, dirname, extname, join, resolve, sep } from 'node:path';
+import { access, chmod, mkdir, open, rename, rm, stat } from 'node:fs/promises';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import type Database from 'better-sqlite3';
 import type { DocumentRecord, ImportResult, PageRequest, PageResult } from '../../shared/contracts.js';
 import { normalizePage, escapeLikeQuery } from '../../domain/pagination.ts';
-import { safeDisplayName } from '../../domain/validation.ts';
-
-import {
-    ALLOWED_EXTENSIONS,
-    MAX_IMPORT_BYTES,
-    MIME_BY_EXTENSION,
-    isPathInside,
-    sha256File,
-} from './storage-helpers.ts';
+import { MIME_BY_EXTENSION, isPathInside, sha256File } from './storage-helpers.ts';
 import { mapDocumentRecord } from './storage-mappers.ts';
 import { normalizeObjectRelativePath } from './object-paths.ts';
+import { parseEncryptedDocumentMetadata, validateDocumentImportSource } from './storage-validation.ts';
 
 export class DocumentStorageService {
     private readonly db: Database.Database;
@@ -37,43 +30,7 @@ export class DocumentStorageService {
         projectId: string | null,
         protectWithVault = false,
     ): Promise<ImportResult> {
-        const info = await lstat(sourcePath);
-        if (!info.isFile() || info.isSymbolicLink())
-            throw new Error('Only regular, non-symbolic-link files can be imported.');
-        if (info.size > MAX_IMPORT_BYTES) throw new Error('This file exceeds the 250 MB import limit.');
-
-        const originalName = safeDisplayName(sourcePath.split(/[\\/]/).at(-1) ?? 'document');
-        const extension = extname(originalName).toLowerCase();
-        if (!ALLOWED_EXTENSIONS.has(extension))
-            throw new Error('Supported formats: PDF, DOCX, XLSX, CSV, TXT and Markdown.');
-        const signature = Buffer.alloc(16);
-        const sourceHandle = await open(sourcePath, 'r');
-        try {
-            await sourceHandle.read(signature, 0, signature.length, 0);
-        } finally {
-            await sourceHandle.close();
-        }
-        if (extension === '.pdf' && signature.subarray(0, 5).toString('ascii') !== '%PDF-')
-            throw new Error('The selected file does not contain a valid PDF signature.');
-        if (
-            (extension === '.docx' || extension === '.xlsx') &&
-            !(
-                signature[0] === 0x50 &&
-                signature[1] === 0x4b &&
-                [0x03, 0x05, 0x07].includes(signature[2] ?? -1)
-            )
-        )
-            throw new Error('The selected Office document is not a valid ZIP-based DOCX/XLSX file.');
-        if (['.txt', '.md', '.csv'].includes(extension)) {
-            const sample = Buffer.alloc(Math.min(info.size, 8192));
-            const sampleHandle = await open(sourcePath, 'r');
-            try {
-                await sampleHandle.read(sample, 0, sample.length, 0);
-            } finally {
-                await sampleHandle.close();
-            }
-            if (sample.includes(0)) throw new Error('The selected text or CSV file contains binary data.');
-        }
+        const { originalName, extension, sizeBytes } = await validateDocumentImportSource(sourcePath);
         if (projectId) {
             const project = this.db
                 .prepare('SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL')
@@ -125,7 +82,7 @@ export class DocumentStorageService {
                     tag: cipher.getAuthTag().toString('base64'),
                     wrappedKey,
                     plaintextSha256: sha256,
-                    plaintextBytes: info.size,
+                    plaintextBytes: sizeBytes,
                 });
             } else {
                 await pipeline(
@@ -190,7 +147,7 @@ export class DocumentStorageService {
                         originalName,
                         mediaType: MIME_BY_EXTENSION[extension] ?? 'application/octet-stream',
                         extension,
-                        sizeBytes: info.size,
+                        sizeBytes,
                         sha256,
                         relativePath,
                         status,
@@ -283,23 +240,11 @@ export class DocumentStorageService {
             throw new Error('The stored document failed its SHA-256 integrity check.');
         if (Number(row['is_encrypted']) !== 1) return { path: objectPath, temporary: false };
         if (!this.getVaultKey) throw new Error('Protected document decryption is unavailable.');
-        if (!row['encryption_meta']) throw new Error('Protected document encryption metadata is missing.');
-        const meta = JSON.parse(String(row['encryption_meta'])) as {
-            version: number;
-            algorithm: string;
-            nonce: string;
-            tag: string;
-            wrappedKey: WrappedAttachmentKey;
-            plaintextSha256: string;
-            plaintextBytes: number;
-        };
-        if (
-            meta.version !== 2 ||
-            meta.algorithm !== 'aes-256-gcm' ||
-            meta.plaintextSha256 !== String(row['sha256']) ||
-            meta.plaintextBytes !== Number(row['size_bytes'])
-        )
-            throw new Error('This protected document uses unsupported or inconsistent encryption metadata.');
+        const meta = parseEncryptedDocumentMetadata(
+            row['encryption_meta'],
+            String(row['sha256']),
+            Number(row['size_bytes']),
+        );
         const masterKey = this.getVaultKey();
         let dataKey: Buffer | null = null;
         const root = join(temporaryDirectory, 'devledger-protected-documents');

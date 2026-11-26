@@ -134,7 +134,35 @@ test('seeded overhaul suite exercises dropdowns, calendar, alert modals, task in
     const yearDropdown = page.locator('[data-slot="calendar"] select.rdp-years_dropdown');
     await expect(monthDropdown).toBeVisible();
     await expect(yearDropdown).toBeVisible();
+    const monthPill = page.locator('[data-slot="calendar"] .rdp-dropdown_root').nth(0);
+    const monthPillBox = await monthPill.boundingBox();
+    expect(monthPillBox).not.toBeNull();
+    await page.mouse.click(
+        monthPillBox!.x + monthPillBox!.width / 2,
+        monthPillBox!.y + monthPillBox!.height / 2,
+    );
+    await expect(monthDropdown).toBeFocused();
+    await monthDropdown.selectOption('0');
+    await yearDropdown.selectOption('2028');
+    await expect(page.locator('[data-slot="calendar"] .rdp-month_caption [role="status"]')).toHaveText(
+        'January 2028',
+    );
+    await monthDropdown.selectOption('4');
+    const mayBox = await page.locator('[data-slot="calendar"]').boundingBox();
+    const mayGridBox = await calendarGrid.boundingBox();
+    await monthDropdown.selectOption('8');
+    const sepBox = await page.locator('[data-slot="calendar"]').boundingBox();
+    const sepGridBox = await calendarGrid.boundingBox();
+    expect(mayBox).not.toBeNull();
+    expect(sepBox).not.toBeNull();
+    expect(Math.abs(mayBox!.width - sepBox!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mayGridBox!.width - sepGridBox!.width)).toBeLessThanOrEqual(1);
+    expect(mayGridBox!.width).toBeGreaterThan(mayBox!.width * 0.85);
+    await monthDropdown.selectOption('0');
     await page.locator('[data-slot="calendar"] .rdp-button_next').click();
+    await expect(page.locator('[data-slot="calendar"] .rdp-month_caption [role="status"]')).toHaveText(
+        'February 2028',
+    );
     await page.locator('[data-slot="calendar"] [role="gridcell"] button:not([disabled])').nth(10).click();
     await page.keyboard.press('Escape');
     await expect(calendarGrid).toBeHidden();

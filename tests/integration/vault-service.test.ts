@@ -234,3 +234,35 @@ test('locking during passphrase rotation leaves the old wrapping envelope intact
         db.close();
     }
 });
+
+test('unprotectNote permanently removes vault encryption only when vault is unlocked', async () => {
+    const db = createDatabase();
+    try {
+        const vault = new VaultService(db as never, fastTestDeriver());
+        await vault.setup(PASSPHRASE);
+        insertNote(db, 'note-unprotect');
+        vault.lockNote('note-unprotect');
+
+        vault.lock();
+        assert.throws(() => vault.unprotectNote('note-unprotect'), /Unlock the vault/);
+
+        await vault.unlockWithPassphrase(PASSPHRASE);
+        const restored = vault.unprotectNote('note-unprotect');
+        assert.equal(restored.locked, false);
+        assert.equal(restored.title, 'Private architecture decision');
+        assert.equal(restored.content, 'The secret implementation detail.');
+
+        const row = db
+            .prepare(
+                'SELECT locked, encrypted_payload, encryption_meta, title, content FROM notes WHERE id = ?',
+            )
+            .get('note-unprotect') as Record<string, unknown>;
+        assert.equal(row['locked'], 0);
+        assert.equal(row['encrypted_payload'], null);
+        assert.equal(row['encryption_meta'], null);
+        assert.equal(row['title'], 'Private architecture decision');
+        assert.equal(row['content'], 'The secret implementation detail.');
+    } finally {
+        db.close();
+    }
+});

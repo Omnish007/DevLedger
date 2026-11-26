@@ -90,6 +90,14 @@ test('creates a vault, protects a note, excludes it from search and unlocks it a
     );
     await desktop.page.getByRole('button', { name: 'Lock', exact: true }).click();
     await expect(desktop.page.getByRole('heading', { name: 'Protected note' })).toBeVisible();
+
+    await desktop.page.getByRole('button', { name: 'Unlock note' }).click();
+    await desktop.page.getByRole('button', { name: 'Remove lock', exact: true }).click();
+    const unprotectConfirm = desktop.page.getByRole('alertdialog');
+    await expect(unprotectConfirm).toBeVisible();
+    await unprotectConfirm.getByRole('button', { name: 'Remove lock', exact: true }).click();
+    await expect(desktop.page.getByRole('button', { name: 'Lock note', exact: true })).toBeVisible();
+    await expect(desktop.page.getByRole('button', { name: title })).toBeVisible();
 });
 
 test('creates an encrypted backup, rejects a wrong passphrase and restores a validated copy without replacing live data', async ({

@@ -14,7 +14,7 @@ test('ProjectDetailSheet uses one accessible Radix Tabs root and a matching acti
 
 test('sidebar collapse state is saved through SQLite-backed settings', () => {
     const shell = readFileSync(join(root, 'src/renderer/components/shared/AppShell.tsx'), 'utf8');
-    const main = readFileSync(join(root, 'src/renderer/main.tsx'), 'utf8');
+    const main = readFileSync(join(root, 'src/renderer/app/App.tsx'), 'utf8');
     const workspace = readFileSync(join(root, 'src/main/services/workspace/dashboard.ts'), 'utf8');
     assert.match(shell, /open=\{sidebarOpen\}[\s\S]*?onOpenChange=\{onSidebarOpenChange\}/);
     assert.match(main, /settings\['sidebarOpen'\] !== false/);
@@ -62,12 +62,12 @@ test('the control catalogue exercises shared form, feedback and selection primit
 
 test('feature screens use the shared native select styling instead of ad hoc browser select styles', () => {
     const nativeSelectFiles = [
-        'src/renderer/components/shared/RecordConnectionsPanel.tsx',
+        'src/renderer/components/shared/LinkConnectionsSection.tsx',
         'src/renderer/features/notes/SmartDateOptionsFooter.tsx',
         'src/renderer/features/projects/ProjectDetailSheet.tsx',
-        'src/renderer/features/settings/SettingsPage.tsx',
+        'src/renderer/features/settings/SettingsGeneralTab.tsx',
         'src/renderer/features/settings/SettingsVaultTab.tsx',
-        'src/renderer/features/tasks/TaskCreateDialog.tsx',
+        'src/renderer/features/tasks/TaskFormFields.tsx',
         'src/renderer/features/tasks/TaskEditDialog.tsx',
         'src/renderer/features/tasks/TaskInspectorSheet.tsx',
     ];
@@ -76,6 +76,15 @@ test('feature screens use the shared native select styling instead of ad hoc bro
         'src/renderer/features/search/SearchPage.tsx',
         'src/renderer/features/documents/DocumentsPage.tsx',
     ];
+    const containerScreens = [
+        'src/renderer/components/shared/RecordConnectionsPanel.tsx',
+        'src/renderer/features/settings/SettingsPage.tsx',
+        'src/renderer/features/tasks/TaskCreateDialog.tsx',
+    ];
+    for (const file of containerScreens) {
+        const source = readFileSync(join(root, file), 'utf8');
+        assert.doesNotMatch(source, /<\/?select(?:\s|>)/, `${file} should not use a raw select element`);
+    }
     for (const file of [...nativeSelectFiles, ...remotePickerFiles]) {
         const source = readFileSync(join(root, file), 'utf8');
         assert.doesNotMatch(source, /<\/?select(?:\s|>)/, `${file} should not use a raw select element`);

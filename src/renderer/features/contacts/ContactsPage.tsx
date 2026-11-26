@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useCallback, useDeferredValue, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MoreHorizontal, Pencil, Plus, Trash2, UserRound, X } from 'lucide-react';
+import { Plus, Trash2, UserRound } from 'lucide-react';
 import type { ContactInput, ContactRecord, WorkspaceNavigationTarget } from '@shared/contracts';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PageControls } from '@/components/shared/PageControls';
@@ -17,23 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
     Empty,
     EmptyContent,
@@ -42,12 +26,14 @@ import {
     EmptyMedia,
     EmptyTitle,
 } from '@/components/ui/empty';
-import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { Textarea } from '@/components/ui/textarea';
+import { useInitialProjectFilter } from '@/hooks/useInitialProjectFilter';
+import { usePaginatedFetch } from '@/hooks/usePaginatedFetch';
+import { useProjectNames } from '@/hooks/useProjectNames';
 import { friendlyError } from '@/lib/utils';
-import { contactFormSchema, emptyContactForm, type ContactFormValues } from './contact-form-schema';
+import { ContactFormDialog } from './ContactFormDialog';
+import { ContactListSidebar } from './ContactListSidebar';
 import { ContactProfilePane } from './ContactProfilePane';
+import { contactFormSchema, emptyContactForm, type ContactFormValues } from './contact-form-schema';
 
 interface Props {
     initialProjectId?: string | null | undefined;
@@ -57,6 +43,8 @@ interface Props {
     onRemove: (id: string) => Promise<void>;
     onNavigateTarget: (target: WorkspaceNavigationTarget) => void;
 }
+
+const PAGE_SIZE = 30;
 
 export function ContactsPage({
     initialProjectId,
@@ -71,77 +59,50 @@ export function ContactsPage({
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [pendingRemoval, setPendingRemoval] = useState<ContactRecord | null>(null);
     const [query, setQuery] = useState('');
-    const [filterProjectId, setFilterProjectId] = useState(initialProjectId || '');
+    const {
+        projectId: filterProjectId,
+        setProjectId: setFilterProjectId,
+        offset,
+        setOffset,
+    } = useInitialProjectFilter(initialProjectId, '', onConsumeFocus);
     const deferredQuery = useDeferredValue(query.trim());
     const form = useForm<ContactFormValues>({
         resolver: zodResolver(contactFormSchema),
         defaultValues: emptyContactForm,
         mode: 'onChange',
     });
-    const {
-        fields: attributeFields,
-        append: appendAttribute,
-        remove: removeAttribute,
-    } = useFieldArray({ control: form.control, name: 'customAttributes' });
-    const [role, projectId] = [form.watch('role'), form.watch('projectId')];
     const [busy, setBusy] = useState(false);
-    const [pageError, setPageError] = useState('');
-    const [visible, setVisible] = useState<ContactRecord[]>([]);
-    const [projectNames, setProjectNames] = useState<Record<string, string>>({});
-    const [total, setTotal] = useState(0);
-    const [offset, setOffset] = useState(0);
-    const [pageLoading, setPageLoading] = useState(true);
-    const requestRef = useRef(0);
-    const pageSize = 30;
 
-    useEffect(() => {
-        if (initialProjectId) {
-            setFilterProjectId(initialProjectId);
-            setOffset(0);
-            onConsumeFocus?.();
-        }
-    }, [initialProjectId, onConsumeFocus]);
-
-    const loadPage = useCallback(
-        async (requestedOffset = offset) => {
-            const requestId = ++requestRef.current;
-            setPageLoading(true);
-            try {
-                const page = await window.devLedger.contacts.listPage({
-                    limit: pageSize,
-                    offset: requestedOffset,
-                    query: deferredQuery,
-                    projectId: filterProjectId || null,
-                });
-                if (requestId === requestRef.current) {
-                    setVisible(page.items);
-                    setTotal(page.total);
-                    setPageError('');
-                    setSelectedId((cur) =>
-                        cur && page.items.some((item) => item.id === cur) ? cur : (page.items[0]?.id ?? null),
-                    );
-                    const ids = [...new Set(page.items.flatMap((c) => c.projectIds))];
-                    void window.devLedger.projects
-                        .getNames(ids)
-                        .then((names) => {
-                            if (requestId === requestRef.current)
-                                setProjectNames((c) => ({ ...c, ...names }));
-                        })
-                        .catch(() => undefined);
-                }
-            } finally {
-                if (requestId === requestRef.current) setPageLoading(false);
-            }
-        },
-        [deferredQuery, offset, filterProjectId],
+    const fetchContacts = useCallback(
+        (requestedOffset: number) =>
+            window.devLedger.contacts.listPage({
+                limit: PAGE_SIZE,
+                offset: requestedOffset,
+                query: deferredQuery,
+                projectId: filterProjectId || null,
+            }),
+        [deferredQuery, filterProjectId],
     );
 
-    useEffect(() => {
-        void loadPage().catch((cause: unknown) =>
-            setPageError(friendlyError(cause, 'Contacts could not be loaded.')),
-        );
-    }, [loadPage]);
+    const {
+        items: visible,
+        total,
+        loading: pageLoading,
+        error: pageError,
+        setError: setPageError,
+        loadPage,
+    } = usePaginatedFetch({
+        fetcher: fetchContacts,
+        offset,
+        errorFallback: 'Contacts could not be loaded.',
+        onLoaded: (page) => {
+            setSelectedId((cur) =>
+                cur && page.items.some((item) => item.id === cur) ? cur : (page.items[0]?.id ?? null),
+            );
+        },
+    });
 
+    const { projectNames } = useProjectNames(visible.flatMap((c) => c.projectIds));
     const activeContact = visible.find((item) => item.id === selectedId) ?? visible[0] ?? null;
 
     function beginEdit(contact: ContactRecord) {
@@ -161,11 +122,13 @@ export function ContactsPage({
         });
         setOpen(true);
     }
+
     function resetForm() {
         setEditingId(null);
         form.reset(emptyContactForm);
         form.clearErrors();
     }
+
     async function submit(values: ContactFormValues) {
         setBusy(true);
         form.clearErrors('root');
@@ -202,6 +165,7 @@ export function ContactsPage({
             setBusy(false);
         }
     }
+
     async function confirmRemoval() {
         if (!pendingRemoval) return;
         setBusy(true);
@@ -274,90 +238,13 @@ export function ContactsPage({
             ) : (
                 activeContact && (
                     <div className="contact-shell workspace-surface grid grid-cols-1 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
-                        <aside className="flex flex-col border-b border-border bg-sidebar/35 lg:border-b-0 lg:border-r">
-                            <div className="divide-y divide-border/75 overflow-y-auto">
-                                {visible.map((contact) => {
-                                    const initials = contact.name
-                                        .trim()
-                                        .split(/\s+/)
-                                        .slice(0, 2)
-                                        .map((p) => p[0]?.toUpperCase() ?? '')
-                                        .join('');
-                                    const isSelected = activeContact.id === contact.id;
-                                    const row = (
-                                        <div
-                                            className={`contact-list-item group flex items-center gap-2.5 border-l-2 px-3.5 py-2.5 transition-colors ${isSelected ? 'border-l-primary/75 bg-accent/70' : 'border-l-transparent hover:bg-surface-subtle'}`}
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedId(contact.id)}
-                                                className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                                            >
-                                                <Avatar className="size-8 shrink-0 rounded-lg border border-border/70">
-                                                    <AvatarFallback className="rounded-lg text-xs font-medium">
-                                                        {initials || <UserRound className="size-3.5" />}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-sm font-medium text-foreground">
-                                                        {contact.name}
-                                                    </p>
-                                                    <p className="truncate text-xs capitalize text-muted-foreground">
-                                                        {contact.role.replaceAll('_', ' ')}
-                                                        {contact.company ? ` · ${contact.company}` : ''}
-                                                    </p>
-                                                </div>
-                                            </button>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-8 shrink-0 text-muted-foreground opacity-75 hover:text-foreground hover:opacity-100"
-                                                        aria-label={`Actions for ${contact.name}`}
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onSelect={() => beginEdit(contact)}>
-                                                        <Pencil className="size-4" />
-                                                        Edit contact
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        variant="destructive"
-                                                        onSelect={() => setPendingRemoval(contact)}
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                        Move to trash
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    );
-                                    return (
-                                        <ContextMenu key={contact.id}>
-                                            <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
-                                            <ContextMenuContent>
-                                                <ContextMenuItem onSelect={() => beginEdit(contact)}>
-                                                    <Pencil className="size-4" />
-                                                    Edit contact
-                                                </ContextMenuItem>
-                                                <ContextMenuSeparator />
-                                                <ContextMenuItem
-                                                    variant="destructive"
-                                                    onSelect={() => setPendingRemoval(contact)}
-                                                >
-                                                    <Trash2 className="size-4" />
-                                                    Move to trash
-                                                </ContextMenuItem>
-                                            </ContextMenuContent>
-                                        </ContextMenu>
-                                    );
-                                })}
-                            </div>
-                        </aside>
+                        <ContactListSidebar
+                            contacts={visible}
+                            activeContactId={activeContact.id}
+                            onSelect={setSelectedId}
+                            onEdit={beginEdit}
+                            onRequestDelete={setPendingRemoval}
+                        />
                         <ContactProfilePane
                             contact={activeContact}
                             projectNames={projectNames}
@@ -411,159 +298,24 @@ export function ContactsPage({
             )}
             <PageControls
                 offset={offset}
-                limit={pageSize}
+                limit={PAGE_SIZE}
                 total={total}
                 disabled={pageLoading}
                 onPageChange={setOffset}
             />
 
-            <Dialog
+            <ContactFormDialog
                 open={open}
+                editing={Boolean(editingId)}
+                busy={busy}
+                form={form}
+                projectNames={projectNames}
                 onOpenChange={(next) => {
                     setOpen(next);
                     if (!next) resetForm();
                 }}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{editingId ? 'Edit contact' : 'Add a contact'}</DialogTitle>
-                        <DialogDescription>
-                            Store local contact details and link to a project.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={form.handleSubmit(submit)} className="space-y-3 text-xs font-medium">
-                        <label className="block space-y-1">
-                            Name
-                            <Input
-                                autoFocus
-                                {...form.register('name')}
-                                maxLength={160}
-                                placeholder="Full name"
-                                aria-invalid={Boolean(form.formState.errors.name)}
-                            />
-                            {form.formState.errors.name && (
-                                <p role="alert" className="text-xs font-normal text-destructive">
-                                    {form.formState.errors.name.message}
-                                </p>
-                            )}
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <label className="block space-y-1">
-                                Role
-                                <NativeSelect {...form.register('role')} className="h-9 w-full text-xs">
-                                    <NativeSelectOption value="client">Main client</NativeSelectOption>
-                                    <NativeSelectOption value="project_manager">
-                                        Project manager
-                                    </NativeSelectOption>
-                                    <NativeSelectOption value="technical_manager">
-                                        Technical manager
-                                    </NativeSelectOption>
-                                    <NativeSelectOption value="developer">Developer</NativeSelectOption>
-                                    <NativeSelectOption value="designer">Designer</NativeSelectOption>
-                                    <NativeSelectOption value="vendor">Vendor</NativeSelectOption>
-                                    <NativeSelectOption value="other">Other</NativeSelectOption>
-                                    {![
-                                        'client',
-                                        'project_manager',
-                                        'technical_manager',
-                                        'developer',
-                                        'designer',
-                                        'vendor',
-                                        'other',
-                                    ].includes(role) && (
-                                        <NativeSelectOption value={role}>
-                                            {role.replaceAll('_', ' ')}
-                                        </NativeSelectOption>
-                                    )}
-                                </NativeSelect>
-                            </label>
-                            <label className="block space-y-1">
-                                Project
-                                <RemoteRecordPicker
-                                    entityType="project"
-                                    value={projectId}
-                                    onValueChange={(v) =>
-                                        form.setValue('projectId', v, { shouldDirty: true })
-                                    }
-                                    placeholder="No project"
-                                    selectedLabel={projectNames[projectId]}
-                                />
-                            </label>
-                        </div>
-                        <label className="block space-y-1">
-                            Company
-                            <Input {...form.register('company')} maxLength={160} />
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <label className="block space-y-1">
-                                Email
-                                <Input type="email" {...form.register('email')} maxLength={254} />
-                            </label>
-                            <label className="block space-y-1">
-                                Phone
-                                <Input {...form.register('phone')} maxLength={80} />
-                            </label>
-                        </div>
-                        <label className="block space-y-1">
-                            Notes
-                            <Textarea {...form.register('notes')} rows={2} maxLength={10000} />
-                        </label>
-                        <section className="space-y-2 rounded-md border border-border p-2.5">
-                            <div className="flex items-center justify-between">
-                                <span>Custom fields</span>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() => appendAttribute({ key: '', value: '' })}
-                                    disabled={attributeFields.length >= 20}
-                                >
-                                    <Plus className="size-3" />
-                                    Add
-                                </Button>
-                            </div>
-                            {attributeFields.map((field, idx) => (
-                                <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
-                                    <Input
-                                        placeholder="Field"
-                                        maxLength={40}
-                                        {...form.register(`customAttributes.${idx}.key`)}
-                                    />
-                                    <Input
-                                        placeholder="Value"
-                                        maxLength={500}
-                                        {...form.register(`customAttributes.${idx}.value`)}
-                                    />
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        className="size-8"
-                                        aria-label={`Remove custom field ${idx + 1}`}
-                                        onClick={() => removeAttribute(idx)}
-                                    >
-                                        <X className="size-3.5" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </section>
-                        {form.formState.errors.root?.message && (
-                            <p role="alert" className="text-destructive">
-                                {form.formState.errors.root.message}
-                            </p>
-                        )}
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" type="button" onClick={() => setOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={busy}>
-                                {busy ? 'Saving…' : 'Save'}
-                            </Button>
-                        </div>
-                    </form>
-                </DialogContent>
-            </Dialog>
+                onSubmit={submit}
+            />
 
             <AlertDialog
                 open={Boolean(pendingRemoval)}

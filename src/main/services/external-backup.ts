@@ -1,22 +1,9 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { access, lstat, open, realpath, rename, rm, stat, type FileHandle } from 'node:fs/promises';
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, isAbsolute, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-
-function isInside(parent: string, candidate: string): boolean {
-    const relativePath = relative(resolve(parent), resolve(candidate));
-    return (
-        relativePath === '' ||
-        (relativePath !== '..' && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath))
-    );
-}
-
-async function hashFile(filePath: string): Promise<string> {
-    const hash = createHash('sha256');
-    for await (const chunk of createReadStream(filePath)) hash.update(chunk as Buffer);
-    return hash.digest('hex');
-}
+import { isPathInside as isInside, sha256File as hashFile } from './fs-safety.ts';
 
 async function syncDirectory(directory: string): Promise<void> {
     let handle: FileHandle | undefined;

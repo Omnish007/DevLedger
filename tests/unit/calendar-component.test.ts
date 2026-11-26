@@ -27,6 +27,13 @@ test('Calendar uses the official DayPicker v10 default class map and current cla
     }
 });
 
+test('Calendar dropdown selects overlay the full pill without conflicting position utilities', () => {
+    assert.doesNotMatch(calendarSource, /months_dropdown:[\s\S]*?'relative'/);
+    assert.doesNotMatch(calendarSource, /years_dropdown:[\s\S]*?'relative'/);
+    assert.match(calendarSource, /dropdown:[\s\S]*?absolute inset-0 z-10 h-full w-full/);
+    assert.match(calendarSource, /caption_label:[\s\S]*?pointer-events-none/);
+});
+
 test('Calendar stories cover single date, date range and month/year navigation', () => {
     assert.match(storySource, /mode="single"/);
     assert.match(storySource, /mode="range"/);

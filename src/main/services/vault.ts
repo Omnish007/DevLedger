@@ -1,63 +1,24 @@
-import { randomBytes, randomUUID, createCipheriv, createDecipheriv } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import {
+    type EncryptedValue,
+    NOTE_AAD_PREFIX,
+    VAULT_AAD,
+    type VaultKeyDeriver,
+    type VaultKeyPurpose,
+    type WrappedKeyRow,
+    decryptVaultPayload,
+    deriveArgon2Key,
+    encryptVaultPayload,
+} from './vault-crypto.ts';
 
-const VAULT_AAD = Buffer.from('northstar-vault-master-key-v1');
-const NOTE_AAD_PREFIX = 'northstar-protected-note-v1:';
-
-interface EncryptedValue {
-    nonce: string;
-    ciphertext: string;
-    tag: string;
-}
-interface WrappedKeyRow {
-    pass_salt: string;
-    pass_nonce: string;
-    pass_wrapped_key: string;
-    pass_tag: string;
-    recovery_salt: string;
-    recovery_nonce: string;
-    recovery_wrapped_key: string;
-    recovery_tag: string;
-}
-
-function encrypt(key: Buffer, plaintext: Buffer, aad: Buffer): EncryptedValue {
-    const nonce = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', key, nonce);
-    cipher.setAAD(aad);
-    const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-    return {
-        nonce: nonce.toString('base64'),
-        ciphertext: ciphertext.toString('base64'),
-        tag: cipher.getAuthTag().toString('base64'),
-    };
-}
-function decrypt(key: Buffer, payload: EncryptedValue, aad: Buffer): Buffer {
-    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(payload.nonce, 'base64'));
-    decipher.setAAD(aad);
-    decipher.setAuthTag(Buffer.from(payload.tag, 'base64'));
-    return Buffer.concat([decipher.update(Buffer.from(payload.ciphertext, 'base64')), decipher.final()]);
-}
-export type VaultKeyPurpose = 'passphrase' | 'recovery';
-export type VaultKeyDeriver = (secret: string, salt: Buffer, purpose: VaultKeyPurpose) => Promise<Buffer>;
-
-/** Load the native KDF only when a vault operation actually needs it. */
-async function deriveArgon2Key(secret: string, salt: Buffer, purpose: VaultKeyPurpose): Promise<Buffer> {
-    const { default: argon2 } = await import('argon2');
-    return argon2.hash(secret, {
-        type: argon2.argon2id,
-        salt,
-        hashLength: 32,
-        memoryCost: purpose === 'passphrase' ? 65_536 : 32_768,
-        timeCost: purpose === 'passphrase' ? 3 : 2,
-        parallelism: 1,
-        raw: true,
-    });
-}
+export type { VaultKeyDeriver, VaultKeyPurpose } from './vault-crypto.ts';
 
 export interface VaultStatus {
     configured: boolean;
     unlocked: boolean;
 }
+
 export interface ProtectedNote {
     id: string;
     projectId: string | null;
@@ -100,8 +61,8 @@ export class VaultService {
             this.assertOperationActive(operationGeneration);
             recoveryWrappingKey = await this.deriveKey(recoveryKey, recoverySalt, 'recovery');
             this.assertOperationActive(operationGeneration);
-            const passWrap = encrypt(passKey, masterKey, VAULT_AAD);
-            const recoveryWrap = encrypt(recoveryWrappingKey, masterKey, VAULT_AAD);
+            const passWrap = encryptVaultPayload(passKey, masterKey, VAULT_AAD);
+            const recoveryWrap = encryptVaultPayload(recoveryWrappingKey, masterKey, VAULT_AAD);
             this.assertOperationActive(operationGeneration);
             const now = new Date().toISOString();
             this.db
@@ -131,32 +92,40 @@ export class VaultService {
         }
     }
 
-    async unlockWithPassphrase(passphrase: string): Promise<void> {
-        this.validatePassphrase(passphrase);
+    private async unlockWithWrappedSecret(
+        secret: string,
+        purpose: VaultKeyPurpose,
+        saltB64: string,
+        payload: EncryptedValue,
+        incorrectMessage: string,
+    ): Promise<void> {
         const operationGeneration = this.generation;
-        const row = this.getMetadata();
-        const wrappingKey = await this.deriveKey(
-            passphrase,
-            Buffer.from(row.pass_salt, 'base64'),
-            'passphrase',
-        );
+        const wrappingKey = await this.deriveKey(secret, Buffer.from(saltB64, 'base64'), purpose);
         try {
             this.assertOperationActive(operationGeneration);
-            const key = decrypt(
-                wrappingKey,
-                { nonce: row.pass_nonce, ciphertext: row.pass_wrapped_key, tag: row.pass_tag },
-                VAULT_AAD,
-            );
+            const key = decryptVaultPayload(wrappingKey, payload, VAULT_AAD);
             this.assertMasterKey(key);
             this.assertOperationActive(operationGeneration);
             this.replaceMasterKey(key);
         } catch {
             if (operationGeneration !== this.generation)
                 throw new Error('Vault operation cancelled because the vault was locked.');
-            throw new Error('The vault passphrase is incorrect.');
+            throw new Error(incorrectMessage);
         } finally {
             wrappingKey.fill(0);
         }
+    }
+
+    async unlockWithPassphrase(passphrase: string): Promise<void> {
+        this.validatePassphrase(passphrase);
+        const row = this.getMetadata();
+        await this.unlockWithWrappedSecret(
+            passphrase,
+            'passphrase',
+            row.pass_salt,
+            { nonce: row.pass_nonce, ciphertext: row.pass_wrapped_key, tag: row.pass_tag },
+            'The vault passphrase is incorrect.',
+        );
     }
 
     unlockWithDeviceKey(key: Buffer): void {
@@ -168,30 +137,14 @@ export class VaultService {
     async unlockWithRecoveryKey(recoveryKey: string): Promise<void> {
         if (!/^[A-Za-z0-9_-]{40,60}$/.test(recoveryKey))
             throw new Error('The offline recovery key is not in a valid format.');
-        const operationGeneration = this.generation;
         const row = this.getMetadata();
-        const wrappingKey = await this.deriveKey(
+        await this.unlockWithWrappedSecret(
             recoveryKey,
-            Buffer.from(row.recovery_salt, 'base64'),
             'recovery',
+            row.recovery_salt,
+            { nonce: row.recovery_nonce, ciphertext: row.recovery_wrapped_key, tag: row.recovery_tag },
+            'The offline recovery key is incorrect.',
         );
-        try {
-            this.assertOperationActive(operationGeneration);
-            const key = decrypt(
-                wrappingKey,
-                { nonce: row.recovery_nonce, ciphertext: row.recovery_wrapped_key, tag: row.recovery_tag },
-                VAULT_AAD,
-            );
-            this.assertMasterKey(key);
-            this.assertOperationActive(operationGeneration);
-            this.replaceMasterKey(key);
-        } catch {
-            if (operationGeneration !== this.generation)
-                throw new Error('Vault operation cancelled because the vault was locked.');
-            throw new Error('The offline recovery key is incorrect.');
-        } finally {
-            wrappingKey.fill(0);
-        }
     }
 
     /** Returns a short-lived copy for a single cryptographic operation. Callers must zero it. */
@@ -216,7 +169,7 @@ export class VaultService {
         try {
             wrappingKey = await this.deriveKey(nextPassphrase, salt, 'passphrase');
             this.assertOperationActive(operationGeneration);
-            const wrapped = encrypt(wrappingKey, masterKey, VAULT_AAD);
+            const wrapped = encryptVaultPayload(wrappingKey, masterKey, VAULT_AAD);
             this.db
                 .prepare(
                     `UPDATE vault_metadata SET pass_salt = ?, pass_nonce = ?, pass_wrapped_key = ?, pass_tag = ?, updated_at = ? WHERE singleton_id = 1`,
@@ -250,7 +203,7 @@ export class VaultService {
         );
         let encrypted: EncryptedValue;
         try {
-            encrypted = encrypt(key, plaintext, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
+            encrypted = encryptVaultPayload(key, plaintext, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
         } finally {
             plaintext.fill(0);
         }
@@ -277,7 +230,7 @@ export class VaultService {
                     `INSERT INTO activity_events (id, entity_type, entity_id, event_type, summary, created_at)
         VALUES (?, 'note', ?, 'locked', 'Protected note was locked', ?)`,
                 )
-                .run(cryptoUuid(), noteId, new Date().toISOString());
+                .run(randomUUID(), noteId, new Date().toISOString());
         });
         update.immediate();
         // secure_delete is enabled for the database. Truncate WAL frames after the lock transaction so earlier plaintext frames are not retained in the active WAL.
@@ -303,7 +256,7 @@ export class VaultService {
             tag: meta.tag,
             ciphertext: Buffer.from(row['encrypted_payload'] as Buffer).toString('base64'),
         };
-        const plain = decrypt(key, encrypted, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
+        const plain = decryptVaultPayload(key, encrypted, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
         try {
             const parsed = JSON.parse(plain.toString('utf8')) as {
                 title: string;
@@ -349,7 +302,7 @@ export class VaultService {
         );
         let encrypted: EncryptedValue;
         try {
-            encrypted = encrypt(key, plaintext, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
+            encrypted = encryptVaultPayload(key, plaintext, Buffer.from(`${NOTE_AAD_PREFIX}${noteId}`));
         } finally {
             plaintext.fill(0);
         }
@@ -373,6 +326,47 @@ export class VaultService {
             createdAt: '',
             updatedAt: now,
             locked: true,
+        };
+    }
+
+    unprotectNote(noteId: string): Omit<ProtectedNote, 'locked'> & { locked: false } {
+        const decrypted = this.unlockNote(noteId);
+        let projectId = decrypted.projectId;
+        if (projectId) {
+            const exists = this.db
+                .prepare('SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL')
+                .get(projectId);
+            if (!exists) projectId = null;
+        }
+        const safeTitle = decrypted.title.trim() || 'Untitled note';
+        const now = new Date().toISOString();
+        const tx = this.db.transaction(() => {
+            const result = this.db
+                .prepare(
+                    `UPDATE notes
+                     SET title = ?, content = ?, project_id = ?, locked = 0,
+                         encrypted_payload = NULL, encryption_meta = NULL,
+                         content_version = content_version + 1, updated_at = ?
+                     WHERE id = ? AND deleted_at IS NULL AND locked = 1`,
+                )
+                .run(safeTitle, decrypted.content, projectId, now, noteId);
+            if (result.changes !== 1) throw new Error('Locked note not found.');
+            this.db
+                .prepare(
+                    `INSERT INTO activity_events (id, entity_type, entity_id, event_type, summary, created_at)
+                     VALUES (?, 'note', ?, 'unprotected', ?, ?)`,
+                )
+                .run(randomUUID(), noteId, `Removed vault lock from ${safeTitle}`, now);
+        });
+        tx.immediate();
+        return {
+            id: noteId,
+            projectId,
+            title: safeTitle,
+            content: decrypted.content,
+            createdAt: decrypted.createdAt,
+            updatedAt: now,
+            locked: false,
         };
     }
 
@@ -402,8 +396,4 @@ export class VaultService {
     private assertMasterKey(key: Buffer): void {
         if (key.length !== 32) throw new Error('Invalid vault key material.');
     }
-}
-
-function cryptoUuid(): string {
-    return randomUUID();
 }

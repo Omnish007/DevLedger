@@ -13,9 +13,12 @@ import {
     Settings2,
     Users,
 } from 'lucide-react';
-import type { SearchResult, WorkspaceNavigationTarget, WorkspaceViewId } from '@shared/contracts';
+import type { WorkspaceNavigationTarget, WorkspaceViewId } from '@shared/contracts';
 import { DevLedgerLogo } from '@/components/shared/BrandMark';
+import { CommandPaletteDialog, type CommandPaletteNavItem } from '@/components/shared/CommandPaletteDialog';
+import { NotificationsPopover } from '@/components/shared/NotificationsPopover';
 import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
 import {
     Sidebar,
     SidebarContent,
@@ -31,22 +34,11 @@ import {
     SidebarSeparator,
     SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Kbd } from '@/components/ui/kbd';
-import {
-    CommandDialog,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@/components/ui/command';
-import { NotificationsPopover } from '@/components/shared/NotificationsPopover';
-import { targetFromRecord } from '@/lib/navigation';
-import { formatRelative } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 export type ViewId = WorkspaceViewId;
 
-const navigation: Array<{ id: ViewId; label: string; icon: typeof Activity; shortcut?: string }> = [
+const navigation: CommandPaletteNavItem[] = [
     { id: 'dashboard', label: 'Overview', icon: Activity },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'notes', label: 'Notes', icon: BookOpen },
@@ -86,34 +78,18 @@ export function AppShell({
     onSidebarOpenChange,
 }: AppShellProps) {
     const [commandOpen, setCommandOpen] = useState(false);
-    const [commandQuery, setCommandQuery] = useState('');
-    const [quickResults, setQuickResults] = useState<SearchResult[]>([]);
-    const [viewportMode, setViewportMode] = useState<'desktop' | 'tablet' | 'mobile'>(() => {
-        if (typeof window === 'undefined') return 'desktop';
-        if (window.matchMedia('(max-width: 639px)').matches) return 'mobile';
-        if (window.matchMedia('(max-width: 899px)').matches) return 'tablet';
-        return 'desktop';
-    });
+    const isMobile = useMediaQuery('(max-width: 639px)');
+    const isTablet = useMediaQuery('(max-width: 899px)');
+    const viewportMode: 'desktop' | 'tablet' | 'mobile' = isMobile
+        ? 'mobile'
+        : isTablet
+          ? 'tablet'
+          : 'desktop';
     const [compactSidebarOpen, setCompactSidebarOpen] = useState(false);
 
     useEffect(() => {
-        const mobileQuery = window.matchMedia('(max-width: 639px)');
-        const tabletQuery = window.matchMedia('(max-width: 899px)');
-        const syncViewport = () => {
-            const next = mobileQuery.matches ? 'mobile' : tabletQuery.matches ? 'tablet' : 'desktop';
-            setViewportMode(next);
-            if (next !== 'desktop') {
-                setCompactSidebarOpen(false);
-            }
-        };
-        syncViewport();
-        mobileQuery.addEventListener('change', syncViewport);
-        tabletQuery.addEventListener('change', syncViewport);
-        return () => {
-            mobileQuery.removeEventListener('change', syncViewport);
-            tabletQuery.removeEventListener('change', syncViewport);
-        };
-    }, []);
+        if (viewportMode !== 'desktop') setCompactSidebarOpen(false);
+    }, [viewportMode]);
 
     const isCompactViewport = viewportMode !== 'desktop';
     const handleSelectView = (view: ViewId) => {
@@ -131,26 +107,6 @@ export function AppShell({
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, []);
-
-    useEffect(() => {
-        if (!commandOpen || !commandQuery.trim()) {
-            setQuickResults([]);
-            return;
-        }
-        let active = true;
-        const timer = window.setTimeout(() => {
-            void window.devLedger.search
-                .query({ query: commandQuery.trim(), limit: 8 })
-                .then((rows) => {
-                    if (active) setQuickResults(rows);
-                })
-                .catch(() => undefined);
-        }, 150);
-        return () => {
-            active = false;
-            window.clearTimeout(timer);
-        };
-    }, [commandOpen, commandQuery]);
 
     const renderNavigation = (items: typeof navigation) =>
         items.map((item) => {
@@ -310,82 +266,14 @@ export function AppShell({
                 </div>
             </div>
 
-            <CommandDialog
+            <CommandPaletteDialog
                 open={commandOpen}
-                onOpenChange={(open) => {
-                    setCommandOpen(open);
-                    if (!open) setCommandQuery('');
-                }}
-                title="DevLedger command palette"
-                description="Jump to a record, switch views or capture a quick note."
-            >
-                <CommandInput
-                    value={commandQuery}
-                    onValueChange={setCommandQuery}
-                    placeholder="Jump to a note, task, project, contact or view…"
-                />
-                <CommandList>
-                    <CommandEmpty>No matching command or record.</CommandEmpty>
-                    {quickResults.length > 0 && (
-                        <CommandGroup heading="Records">
-                            {quickResults.map((result) => (
-                                <CommandItem
-                                    key={`${result.type}:${result.id}`}
-                                    value={`record-${result.type}-${result.title}-${result.id}`}
-                                    onSelect={() => {
-                                        setCommandOpen(false);
-                                        onNavigateTarget(
-                                            targetFromRecord(result.type, result.id, result.projectId),
-                                        );
-                                    }}
-                                >
-                                    <span className="rounded border border-border/70 bg-surface-subtle px-1.5 py-0.5 text-[11px] font-medium uppercase text-foreground/85">
-                                        {result.type}
-                                    </span>
-                                    <span className="min-w-0 flex-1 truncate font-medium">
-                                        {result.title}
-                                    </span>
-                                    <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
-                                        {formatRelative(result.updatedAt)}
-                                    </span>
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    )}
-                    <CommandGroup heading="Navigate">
-                        {navigation.map((item) => {
-                            const Icon = item.icon;
-                            return (
-                                <CommandItem
-                                    key={item.id}
-                                    value={`${item.label} ${item.id}`}
-                                    onSelect={() => {
-                                        setCommandOpen(false);
-                                        onNavigate(item.id);
-                                    }}
-                                >
-                                    <Icon className="size-4 text-muted-foreground" />
-                                    <span>{item.label}</span>
-                                    {item.shortcut && <Kbd className="ml-auto">{item.shortcut}</Kbd>}
-                                </CommandItem>
-                            );
-                        })}
-                    </CommandGroup>
-                    <CommandGroup heading="Create">
-                        <CommandItem
-                            value="quick capture new note"
-                            onSelect={() => {
-                                setCommandOpen(false);
-                                onQuickCapture();
-                            }}
-                        >
-                            <Plus className="size-4 text-muted-foreground" />
-                            <span>Quick capture</span>
-                            <Kbd className="ml-auto">Ctrl ⇧ Space</Kbd>
-                        </CommandItem>
-                    </CommandGroup>
-                </CommandList>
-            </CommandDialog>
+                navigation={navigation}
+                onOpenChange={setCommandOpen}
+                onNavigate={onNavigate}
+                onNavigateTarget={onNavigateTarget}
+                onQuickCapture={onQuickCapture}
+            />
         </SidebarProvider>
     );
 }

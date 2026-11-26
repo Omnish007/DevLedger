@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RecordConnectionsPanel } from '@/components/shared/RecordConnectionsPanel';
 import { formatDate, friendlyError } from '@/lib/utils';
+import { TASK_STATUS_LABEL, TASK_STATUS_VARIANT } from '@/features/tasks/task-metadata';
 
 interface ProjectDetailSheetProps {
     project: ProjectRecord | null;
@@ -23,27 +24,6 @@ interface ProjectDetailSheetProps {
     onStatusChange: (id: string, status: ProjectStatus) => Promise<void>;
     onNavigate: (target: WorkspaceNavigationTarget) => void;
 }
-
-const TASK_STATUS_VARIANT: Record<
-    TaskRecord['status'],
-    'outline' | 'info' | 'secondary' | 'warning' | 'success'
-> = {
-    not_started: 'outline',
-    in_progress: 'info',
-    waiting: 'secondary',
-    blocked: 'warning',
-    completed: 'success',
-    cancelled: 'secondary',
-};
-
-const TASK_STATUS_LABEL: Record<TaskRecord['status'], string> = {
-    not_started: 'Not started',
-    in_progress: 'In progress',
-    waiting: 'Waiting',
-    blocked: 'Blocked',
-    completed: 'Completed',
-    cancelled: 'Cancelled',
-};
 
 export function ProjectDetailSheet({
     project,

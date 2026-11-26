@@ -8,6 +8,7 @@ import {
     assertCredentialCanBeInitialized,
     isAutomaticSnapshotName,
 } from '../../domain/automatic-backup-credential.js';
+import { readAppSettingJson, writeAppSetting } from './app-settings-store.ts';
 import { BackupService } from './backup.js';
 import { listExternalSnapshots, mirrorEncryptedBackup } from './external-backup.js';
 import { NotificationInboxService, backupNotificationKey } from './notification-inbox.js';
@@ -36,13 +37,7 @@ export class AutomaticBackupManager {
     }
 
     private saveSetting(key: string, value: unknown, notify = true): void {
-        const timestamp = new Date().toISOString();
-        this.db
-            .prepare(
-                `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-            )
-            .run(key, JSON.stringify(value), timestamp);
+        writeAppSetting(this.db, key, value);
         if (notify && typeof value === 'string' && key.endsWith('LastError')) {
             const isExternal = key.startsWith('backup.external');
             const isOffline = key.startsWith('backup.offline');
@@ -237,28 +232,13 @@ export class AutomaticBackupManager {
         sameVolumeKey: string,
         distinctFromKey?: string,
     ): Promise<void> {
-        const setting = this.db
-            .prepare('SELECT value_json FROM app_settings WHERE key = ?')
-            .get(directoryKey) as { value_json: string } | undefined;
-        if (!setting) return;
-        let directory: unknown;
-        try {
-            directory = JSON.parse(setting.value_json) as unknown;
-        } catch {
-            directory = null;
-        }
+        const directory = readAppSettingJson<unknown>(this.db, directoryKey);
         if (typeof directory !== 'string' || !directory.trim()) return;
         try {
             let otherDirectory: string | undefined;
             if (distinctFromKey) {
-                const other = this.db
-                    .prepare('SELECT value_json FROM app_settings WHERE key = ?')
-                    .get(distinctFromKey) as { value_json: string } | undefined;
-                try {
-                    otherDirectory = other ? (JSON.parse(other.value_json) as string) : undefined;
-                } catch {
-                    otherDirectory = undefined;
-                }
+                const parsedOther = readAppSettingJson<unknown>(this.db, distinctFromKey);
+                otherDirectory = typeof parsedOther === 'string' ? parsedOther : undefined;
                 if (!otherDirectory)
                     throw new Error('The first external backup destination is no longer configured.');
             }

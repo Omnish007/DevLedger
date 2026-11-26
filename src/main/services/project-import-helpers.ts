@@ -1,7 +1,6 @@
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { access, readFile, stat } from 'node:fs/promises';
-import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
+import { basename, isAbsolute } from 'node:path';
+export { isPathInside as isInside, pathExists, sha256File } from './fs-safety.ts';
 
 export type ProjectImportRow = Record<string, unknown>;
 
@@ -21,27 +20,6 @@ export function safeArchivePath(value: string): boolean {
     if (!value || value.includes('\\') || value.includes('\0') || value.startsWith('/') || isAbsolute(value))
         return false;
     return value.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
-}
-export function isInside(parent: string, candidate: string): boolean {
-    const rel = relative(resolve(parent), resolve(candidate));
-    return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-}
-export async function sha256File(path: string, signal?: AbortSignal): Promise<string> {
-    return new Promise((resolveHash, reject) => {
-        const hash = createHash('sha256');
-        const input = createReadStream(path, signal ? { signal } : {});
-        input.on('data', (chunk: string | Buffer) => hash.update(chunk));
-        input.once('error', reject);
-        input.once('end', () => resolveHash(hash.digest('hex')));
-    });
-}
-export async function pathExists(path: string): Promise<boolean> {
-    try {
-        await access(path);
-        return true;
-    } catch {
-        return false;
-    }
 }
 export function readSafeJsonFile(path: string, sizeLimit = 250 * 1024 * 1024): Promise<unknown> {
     return stat(path).then(async (info) => {

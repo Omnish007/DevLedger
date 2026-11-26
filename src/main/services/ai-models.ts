@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { readAppSettingJson } from './app-settings-store.ts';
 
 const EMBED_NAME_RE = /(embed|minilm|bge[-_:]|e5[-_:]|arctic-embed|snowflake-arctic)/i;
 const DEFAULT_CHAT_CANDIDATES = [
@@ -33,15 +34,10 @@ export function matchInstalledModel(preferred: string, installed: readonly strin
 }
 
 function readConfiguredModel(db: Database.Database, key: string): string | null {
-    const row = db.prepare('SELECT value_json FROM app_settings WHERE key = ?').get(key) as
-        { value_json: string } | undefined;
-    if (!row) return null;
-    try {
-        const parsed = String(JSON.parse(row.value_json)).trim();
-        return parsed || null;
-    } catch {
-        return null;
-    }
+    const value = readAppSettingJson<unknown>(db, key);
+    if (value === undefined) return null;
+    const parsed = String(value).trim();
+    return parsed || null;
 }
 
 export function resolveChatModel(

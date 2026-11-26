@@ -1,21 +1,38 @@
 import { randomUUID } from 'node:crypto';
 import type {
+    PageRequest,
+    PageResult,
     TaskInput,
     TaskRecord,
     TaskRelationSummary,
     TaskStatus,
-    PageRequest,
-    PageResult,
 } from '../../../shared/contracts.js';
-import { normalizePage, escapeLikeQuery } from '../../../domain/pagination.ts';
-import { safeFtsQuery } from '../../../domain/validation.ts';
-import { elapsedMinutes } from '../../../domain/task-rules.ts';
 import { isValidDateOnly } from '../../../domain/date-only.ts';
+import { escapeLikeQuery, normalizePage } from '../../../domain/pagination.ts';
+import { safeFtsQuery } from '../../../domain/validation.ts';
+import { mapTask, nowIso } from './base.ts';
 import { WorkspaceNotesService } from './notes.ts';
-
-import { nowIso, mapTask } from './base.ts';
+import { buildTaskRelationSummaries } from './task-relations.ts';
+import {
+    type TaskTimerContext,
+    getActiveTaskTimer,
+    heartbeatActiveTaskTimer,
+    resolveTaskTimerRecovery,
+    startTaskTimer,
+    stopTaskTimer,
+} from './task-timers.ts';
 
 export class WorkspaceTasksService extends WorkspaceNotesService {
+    private timerContext(): TaskTimerContext {
+        return {
+            db: this.db,
+            sessionId: this.sessionId,
+            assertTaskExists: (taskId) => this.assertTaskExists(taskId),
+            addActivity: (entityType, entityId, eventType, summary) =>
+                this.addActivity(entityType, entityId, eventType, summary),
+        };
+    }
+
     listTasksPage(input: PageRequest = {}): PageResult<TaskRecord> {
         const { limit, offset, query } = normalizePage(input);
         const projectId = input.projectId ?? null;
@@ -88,105 +105,7 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
     }
 
     getTaskRelationSummaries(ids: string[]): Record<string, TaskRelationSummary> {
-        const uniqueIds = [...new Set(ids)]
-            .filter((id) => typeof id === 'string' && id.length > 0)
-            .slice(0, 200);
-        if (uniqueIds.length === 0) return {};
-        const result: Record<string, TaskRelationSummary> = Object.fromEntries(
-            uniqueIds.map((id) => [
-                id,
-                {
-                    dependsOnOpen: 0,
-                    dependsOnTotal: 0,
-                    blocksCount: 0,
-                    linkCount: 0,
-                    activeBlockerId: null,
-                    activeBlockerReason: null,
-                    waitingContactId: null,
-                    waitingContactName: null,
-                    blockerFollowUpAt: null,
-                    firstPrereqId: null,
-                    firstPrereqTitle: null,
-                },
-            ]),
-        );
-        const ph = uniqueIds.map(() => '?').join(',');
-        const prereqRows = this.db
-            .prepare(
-                `SELECT td.task_id, td.depends_on_task_id, dep.title, dep.status
-                 FROM task_dependencies td
-                 JOIN tasks dep ON dep.id = td.depends_on_task_id
-                 WHERE td.task_id IN (${ph}) AND dep.deleted_at IS NULL
-                 ORDER BY CASE WHEN dep.status IN ('completed', 'cancelled') THEN 1 ELSE 0 END, dep.title`,
-            )
-            .all(...uniqueIds) as Array<{
-            task_id: string;
-            depends_on_task_id: string;
-            title: string;
-            status: string;
-        }>;
-        for (const row of prereqRows) {
-            const entry = result[row.task_id];
-            if (!entry) continue;
-            entry.dependsOnTotal += 1;
-            const isOpen = row.status !== 'completed' && row.status !== 'cancelled';
-            if (isOpen) entry.dependsOnOpen += 1;
-            if (!entry.firstPrereqId && isOpen) {
-                entry.firstPrereqId = row.depends_on_task_id;
-                entry.firstPrereqTitle = row.title;
-            }
-        }
-        const blockRows = this.db
-            .prepare(
-                `SELECT td.depends_on_task_id AS task_id, count(*) AS total
-                 FROM task_dependencies td
-                 JOIN tasks child ON child.id = td.task_id
-                 WHERE td.depends_on_task_id IN (${ph}) AND child.deleted_at IS NULL AND child.status NOT IN ('completed', 'cancelled')
-                 GROUP BY td.depends_on_task_id`,
-            )
-            .all(...uniqueIds) as Array<{ task_id: string; total: number }>;
-        for (const row of blockRows) {
-            const entry = result[row.task_id];
-            if (entry) entry.blocksCount = Number(row.total);
-        }
-        const blockerRows = this.db
-            .prepare(
-                `SELECT tb.id AS blocker_id, tb.task_id, tb.reason, tb.waiting_contact_id, c.name AS contact_name, tb.follow_up_at
-                 FROM task_blockers tb
-                 LEFT JOIN contacts c ON c.id = tb.waiting_contact_id AND c.deleted_at IS NULL
-                 WHERE tb.task_id IN (${ph}) AND tb.resolved_at IS NULL`,
-            )
-            .all(...uniqueIds) as Array<{
-            blocker_id: string;
-            task_id: string;
-            reason: string;
-            waiting_contact_id: string | null;
-            contact_name: string | null;
-            follow_up_at: string | null;
-        }>;
-        for (const row of blockerRows) {
-            const entry = result[row.task_id];
-            if (!entry) continue;
-            entry.activeBlockerId = row.blocker_id;
-            entry.activeBlockerReason = row.reason;
-            entry.waitingContactId = row.waiting_contact_id;
-            entry.waitingContactName = row.contact_name;
-            entry.blockerFollowUpAt = row.follow_up_at;
-        }
-        const linkRows = this.db
-            .prepare(
-                `SELECT entity_id, count(*) AS total FROM (
-                   SELECT source_id AS entity_id FROM entity_links WHERE source_type = 'task' AND source_id IN (${ph})
-                   UNION ALL
-                   SELECT target_id AS entity_id FROM entity_links WHERE target_type = 'task' AND target_id IN (${ph})
-                 ) GROUP BY entity_id`,
-            )
-            .all(...uniqueIds, ...uniqueIds) as Array<{ entity_id: string; total: number }>;
-        for (const row of linkRows) {
-            const entry = result[row.entity_id];
-            if (entry) entry.linkCount = Number(row.total);
-        }
-        return result;
+        return buildTaskRelationSummaries(this.db, ids);
     }
 
     private validateTaskDueDate(dueAt: string | null | undefined, dueDate: string | null | undefined): void {
@@ -314,165 +233,18 @@ export class WorkspaceTasksService extends WorkspaceNotesService {
     }
 
     startTimer(taskId: string): string {
-        this.assertTaskExists(taskId);
-        const active = this.db.prepare('SELECT id, task_id FROM time_entries WHERE is_active = 1').get() as
-            { id: string; task_id: string } | undefined;
-        if (active) {
-            if (active.task_id === taskId) throw new Error('The timer is already running for this task.');
-            throw new Error('Another task timer is already running. Stop it before starting a new one.');
-        }
-        const id = randomUUID();
-        const startedAt = nowIso();
-        this.db
-            .prepare(
-                `INSERT INTO time_entries (id, task_id, started_at, is_active, created_at, active_session_id, heartbeat_at)
-      VALUES (?, ?, ?, 1, ?, ?, ?)`,
-            )
-            .run(id, taskId, startedAt, startedAt, this.sessionId, startedAt);
-        this.addActivity('task', taskId, 'timer_started', 'Started task timer');
-        return id;
+        return startTaskTimer(this.timerContext(), taskId);
     }
-
     stopTimer(taskId: string): number {
-        const active = this.db
-            .prepare(
-                'SELECT id, started_at, active_session_id FROM time_entries WHERE task_id = ? AND is_active = 1',
-            )
-            .get(taskId) as { id: string; started_at: string; active_session_id: string | null } | undefined;
-        if (!active) throw new Error('No active timer exists for this task.');
-        if (active.active_session_id !== this.sessionId)
-            throw new Error('Recover the interrupted timer before stopping it.');
-        const endedAt = nowIso();
-        const seconds = Math.max(
-            0,
-            Math.floor((Date.parse(endedAt) - Date.parse(active.started_at)) / 1_000),
-        );
-        this.db
-            .prepare(
-                'UPDATE time_entries SET ended_at = ?, duration_seconds = ?, is_active = 0 WHERE id = ? AND is_active = 1',
-            )
-            .run(endedAt, seconds, active.id);
-        this.addActivity(
-            'task',
-            taskId,
-            'timer_stopped',
-            `Stopped timer after ${elapsedMinutes(active.started_at, endedAt)} minutes`,
-        );
-        return seconds;
+        return stopTaskTimer(this.timerContext(), taskId);
     }
-
-    getActiveTimer(): {
-        taskId: string;
-        startedAt: string;
-        lastHeartbeatAt: string | null;
-        recoveryRequired: boolean;
-    } | null {
-        const row = this.db
-            .prepare(
-                'SELECT task_id, started_at, active_session_id, heartbeat_at FROM time_entries WHERE is_active = 1 LIMIT 1',
-            )
-            .get() as
-            | {
-                  task_id: string;
-                  started_at: string;
-                  active_session_id: string | null;
-                  heartbeat_at: string | null;
-              }
-            | undefined;
-        if (!row) return null;
-        const lastHeartbeatAt = row.heartbeat_at ?? row.started_at;
-        const staleHeartbeat = Date.now() - Date.parse(lastHeartbeatAt) > 120_000;
-        return {
-            taskId: row.task_id,
-            startedAt: row.started_at,
-            lastHeartbeatAt: row.heartbeat_at,
-            recoveryRequired: row.active_session_id !== this.sessionId || staleHeartbeat,
-        };
+    getActiveTimer() {
+        return getActiveTaskTimer(this.timerContext());
     }
-
     heartbeatActiveTimer(at = nowIso()): void {
-        const state = this.db as unknown as { open?: boolean | (() => void); isOpen?: boolean };
-        if (state.open === false || state.isOpen === false) return;
-        this.db
-            .prepare('UPDATE time_entries SET heartbeat_at = ? WHERE is_active = 1 AND active_session_id = ?')
-            .run(at, this.sessionId);
+        heartbeatActiveTaskTimer(this.timerContext(), at);
     }
-
     resolveTimerRecovery(taskId: string, action: 'resume' | 'stop' | 'discard', endedAt?: string): void {
-        const activeTimer = this.getActiveTimer();
-        if (!activeTimer || activeTimer.taskId !== taskId || !activeTimer.recoveryRequired)
-            throw new Error('No interrupted timer requires recovery.');
-        const entry = this.db
-            .prepare(
-                'SELECT id, started_at, heartbeat_at, recovery_acknowledged_at FROM time_entries WHERE task_id = ? AND is_active = 1',
-            )
-            .get(taskId) as
-            | {
-                  id: string;
-                  started_at: string;
-                  heartbeat_at: string | null;
-                  recovery_acknowledged_at: string | null;
-              }
-            | undefined;
-        if (!entry) throw new Error('No active timer requires recovery.');
-        const timestamp = nowIso();
-        if (action === 'resume') {
-            // Close the last known session at its persisted heartbeat, then start a fresh
-            // session now. Time while the app was closed is never silently accumulated.
-            const checkpoint = entry.heartbeat_at ?? entry.recovery_acknowledged_at ?? entry.started_at;
-            const checkpointMs = Math.max(Date.parse(entry.started_at), Date.parse(checkpoint));
-            const checkpointIso = new Date(checkpointMs).toISOString();
-            const seconds = Math.max(0, Math.floor((checkpointMs - Date.parse(entry.started_at)) / 1_000));
-            const nextId = randomUUID();
-            const resume = this.db.transaction(() => {
-                this.db
-                    .prepare(
-                        'UPDATE time_entries SET ended_at = ?, duration_seconds = ?, is_active = 0, recovery_acknowledged_at = ? WHERE id = ? AND is_active = 1',
-                    )
-                    .run(checkpointIso, seconds, timestamp, entry.id);
-                this.db
-                    .prepare(
-                        `INSERT INTO time_entries (id, task_id, started_at, is_active, created_at, active_session_id, heartbeat_at)
-          VALUES (?, ?, ?, 1, ?, ?, ?)`,
-                    )
-                    .run(nextId, taskId, timestamp, timestamp, this.sessionId, timestamp);
-            });
-            resume.immediate();
-            this.addActivity(
-                'task',
-                taskId,
-                'timer_recovery_resumed',
-                'Recovered the previous session through its last saved checkpoint and resumed from now; closed-app time was excluded',
-            );
-            return;
-        }
-        if (action === 'discard') {
-            this.db.prepare('DELETE FROM time_entries WHERE id = ? AND is_active = 1').run(entry.id);
-            this.addActivity(
-                'task',
-                taskId,
-                'timer_recovery_discarded',
-                'Discarded an unconfirmed timer session after restart',
-            );
-            return;
-        }
-        const end = endedAt ? Date.parse(endedAt) : Number.NaN;
-        const start = Date.parse(entry.started_at);
-        if (!Number.isFinite(end) || end < start || end > Date.now() + 5_000) {
-            throw new Error('Choose a recovery end time between the timer start and the current time.');
-        }
-        const endIso = new Date(end).toISOString();
-        const seconds = Math.floor((end - start) / 1_000);
-        this.db
-            .prepare(
-                'UPDATE time_entries SET ended_at = ?, duration_seconds = ?, is_active = 0, recovery_acknowledged_at = ? WHERE id = ? AND is_active = 1',
-            )
-            .run(endIso, seconds, timestamp, entry.id);
-        this.addActivity(
-            'task',
-            taskId,
-            'timer_recovery_stopped',
-            `Recovered timer with a confirmed ${elapsedMinutes(entry.started_at, endIso)} minute session`,
-        );
+        resolveTaskTimerRecovery(this.timerContext(), taskId, action, endedAt);
     }
 }

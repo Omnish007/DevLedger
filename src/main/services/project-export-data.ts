@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto';
-import { constants as fsConstants, createReadStream, createWriteStream } from 'node:fs';
+import { constants as fsConstants, createWriteStream } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { lstat, mkdir, open, rm } from 'node:fs/promises';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type Database from 'better-sqlite3';
 import { stripControlCharacters } from '../../domain/validation.ts';
+import { isPathInside as inside, sha256File as fileHash } from './fs-safety.ts';
 import type { StreamedFile } from './project-export-streams.ts';
 import { pagedExportRows } from './project-export-streams.ts';
+
+export { fileHash, inside };
 
 export interface AttachmentEntry extends StreamedFile {
     id: string;
@@ -17,11 +20,6 @@ export interface ProjectRow extends Record<string, unknown> {
     name: string;
 }
 
-export function inside(parent: string, candidate: string): boolean {
-    const value = relative(resolve(parent), resolve(candidate));
-    return value === '' || (value !== '..' && !value.startsWith(`..${sep}`) && !value.startsWith(sep));
-}
-
 export function safeFilename(value: string): string {
     return (
         stripControlCharacters(value, '_')
@@ -29,16 +27,6 @@ export function safeFilename(value: string): string {
             .replace(/\.\.+/g, '_')
             .slice(0, 140) || 'document'
     );
-}
-
-export function fileHash(path: string, signal?: AbortSignal): Promise<string> {
-    return new Promise((resolveHash, reject) => {
-        const hash = createHash('sha256');
-        const input = createReadStream(path, signal ? { signal } : {});
-        input.on('data', (chunk: string | Buffer) => hash.update(chunk));
-        input.on('error', reject);
-        input.on('end', () => resolveHash(hash.digest('hex')));
-    });
 }
 
 /** Copy an object to export staging while hashing the exact bytes that will enter the archive.

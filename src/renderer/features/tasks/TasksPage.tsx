@@ -1,7 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ListTodo, Plus, Square } from 'lucide-react';
+import { ListTodo, Plus } from 'lucide-react';
 import type {
     ActiveTimerRecord,
     TaskInput,
@@ -15,23 +15,42 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { PageControls } from '@/components/shared/PageControls';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { SearchFilterInput } from '@/components/shared/SearchFilterInput';
-import { useConfirm } from '@/components/shared/ConfirmProvider';
+import { useConfirm } from '@/components/shared/confirm-context';
 import { VirtualList } from '@/components/shared/VirtualList';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { friendlyError } from '@/lib/utils';
+import { TaskActiveTimerBanner } from './TaskActiveTimerBanner';
 import { TaskCreateDialog } from './TaskCreateDialog';
 import { TaskEditDialog } from './TaskEditDialog';
 import { TaskInspectorSheet } from './TaskInspectorSheet';
 import { TaskRow } from './TaskRow';
 import { createTaskSchema, editTaskSchema, type CreateTaskForm, type EditTaskForm } from './task-form-schema';
 import { orderVisibleTasks, type OrderedTaskRow } from './task-tree';
+import { useTaskTimerClock } from './useTaskTimerClock';
 
 const taskItemKey = (entry: OrderedTaskRow): string => entry.task.id;
-const toDateTimeLocal = (value: Date) =>
-    new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 type TaskViewTab = 'active' | 'in_progress' | 'waiting' | 'blocked' | 'completed';
+
+function formatTaskDueEditValue(task: TaskRecord): string {
+    if (task.dueDate) return task.dueDate;
+    if (!task.dueAt) return '';
+    const dt = new Date(task.dueAt);
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const d = String(dt.getDate()).padStart(2, '0');
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d} ${hh}:${mm}`;
+}
+
+function resolveDueDate(value: string) {
+    if (!value.trim()) return { dueAt: null, dueDate: null };
+    const parsed = parseSmartDate(value);
+    return parsed.kind === 'datetime'
+        ? { dueAt: parsed.isoUtc, dueDate: null }
+        : { dueAt: null, dueDate: parsed.date };
+}
 
 interface Props {
     focusTaskId?: string | undefined;
@@ -51,6 +70,8 @@ interface Props {
     activeTimer: ActiveTimerRecord | null;
     onNavigateTarget: (target: WorkspaceNavigationTarget) => void;
 }
+
+const PAGE_SIZE = 50;
 
 export function TasksPage({
     focusTaskId,
@@ -107,26 +128,23 @@ export function TasksPage({
     const [viewTab, setViewTab] = useState<TaskViewTab>('active');
     const showCompleted = viewTab === 'completed';
     const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
-    const [clockNow, setClockNow] = useState(Date.now());
-    const [recoveryEndAt, setRecoveryEndAt] = useState(() => toDateTimeLocal(new Date()));
     const [pageTasks, setPageTasks] = useState<TaskRecord[]>([]);
     const [pageTotal, setPageTotal] = useState(0);
     const [projectNames, setProjectNames] = useState<Record<string, string>>({});
     const [relationSummaries, setRelationSummaries] = useState<Record<string, TaskRelationSummary>>({});
     const [pageOffset, setPageOffset] = useState(0);
     const [pageLoading, setPageLoading] = useState(true);
-    const [activeTimerTitle, setActiveTimerTitle] = useState<string>('');
     const pageRequest = useRef(0);
-    const pageSize = 50;
+
+    const { recoveryEndAt, setRecoveryEndAt, elapsedHours, crossedLocalDay, elapsedLabel, timerTitle } =
+        useTaskTimerClock(activeTimer, pageTasks);
 
     useEffect(() => {
         if (initialProjectId) {
             setProjectId(initialProjectId);
             setPageOffset(0);
         }
-        if (focusTaskId) {
-            setInspectedTaskId(focusTaskId);
-        }
+        if (focusTaskId) setInspectedTaskId(focusTaskId);
         if (initialProjectId || focusTaskId) onConsumeFocus?.();
     }, [initialProjectId, focusTaskId, onConsumeFocus]);
 
@@ -136,7 +154,7 @@ export function TasksPage({
             setPageLoading(true);
             try {
                 const page = await window.devLedger.tasks.listPage({
-                    limit: pageSize,
+                    limit: PAGE_SIZE,
                     offset: requestedOffset,
                     projectId: projectId === 'all' ? null : projectId,
                     query: deferredQuery,
@@ -176,24 +194,7 @@ export function TasksPage({
             setError(friendlyError(cause, 'Tasks could not be loaded.')),
         );
     }, [loadPage]);
-    useEffect(() => {
-        if (activeTimer?.recoveryRequired) setRecoveryEndAt(toDateTimeLocal(new Date()));
-    }, [activeTimer?.taskId, activeTimer?.recoveryRequired]);
-    useEffect(() => {
-        if (!activeTimer) return;
-        const id = window.setInterval(() => setClockNow(Date.now()), 1000);
-        return () => window.clearInterval(id);
-    }, [activeTimer?.taskId, activeTimer?.startedAt]);
 
-    const elapsedEnd = activeTimer?.recoveryRequired
-        ? Date.parse(activeTimer.lastHeartbeatAt ?? activeTimer.startedAt)
-        : clockNow;
-    const elapsedMs = activeTimer ? Math.max(0, elapsedEnd - Date.parse(activeTimer.startedAt)) : 0;
-    const elapsedHours = elapsedMs / 3_600_000;
-    const crossedLocalDay = Boolean(
-        activeTimer && new Date(activeTimer.startedAt).toDateString() !== new Date(elapsedEnd).toDateString(),
-    );
-    const elapsedLabel = `${String(Math.floor(elapsedMs / 3_600_000)).padStart(2, '0')}:${String(Math.floor((elapsedMs % 3_600_000) / 60_000)).padStart(2, '0')}:${String(Math.floor((elapsedMs % 60_000) / 1_000)).padStart(2, '0')}`;
     const orderedVisible = useMemo(() => {
         const matched =
             viewTab === 'active' ? pageTasks : pageTasks.filter((task) => task.status === viewTab);
@@ -220,40 +221,6 @@ export function TasksPage({
         };
     }, [inspectedTaskId, pageTasks]);
 
-    const visibleTimerTitle = activeTimer
-        ? pageTasks.find((t) => t.id === activeTimer.taskId)?.title
-        : undefined;
-
-    useEffect(() => {
-        if (!activeTimer) {
-            setActiveTimerTitle('');
-            return;
-        }
-        if (visibleTimerTitle) {
-            setActiveTimerTitle(visibleTimerTitle);
-            return;
-        }
-        let active = true;
-        void window.devLedger.tasks
-            .listPage({ limit: 200, offset: 0, includeCompleted: true })
-            .then((page) => {
-                if (!active) return;
-                const found = page.items.find((t) => t.id === activeTimer.taskId);
-                if (found) setActiveTimerTitle(found.title);
-            })
-            .catch(() => undefined);
-        return () => {
-            active = false;
-        };
-    }, [activeTimer?.taskId, visibleTimerTitle]);
-
-    function resolveDueDate(value: string) {
-        if (!value.trim()) return { dueAt: null, dueDate: null };
-        const parsed = parseSmartDate(value);
-        return parsed.kind === 'datetime'
-            ? { dueAt: parsed.isoUtc, dueDate: null }
-            : { dueAt: null, dueDate: parsed.date };
-    }
     function openCreateModal() {
         setError('');
         createTaskForm.clearErrors();
@@ -268,31 +235,21 @@ export function TasksPage({
         });
         setCreateOpen(true);
     }
+
     function beginEdit(task: TaskRecord) {
         setEditingTask(task);
-        let dueAtValue = '';
-        if (task.dueDate) {
-            dueAtValue = task.dueDate;
-        } else if (task.dueAt) {
-            const dt = new Date(task.dueAt);
-            const y = dt.getFullYear();
-            const m = String(dt.getMonth() + 1).padStart(2, '0');
-            const d = String(dt.getDate()).padStart(2, '0');
-            const hh = String(dt.getHours()).padStart(2, '0');
-            const mm = String(dt.getMinutes()).padStart(2, '0');
-            dueAtValue = `${y}-${m}-${d} ${hh}:${mm}`;
-        }
         editTaskForm.reset({
             title: task.title,
             description: task.description,
             parentId: task.parentId ?? '',
-            dueAt: dueAtValue,
+            dueAt: formatTaskDueEditValue(task),
             estimate: task.estimateMinutes === null ? '' : String(task.estimateMinutes),
             priority: task.priority,
             status: task.status,
         });
         setError('');
     }
+
     const saveEdit = editTaskForm.handleSubmit(async (values) => {
         if (!editingTask) return;
         setError('');
@@ -319,6 +276,7 @@ export function TasksPage({
             setBusyId(null);
         }
     });
+
     const create = createTaskForm.handleSubmit(async (values) => {
         setError('');
         createTaskForm.clearErrors('root');
@@ -345,6 +303,7 @@ export function TasksPage({
             setCreating(false);
         }
     });
+
     async function run(id: string, action: () => Promise<unknown>) {
         setBusyId(id);
         setError('');
@@ -358,6 +317,7 @@ export function TasksPage({
             setBusyId(null);
         }
     }
+
     async function requestRemoveTask(item: { id: string; title: string }) {
         if (
             await confirm({
@@ -370,6 +330,7 @@ export function TasksPage({
             await run(item.id, () => onRemove(item.id));
         }
     }
+
     async function recoverTimer(action: 'resume' | 'stop' | 'discard') {
         if (!activeTimer) return;
         if (
@@ -390,6 +351,7 @@ export function TasksPage({
             ),
         );
     }
+
     async function stopActiveTimer(taskId: string) {
         if (
             (elapsedHours >= 8 || crossedLocalDay) &&
@@ -421,68 +383,18 @@ export function TasksPage({
                 </Alert>
             )}
             {activeTimer && (
-                <div
-                    className={`task-timer flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5 ${activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay ? 'border-warning/25 bg-warning/5' : 'border-border'}`}
-                >
-                    <span className="size-2 shrink-0 rounded-full bg-primary" />
-                    <div className="min-w-0 flex-1 text-xs">
-                        <button
-                            type="button"
-                            onClick={() => setInspectedTaskId(activeTimer.taskId)}
-                            className="inline-flex min-h-6 items-center text-left font-medium hover:underline"
-                        >
-                            {activeTimer.recoveryRequired
-                                ? 'Interrupted timer needs review'
-                                : 'Timer running'}{' '}
-                            · {visibleTimerTitle ?? (activeTimerTitle || 'Focus task')}
-                        </button>
-                        <p className="font-mono text-sm font-semibold tabular-nums">{elapsedLabel}</p>
-                    </div>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={activeTimer.recoveryRequired}
-                        onClick={() => void stopActiveTimer(activeTimer.taskId)}
-                    >
-                        <Square className="size-3.5" />
-                        Stop timer
-                    </Button>
-                </div>
-            )}
-            {activeTimer?.recoveryRequired && (
-                <Alert className="border-warning/25 bg-warning/5">
-                    <AlertDescription className="space-y-3 text-xs">
-                        <p className="font-semibold">Confirm interrupted work session</p>
-                        <Input
-                            type="datetime-local"
-                            value={recoveryEndAt}
-                            onChange={(e) => setRecoveryEndAt(e.target.value)}
-                            max={toDateTimeLocal(new Date())}
-                            min={toDateTimeLocal(new Date(activeTimer.startedAt))}
-                            className="max-w-xs"
-                        />
-                        <div className="flex gap-2">
-                            <Button
-                                size="sm"
-                                onClick={() => void recoverTimer('stop')}
-                                disabled={!recoveryEndAt}
-                            >
-                                Save confirmed time
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => void recoverTimer('resume')}>
-                                Continue from now
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-danger"
-                                onClick={() => void recoverTimer('discard')}
-                            >
-                                Discard
-                            </Button>
-                        </div>
-                    </AlertDescription>
-                </Alert>
+                <TaskActiveTimerBanner
+                    activeTimer={activeTimer}
+                    timerTitle={timerTitle}
+                    elapsedLabel={elapsedLabel}
+                    elapsedHours={elapsedHours}
+                    crossedLocalDay={crossedLocalDay}
+                    recoveryEndAt={recoveryEndAt}
+                    onRecoveryEndAtChange={setRecoveryEndAt}
+                    onInspectTask={setInspectedTaskId}
+                    onStopTimer={stopActiveTimer}
+                    onRecoverTimer={recoverTimer}
+                />
             )}
 
             <div className="workspace-toolbar justify-between">
@@ -628,7 +540,7 @@ export function TasksPage({
 
             <PageControls
                 offset={pageOffset}
-                limit={pageSize}
+                limit={PAGE_SIZE}
                 total={pageTotal}
                 disabled={pageLoading}
                 onPageChange={setPageOffset}

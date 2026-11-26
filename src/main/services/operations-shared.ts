@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import type Database from 'better-sqlite3';
+
 export type EntityType = 'project' | 'note' | 'task' | 'document' | 'contact';
 export interface TagRecord {
     id: string;
@@ -74,6 +77,18 @@ export interface BackgroundJobRecord {
 }
 
 export const now = () => new Date().toISOString();
+
+export function addOperationActivity(
+    db: Database.Database,
+    entityType: string,
+    entityId: string,
+    eventType: string,
+    summary: string,
+): void {
+    db.prepare(
+        'INSERT INTO activity_events (id, entity_type, entity_id, event_type, summary, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(randomUUID(), entityType, entityId, eventType, summary.slice(0, 500), now());
+}
 export const ENTITY_TYPES = new Set<EntityType>(['project', 'note', 'task', 'document', 'contact']);
 export const REMINDER_TYPES = new Set(['task', 'project', 'contact', 'note']);
 

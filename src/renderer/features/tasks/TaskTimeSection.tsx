@@ -4,8 +4,8 @@ import type { ActiveTimerRecord, TimeEntryRecord } from '@shared/contracts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageControls } from '@/components/shared/PageControls';
-import { useConfirm } from '@/components/shared/ConfirmProvider';
-import { formatDate, friendlyError } from '@/lib/utils';
+import { useConfirm } from '@/components/shared/confirm-context';
+import { formatDate, friendlyError, toDateTimeLocalInput } from '@/lib/utils';
 
 interface TaskTimeSectionProps {
     taskId: string;
@@ -19,13 +19,6 @@ interface TaskTimeSectionProps {
     onUpdated: () => Promise<void>;
     onError: (message: string) => void;
 }
-
-const toLocalInput = (iso: string) => {
-    const date = new Date(iso);
-    if (!Number.isFinite(date.getTime())) return '';
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
 
 export function TaskTimeSection({
     taskId,
@@ -215,8 +208,8 @@ export function TaskTimeSection({
                                         aria-label="Edit time entry"
                                         onClick={() => {
                                             setEditingId(entry.id);
-                                            setStartedAt(toLocalInput(entry.startedAt));
-                                            setEndedAt(toLocalInput(entry.endedAt ?? ''));
+                                            setStartedAt(toDateTimeLocalInput(entry.startedAt));
+                                            setEndedAt(toDateTimeLocalInput(entry.endedAt ?? ''));
                                             setNote(entry.note);
                                             setShowForm(true);
                                         }}

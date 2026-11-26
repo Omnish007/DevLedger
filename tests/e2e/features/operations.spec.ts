@@ -61,3 +61,77 @@ test('connects a note and task inside Note Connections Drawer with human title r
     await page.getByRole('button', { name: 'Link', exact: true }).click();
     await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
 });
+
+test('syncs note reminder with inline note text and delivers toast on time', async ({ desktop }) => {
+    const page = desktop.page;
+    const data = new TestDataFactory(desktop.profileDirectory);
+    const noteTitle = data.note('Release reminder note');
+    const reminderLine = 'Approve deployment checklist';
+
+    await page.getByRole('button', { name: 'Notes', exact: true }).click();
+    await page.getByRole('button', { name: 'Create note' }).click();
+    await page.getByPlaceholder('Untitled note').fill(noteTitle);
+
+    const editor = page.locator('.notes-writing-canvas [contenteditable="true"]');
+    await editor.click();
+    await editor.type(`${reminderLine} @r 23:59`, { delay: 10 });
+    const suggestions = page.locator('[role="listbox"][aria-label="Date and contact suggestions"]');
+    await expect(suggestions).toBeVisible();
+    await expect(suggestions.getByRole('option').first()).toContainText('Today 23:59');
+    await page.keyboard.press('Enter');
+    await expect(suggestions).toBeHidden();
+
+    const reminders = await page.evaluate(async () => {
+        const api = (
+            window as unknown as {
+                devLedger: {
+                    notes: { listPage: (input: unknown) => Promise<{ items: Array<{ id: string }> }> };
+                    operations: {
+                        listRemindersPage: (
+                            input: unknown,
+                        ) => Promise<{ items: Array<{ id: string; message: string }> }>;
+                    };
+                };
+            }
+        ).devLedger;
+        const notes = await api.notes.listPage({ limit: 10, offset: 0 });
+        const noteId = notes.items[0]?.id;
+        const pageResult = await api.operations.listRemindersPage({
+            entityType: 'note',
+            entityId: noteId,
+            limit: 10,
+            offset: 0,
+        });
+        return pageResult.items;
+    });
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0]?.message).toBe(reminderLine);
+
+    // Reschedule slightly ahead and confirm immediate on-time toast + inbox delivery.
+    await page.evaluate(async (reminderId) => {
+        const api = (
+            window as unknown as {
+                devLedger: {
+                    operations: {
+                        updateReminder: (id: string, action: string, dueAt: string) => Promise<unknown>;
+                    };
+                };
+            }
+        ).devLedger;
+        await api.operations.updateReminder(
+            reminderId,
+            'reschedule',
+            new Date(Date.now() + 900).toISOString(),
+        );
+    }, reminders[0]!.id);
+
+    const toast = page.locator('[data-sonner-toast]').filter({ hasText: reminderLine });
+    await expect(toast).toBeVisible({ timeout: 5_000 });
+    await expect(toast).toContainText(noteTitle);
+
+    await page.getByRole('button', { name: /Inbox notifications/i }).click();
+    const inboxItem = page.locator('[data-slot="popover-content"] article').filter({ hasText: reminderLine });
+    await expect(inboxItem).toBeVisible();
+    await inboxItem.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(inboxItem).toBeHidden();
+});

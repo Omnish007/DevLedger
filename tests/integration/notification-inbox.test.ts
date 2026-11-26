@@ -45,6 +45,7 @@ test('due reminders become durable, idempotent inbox notifications even without 
         assert.equal(inbox.list('read').length, 1);
         assert.equal(inbox.unreadCount(), 0);
         inbox.dismiss(delivered.notifications[0]!.id);
+        assert.equal(inbox.list('all').length, 0);
         assert.equal(inbox.list('dismissed').length, 1);
     } finally {
         db.close();

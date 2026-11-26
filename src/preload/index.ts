@@ -38,6 +38,7 @@ const api: DevLedgerApi = {
         get: (id) => invoke('notes:get', id),
         lock: (id) => invoke('notes:lock', id),
         unlock: (id) => invoke('notes:unlock', id),
+        unprotect: (id) => invoke('notes:unprotect', id),
         saveLocked: (id, input) => invoke('notes:saveLocked', [id, input]),
         create: (input) => invoke('notes:create', input),
         update: (id, input) => invoke('notes:update', [id, input]),

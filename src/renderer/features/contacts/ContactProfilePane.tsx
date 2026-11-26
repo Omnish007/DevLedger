@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RecordConnectionsPanel } from '@/components/shared/RecordConnectionsPanel';
+import { contactInitials } from '@/lib/utils';
 
 interface ContactProfilePaneProps {
     contact: ContactRecord;
@@ -20,12 +21,7 @@ export function ContactProfilePane({
     onDelete,
     onNavigateTarget,
 }: ContactProfilePaneProps) {
-    const initials = contact.name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((p) => p[0]?.toUpperCase() ?? '')
-        .join('');
+    const initials = contactInitials(contact.name);
     const attributeEntries = Object.entries(contact.customAttributes ?? {});
 
     return (

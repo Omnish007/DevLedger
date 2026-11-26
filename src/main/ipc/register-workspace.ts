@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, nativeTheme } from 'electron';
+import { BrowserWindow, nativeTheme } from 'electron';
 import { z } from 'zod';
 import type {
     AppMetadata,
@@ -11,6 +11,7 @@ import type {
     TaskStatus,
 } from '../../shared/contracts.ts';
 import type { IpcHandlerContext, IpcRegistrar } from './contracts.ts';
+import { showOpenDialogForEvent, showSaveDialogForEvent } from './dialogs.ts';
 import {
     contactInput,
     idInput,
@@ -106,15 +107,11 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
                 .replace(/[^a-zA-Z0-9._-]+/g, '-')
                 .replace(/^-+|-+$/g, '')
                 .slice(0, 80) || 'project';
-        const options = {
+        const selection = await showSaveDialogForEvent(event, {
             title: 'Export project archive',
             defaultPath: `${safeName}-${new Date().toISOString().slice(0, 10)}.zip`,
             filters: [{ name: 'DevLedger project export', extensions: ['zip'] }],
-        };
-        const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
-        const selection = owner
-            ? await dialog.showSaveDialog(owner, options)
-            : await dialog.showSaveDialog(options);
+        });
         if (selection.canceled || !selection.filePath) return null;
         return jobs.enqueueAndWait<string>(
             'project.export',
@@ -125,15 +122,11 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
         );
     });
     register('projects:import', noInput, async (_input, event) => {
-        const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined;
-        const options = {
+        const selection = await showOpenDialogForEvent(event, {
             title: 'Import DevLedger project archive',
-            properties: ['openFile'] as Array<'openFile'>,
+            properties: ['openFile'],
             filters: [{ name: 'DevLedger project export', extensions: ['zip'] }],
-        };
-        const selection = owner
-            ? await dialog.showOpenDialog(owner, options)
-            : await dialog.showOpenDialog(options);
+        });
         if (selection.canceled || selection.filePaths.length === 0) return null;
         return jobs.enqueueAndWait(
             'project.import',
@@ -148,6 +141,7 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
     register('notes:get', idInput, (id) => workspace.getNoteById(id));
     register('notes:lock', idInput, (id) => vault.lockNote(id));
     register('notes:unlock', idInput, (id) => vault.unlockNote(id));
+    register('notes:unprotect', idInput, (id) => vault.unprotectNote(id));
     register(
         'notes:saveLocked',
         z.tuple([
