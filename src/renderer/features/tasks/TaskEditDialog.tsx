@@ -32,7 +32,7 @@ export function TaskEditDialog({ task, form, busy, error, selectedParentLabel, o
                 if (!open) onClose();
             }}
         >
-            <DialogContent className="w-[min(94vw,660px)] gap-0 overflow-hidden rounded-2xl p-0">
+            <DialogContent className="w-[min(94vw,660px)] gap-0 overflow-hidden rounded-xl p-0">
                 <DialogHeader className="border-b border-border/75 bg-surface-subtle/35 px-6 py-4 pr-12">
                     <div className="flex items-center gap-3">
                         <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">

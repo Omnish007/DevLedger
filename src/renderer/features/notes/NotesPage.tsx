@@ -11,7 +11,19 @@ import {
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
-import { BookOpen, Check, Clock3, Link2, LockKeyhole, Plus, Search, ShieldAlert, Trash2 } from 'lucide-react';
+import {
+    BookOpen,
+    Check,
+    Clock3,
+    FolderKanban,
+    Link2,
+    LockKeyhole,
+    Plus,
+    Search,
+    ShieldAlert,
+    Trash2,
+    X,
+} from 'lucide-react';
 import type {
     ContactRecord,
     NoteInput,
@@ -21,7 +33,6 @@ import type {
     WorkspaceNavigationTarget,
 } from '@shared/contracts';
 import type { SmartDateReference } from '@domain/smart-date-markdown';
-import { stripHtmlToPlainText } from '@domain/html-text';
 import { PageControls } from '@/components/shared/PageControls';
 import { RemoteRecordPicker } from '@/components/shared/RemoteRecordPicker';
 import { useConfirm } from '@/components/shared/ConfirmProvider';
@@ -36,8 +47,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { Separator } from '@/components/ui/separator';
 import { formatRelative, friendlyError } from '@/lib/utils';
+import { NoteListCard } from './NoteListCard';
 import { createNoteExtensions } from './extensions';
 import { exportMarkdownFromEditor, importMarkdownIntoEditor } from './note-markdown-io';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
@@ -537,32 +548,35 @@ export function NotesPage({
             className="notes-workspace"
         >
             <ResizablePanel
-                defaultSize={compactLayout ? '34%' : '29%'}
+                defaultSize={compactLayout ? '42%' : '30%'}
                 minSize={compactLayout ? 180 : 260}
-                maxSize={compactLayout ? '44%' : 460}
+                maxSize={compactLayout ? '48%' : 460}
                 className="min-h-0 min-w-0"
             >
                 <aside className="notes-sidebar flex h-full w-full min-h-0 flex-col border-r border-border">
-                    <div className="flex items-center justify-between px-4 py-3">
-                        <div>
-                            <h1 className="workspace-page-title text-xl">Notes</h1>
-                            <p className="text-xs text-muted-foreground">
-                                {notesTotal} note{notesTotal === 1 ? '' : 's'}
-                            </p>
+                    <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3.5">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h1 className="workspace-page-title text-xl leading-none">Notes</h1>
+                                <span className="inline-flex h-5 items-center rounded-md border border-border/60 bg-surface-subtle/80 px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+                                    {notesTotal}
+                                </span>
+                            </div>
                         </div>
                         <Button
                             size="icon"
-                            variant="ghost"
-                            className="size-8"
+                            variant="outline"
+                            className="size-8 shrink-0 rounded-lg border-border/80 bg-card/90 shadow-[var(--shadow-xs)] hover:bg-surface-hover"
                             onClick={() => void createNote()}
                             aria-label="Create note"
+                            title="Create note"
                         >
-                            <Plus className="size-4" />
+                            <Plus className="size-4 text-primary" aria-hidden="true" />
                         </Button>
                     </div>
-                    <div className="space-y-2 px-3.5 pb-3">
+                    <div className="space-y-2 border-b border-border/50 px-3.5 py-2.5">
                         <div className="relative">
-                            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 aria-label="Filter notes by title or contents"
                                 value={filter}
@@ -571,48 +585,53 @@ export function NotesPage({
                                     setFilter(e.target.value);
                                 }}
                                 placeholder="Filter notes…"
-                                className="h-8 pl-8 pr-8 text-xs"
+                                className="h-8.5 rounded-lg pl-8.5 pr-8 text-xs"
                             />
                             {filter && (
                                 <button
                                     type="button"
                                     aria-label="Clear note filter"
-                                    className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded text-xs text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+                                    className="absolute right-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                                     onClick={() => {
                                         setNotesOffset(0);
                                         setFilter('');
                                     }}
                                 >
-                                    ×
+                                    <X className="size-3.5" aria-hidden="true" />
                                 </button>
                             )}
                         </div>
                         {filterProjectId && (
-                            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-2.5 py-1 text-xs">
-                                <span className="truncate">
-                                    {projectNames[filterProjectId] ?? 'Project filter'}
+                            <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/[0.06] px-2.5 py-1 text-xs">
+                                <span className="inline-flex min-w-0 items-center gap-1.5 font-medium text-foreground">
+                                    <FolderKanban
+                                        className="size-3 shrink-0 text-primary"
+                                        aria-hidden="true"
+                                    />
+                                    <span className="truncate">
+                                        {projectNames[filterProjectId] ?? 'Project filter'}
+                                    </span>
                                 </span>
                                 <button
                                     type="button"
                                     aria-label="Clear project filter"
-                                    className="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+                                    className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                                     onClick={() => setFilterProjectId('')}
                                 >
-                                    ×
+                                    <X className="size-3" aria-hidden="true" />
                                 </button>
                             </div>
                         )}
                     </div>
-                    <Separator />
                     {notesLoading ? (
                         <p className="py-8 text-center text-xs text-muted-foreground">Loading notes…</p>
                     ) : (
                         <VirtualList
                             items={pageNotes}
                             itemKey={noteItemKey}
-                            itemHeight={96}
+                            itemHeight={116}
                             label="Workspace notes"
-                            className="min-h-0 flex-1 p-2"
+                            className="min-h-0 flex-1 px-3 py-2.5"
                             empty={
                                 <div className="px-3 py-10 text-center text-xs text-muted-foreground">
                                     <BookOpen className="mx-auto mb-2 size-4 opacity-70" />
@@ -620,38 +639,20 @@ export function NotesPage({
                                 </div>
                             }
                             renderItem={(note) => (
-                                <button
-                                    type="button"
-                                    onClick={() =>
+                                <NoteListCard
+                                    note={note}
+                                    selected={selectedId === note.id}
+                                    projectName={
+                                        note.projectId ? (projectNames[note.projectId] ?? 'Project') : null
+                                    }
+                                    onSelect={() =>
                                         void (note.locked
                                             ? vaultStatus.unlocked
                                                 ? unlockSelected(note.id)
                                                 : setSelectedId(note.id)
                                             : selectNote(note.id))
                                     }
-                                    className="notes-record h-full w-full rounded-lg px-2.5 py-2 text-left transition-colors"
-                                    aria-current={selectedId === note.id ? 'true' : undefined}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <BookOpen className="size-3.5 shrink-0 text-muted-foreground" />
-                                        <span className="truncate text-sm font-medium text-foreground">
-                                            {note.locked ? 'Locked note' : note.title || 'Untitled note'}
-                                        </span>
-                                    </div>
-                                    <p className="mt-0.5 line-clamp-2 pl-[22px] text-xs text-muted-foreground">
-                                        {note.locked
-                                            ? 'Protected content'
-                                            : stripHtmlToPlainText(note.content) || 'Empty note'}
-                                    </p>
-                                    <div className="mt-1.5 flex items-center justify-between pl-[22px] text-xs text-muted-foreground">
-                                        <span>{formatRelative(note.updatedAt)}</span>
-                                        {note.projectId && (
-                                            <span className="max-w-[112px] truncate">
-                                                {projectNames[note.projectId] ?? 'Project'}
-                                            </span>
-                                        )}
-                                    </div>
-                                </button>
+                                />
                             )}
                         />
                     )}

@@ -1,4 +1,4 @@
-import { BrowserWindow, globalShortcut, nativeTheme, session, shell } from 'electron';
+import { app, BrowserWindow, globalShortcut, Menu, nativeTheme, session, shell } from 'electron';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isQuickCaptureShortcut } from '../domain/keyboard-shortcuts.js';
@@ -108,8 +108,10 @@ export class DesktopWindowManager {
                 sandbox: true,
                 webSecurity: true,
                 allowRunningInsecureContent: false,
+                devTools: !app.isPackaged,
             },
         });
+        this.attachDevToolsInspection(window);
         window.webContents.setWindowOpenHandler(({ url }) => {
             if (url.startsWith('https://')) void shell.openExternal(url);
             return { action: 'deny' };
@@ -155,5 +157,37 @@ export class DesktopWindowManager {
             if (this.primaryWindow === window) this.primaryWindow = null;
         });
         return window;
+    }
+
+    private attachDevToolsInspection(window: BrowserWindow): void {
+        if (app.isPackaged) return;
+        window.webContents.on('before-input-event', (event, input) => {
+            if (input.type !== 'keyDown') return;
+            const key = input.key.toLowerCase();
+            const isInspectorToggle =
+                input.key === 'F12' ||
+                ((key === 'i' || key === 'j') &&
+                    ((input.control && input.shift) || (input.meta && input.alt)));
+            if (!isInspectorToggle) return;
+            event.preventDefault();
+            window.webContents.toggleDevTools();
+        });
+        if (process.env['DEVLEDGER_E2E'] === '1') return;
+        window.webContents.on('context-menu', (_event, params) => {
+            const template: Electron.MenuItemConstructorOptions[] = [];
+            if (params.isEditable) {
+                template.push({ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' });
+            } else if (params.selectionText.trim()) {
+                template.push({ role: 'copy' }, { type: 'separator' });
+            }
+            template.push({
+                label: 'Inspect Element',
+                click: () => {
+                    window.webContents.inspectElement(params.x, params.y);
+                    window.webContents.devToolsWebContents?.focus();
+                },
+            });
+            Menu.buildFromTemplate(template).popup({ window });
+        });
     }
 }

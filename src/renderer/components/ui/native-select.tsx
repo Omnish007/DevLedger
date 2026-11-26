@@ -21,7 +21,7 @@ function NativeSelect({
                 data-slot="native-select"
                 data-size={size}
                 className={cn(
-                    'h-9 w-full min-w-0 cursor-pointer appearance-none rounded-lg border border-border/90 bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-[var(--shadow-xs)] transition-[color,background-color,border-color,box-shadow] outline-none hover:border-border hover:bg-surface-subtle/55 focus-visible:border-ring/75 focus-visible:ring-2 focus-visible:ring-ring/20 selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:py-1 data-[size=sm]:text-xs aria-invalid:border-destructive/55 aria-invalid:ring-destructive/15',
+                    'inline-flex h-9 w-full min-w-0 cursor-pointer appearance-none items-center rounded-lg border border-border/90 bg-card px-3 py-0 text-sm leading-none font-medium text-foreground shadow-[var(--shadow-xs)] transition-[color,background-color,border-color,box-shadow] outline-none hover:border-border hover:bg-surface-subtle/55 focus-visible:border-ring/75 focus-visible:ring-2 focus-visible:ring-ring/20 selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:py-0 data-[size=sm]:text-xs aria-invalid:border-destructive/55 aria-invalid:ring-destructive/15',
                     className,
                     'pr-9',
                 )}
