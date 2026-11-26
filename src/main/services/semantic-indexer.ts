@@ -130,78 +130,76 @@ export class SemanticIndexer {
             startedAt,
         });
 
-        const iterator = this.db
-            .prepare(UNIFIED_KNOWLEDGE_SOURCES_SQL)
-            .iterate() as Iterable<KnowledgeSourceRow>;
+        const sources = this.db.prepare(UNIFIED_KNOWLEDGE_SOURCES_SQL).all() as KnowledgeSourceRow[];
         const pending: PendingChunk[] = [];
         let sourceCount = 0;
         let chunkCount = 0;
         let dimensions = 0;
         const { insert, insertBucket } = this.insertChunkStatements();
 
-        const persistBatch = async (): Promise<void> => {
-            if (!pending.length) return;
-            const batch = pending.splice(0, pending.length);
-            signal?.throwIfAborted();
-            const vectors = await this.embeddingAdapter.embed(
-                batch.map((item) => formatTextForEmbeddingModel(item.content, model, 'document')),
-                model,
-                signal,
-            );
-            signal?.throwIfAborted();
-            if (vectors.length !== batch.length)
-                throw new Error('The embedding adapter returned an invalid batch size.');
-            const timestamp = new Date().toISOString();
-            this.db.exec('BEGIN IMMEDIATE');
-            try {
-                batch.forEach((item, index) => {
-                    const vector = vectors[index]!;
-                    if (dimensions && vector.length !== dimensions)
-                        throw new Error('Embedding model returned inconsistent vector dimensions.');
-                    dimensions = vector.length;
-                    const chunkId = randomUUID();
-                    insert.run(
-                        chunkId,
-                        item.source_type,
-                        item.source_id,
-                        item.project_id,
-                        item.chunk_index,
-                        item.title,
-                        item.content,
-                        item.content.slice(0, 320),
-                        item.source_updated_at,
-                        item.content_hash,
-                        model,
-                        generation,
-                        vector.length,
-                        JSON.stringify(vector),
-                        timestamp,
-                    );
-                    vectorBandBuckets(vector).forEach((bucket, band) =>
-                        insertBucket.run(chunkId, band, bucket),
-                    );
+        const persistBatch = async (flushAll = false): Promise<void> => {
+            while (pending.length >= 16 || (flushAll && pending.length > 0)) {
+                const batch = pending.splice(0, 16);
+                signal?.throwIfAborted();
+                const vectors = await this.embeddingAdapter.embed(
+                    batch.map((item) => formatTextForEmbeddingModel(item.content, model, 'document')),
+                    model,
+                    signal,
+                );
+                signal?.throwIfAborted();
+                if (vectors.length !== batch.length)
+                    throw new Error('The embedding adapter returned an invalid batch size.');
+                const timestamp = new Date().toISOString();
+                this.db.exec('BEGIN IMMEDIATE');
+                try {
+                    batch.forEach((item, index) => {
+                        const vector = vectors[index]!;
+                        if (dimensions && vector.length !== dimensions)
+                            throw new Error('Embedding model returned inconsistent vector dimensions.');
+                        dimensions = vector.length;
+                        const chunkId = randomUUID();
+                        insert.run(
+                            chunkId,
+                            item.source_type,
+                            item.source_id,
+                            item.project_id,
+                            item.chunk_index,
+                            item.title,
+                            item.content,
+                            item.content.slice(0, 320),
+                            item.source_updated_at,
+                            item.content_hash,
+                            model,
+                            generation,
+                            vector.length,
+                            JSON.stringify(vector),
+                            timestamp,
+                        );
+                        vectorBandBuckets(vector).forEach((bucket, band) =>
+                            insertBucket.run(chunkId, band, bucket),
+                        );
+                    });
+                    this.db.exec('COMMIT');
+                } catch (error) {
+                    this.db.exec('ROLLBACK');
+                    throw error;
+                }
+                chunkCount += batch.length;
+                this.saveSetting('ai.semantic.progress', {
+                    status: 'indexing',
+                    model,
+                    generation,
+                    sources: sourceCount,
+                    chunks: chunkCount,
+                    startedAt,
                 });
-                this.db.exec('COMMIT');
-            } catch (error) {
-                this.db.exec('ROLLBACK');
-                throw error;
+                onProgress?.({ sources: sourceCount, chunks: chunkCount, phase: 'embedding' });
             }
-            chunkCount += batch.length;
-            this.saveSetting('ai.semantic.progress', {
-                status: 'indexing',
-                model,
-                generation,
-                sources: sourceCount,
-                chunks: chunkCount,
-                startedAt,
-            });
-            onProgress?.({ sources: sourceCount, chunks: chunkCount, phase: 'embedding' });
         };
 
         try {
-            for (const raw of iterator) {
+            for (const source of sources) {
                 signal?.throwIfAborted();
-                const source: KnowledgeSourceRow = raw;
                 const text = this.formatSourceText(source);
                 if (!text) continue;
                 const chunks = splitIntoChunks(text, 400, 60);
@@ -211,7 +209,7 @@ export class SemanticIndexer {
                 chunks.forEach((content, chunkIndex) =>
                     pending.push({ ...source, chunk_index: chunkIndex, content, content_hash: contentHash }),
                 );
-                if (pending.length >= 16) await persistBatch();
+                if (pending.length >= 16) await persistBatch(false);
                 if (chunkCount + pending.length > 100_000)
                     throw new Error(
                         'The semantic index exceeds the 100,000 chunk safety limit. Narrow your data set or use FTS5 for this workspace.',
@@ -223,7 +221,7 @@ export class SemanticIndexer {
                         phase: 'collecting',
                     });
             }
-            await persistBatch();
+            await persistBatch(true);
             signal?.throwIfAborted();
             if (!chunkCount)
                 throw new Error('No eligible unlocked text records were found for semantic indexing.');

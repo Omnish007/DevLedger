@@ -146,7 +146,7 @@ export function DashboardPage({
             />
 
             {timerDetail && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/35 bg-primary/[0.04] px-4 py-3 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3 text-xs">
                     <div className="flex min-w-0 items-center gap-2.5">
                         <span className="size-2 shrink-0 rounded-full bg-primary" />
                         <div className="min-w-0">
@@ -207,7 +207,7 @@ export function DashboardPage({
                             key={item.label}
                             type="button"
                             onClick={item.onClick}
-                            className="group rounded-[var(--workspace-radius)] border border-border bg-card px-4 py-3.5 text-left shadow-[var(--shadow-xs)] transition-colors hover:border-input hover:bg-surface-subtle/50"
+                            className="group rounded-[var(--workspace-radius)] border border-border bg-card px-4 py-3.5 text-left shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle/50"
                         >
                             <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-medium text-muted-foreground">

@@ -59,14 +59,14 @@ test('logs a manual time entry and reminder inline inside Task Inspector', async
         const pad = (part: number) => String(part).padStart(2, '0');
         return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
     };
-    await page.getByLabel('Start').fill(localInputValue(start));
-    await page.getByLabel('End').fill(localInputValue(end));
+    await page.getByLabel('Start', { exact: true }).fill(localInputValue(start));
+    await page.getByLabel('End', { exact: true }).fill(localInputValue(end));
     await page.getByPlaceholder('Summary of work…').fill(note);
     await page.getByRole('button', { name: 'Add entry', exact: true }).click();
     await expect(page.getByText(note, { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Add reminder' }).click();
-    await page.getByLabel('When').fill('@tomorrow 9am');
+    await page.getByLabel('When', { exact: true }).fill('@tomorrow 9am');
     await page.getByPlaceholder('Reminder note (optional)').fill('Follow up on handoff');
     await page.getByRole('button', { name: 'Schedule reminder' }).click();
     await expect(page.getByText('Follow up on handoff')).toBeVisible();

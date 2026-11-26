@@ -112,7 +112,7 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                         <button
                             type="button"
                             onClick={() => setDisplayMonth(new Date())}
-                            className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-sky-600 hover:bg-sky-500/10 dark:text-sky-300"
+                            className="min-h-6 shrink-0 rounded px-2 py-0.5 text-[11px] font-medium text-sky-600 hover:bg-sky-500/10 dark:text-sky-300"
                         >
                             Today
                         </button>
@@ -286,8 +286,8 @@ export function SmartDateInsert({ onInsert }: { onInsert: (value: SmartDateRefer
                         <div
                             className={`flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs ${
                                 preview.parsed.isReminder
-                                    ? 'border-warning/50 bg-warning/12 text-warning'
-                                    : 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                                    ? 'border-warning/22 bg-warning/12 text-warning'
+                                    : 'border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300'
                             }`}
                         >
                             <span className="inline-flex items-center gap-1.5 font-medium">

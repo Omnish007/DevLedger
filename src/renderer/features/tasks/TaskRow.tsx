@@ -103,7 +103,7 @@ export function TaskRow({
 
     return (
         <div
-            className={`task-row group grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/65 px-3 @[780px]:grid-cols-[minmax(200px,1.5fr)_128px_138px_86px_106px_104px] @[780px]:gap-3 @[780px]:px-4 ${contextOnly ? 'bg-surface-subtle/40 opacity-80' : ''} ${isRunning ? 'bg-primary/[0.04]' : ''}`}
+            className={`task-row group grid h-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/65 px-3 @[680px]:grid-cols-[minmax(180px,1.5fr)_116px_132px_78px_98px_98px] @[680px]:gap-2.5 @[680px]:px-4 ${contextOnly ? 'bg-surface-subtle/40 opacity-80' : ''} ${isRunning ? 'bg-primary/[0.04]' : ''}`}
         >
             <div className="flex min-w-0 items-center gap-2">
                 {depth > 0 && (
@@ -201,7 +201,7 @@ export function TaskRow({
                         {task.estimateMinutes !== null && (
                             <span className="shrink-0 tabular-nums">· {task.estimateMinutes}m</span>
                         )}
-                        <span className="shrink-0 capitalize @[780px]:hidden">
+                        <span className="shrink-0 capitalize @[680px]:hidden">
                             {hasMetaLine ? '· ' : ''}
                             {projectName} · {task.status.replaceAll('_', ' ')}
                         </span>
@@ -209,7 +209,7 @@ export function TaskRow({
                 </div>
             </div>
 
-            <div className="hidden min-w-0 @[780px]:block">
+            <div className="hidden min-w-0 @[680px]:block">
                 <button
                     type="button"
                     onClick={() => onNavigateTarget({ view: 'projects', recordId: task.projectId })}
@@ -219,7 +219,7 @@ export function TaskRow({
                 </button>
             </div>
 
-            <div className="task-status-cell hidden @[780px]:block">
+            <div className="task-status-cell hidden @[680px]:block">
                 <Select value={task.status} onValueChange={(v) => onStatusChange(task.id, v as TaskStatus)}>
                     <SelectTrigger
                         aria-label={`Status for ${task.title}`}
@@ -243,7 +243,7 @@ export function TaskRow({
                 </Select>
             </div>
 
-            <div className="task-priority-cell hidden items-center gap-1.5 text-xs capitalize @[780px]:flex">
+            <div className="task-priority-cell hidden items-center gap-1.5 text-xs capitalize @[680px]:flex">
                 <span className={`size-2 rounded-full ${PRIORITY_TONE[task.priority]}`} aria-hidden="true" />
                 <span
                     className={
@@ -255,7 +255,7 @@ export function TaskRow({
             </div>
 
             <div
-                className={`task-due-cell hidden items-center gap-1.5 text-xs tabular-nums @[780px]:flex ${overdue ? 'font-medium text-danger' : 'text-muted-foreground'}`}
+                className={`task-due-cell hidden items-center gap-1.5 text-xs tabular-nums @[680px]:flex ${overdue ? 'font-medium text-danger' : 'text-muted-foreground'}`}
             >
                 {rawDue ? (
                     <>

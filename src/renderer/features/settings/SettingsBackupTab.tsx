@@ -85,7 +85,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
             {error && (
                 <p
                     role="alert"
-                    className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-xs text-danger-foreground"
+                    className="rounded-xl border border-danger/20 bg-danger-subtle px-4 py-3 text-xs text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -117,7 +117,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                     </p>
                 )}
                 {autoError && (
-                    <p className="rounded-xl border border-warning/30 bg-warning-subtle px-3.5 py-2.5 text-warning-foreground">
+                    <p className="rounded-xl border border-warning/20 bg-warning-subtle px-3.5 py-2.5 text-warning-foreground">
                         {autoError}
                     </p>
                 )}
@@ -251,10 +251,10 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                 </form>
 
                 {backupRecoveryKey && (
-                    <div className="space-y-2 rounded-xl border border-warning/35 bg-warning-subtle p-4 text-warning-foreground">
+                    <div className="space-y-2 rounded-xl border border-warning/22 bg-warning-subtle p-4 text-warning-foreground">
                         <p className="font-semibold">Save portable recovery key (shown once)</p>
                         <div className="flex items-center gap-2">
-                            <code className="flex-1 break-all rounded-lg border border-warning/25 bg-card p-2.5 font-mono text-foreground">
+                            <code className="flex-1 break-all rounded-lg border border-warning/18 bg-card p-2.5 font-mono text-foreground">
                                 {backupRecoveryKey}
                             </code>
                             <Button
@@ -332,7 +332,7 @@ export function SettingsBackupTab(props: SettingsBackupTabProps) {
                 </form>
 
                 {restoreCopyPath && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
                         <span className="font-medium text-foreground">
                             Verified copy validated and ready for activation.
                         </span>

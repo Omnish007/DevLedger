@@ -13,6 +13,8 @@
 @layer base {
     * {
         box-sizing: border-box;
+        border-color: var(--border);
+        outline-color: var(--ring);
     }
     html,
     body,
@@ -63,9 +65,13 @@
     height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-    background: var(--input);
+    background: color-mix(in oklab, var(--muted-foreground) 28%, transparent);
     border-radius: 99px;
     border: 2px solid transparent;
+    background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 44%, transparent);
     background-clip: content-box;
 }
 .window-drag {
@@ -281,7 +287,7 @@
 .workspace-page textarea[aria-invalid='true'],
 .notes-workspace input[aria-invalid='true'],
 .notes-workspace textarea[aria-invalid='true'] {
-    border-color: var(--danger);
+    border-color: color-mix(in oklab, var(--danger) 52%, var(--border));
 }
 .workspace-page [role='alert'] {
     line-height: 1.45;
@@ -371,7 +377,7 @@
     text-transform: capitalize;
 }
 .page-tasks .task-timer {
-    border-left: 3px solid var(--primary);
+    border-left: 3px solid color-mix(in oklab, var(--primary) 58%, transparent);
     background: var(--card);
 }
 
@@ -454,7 +460,7 @@
     gap: 0.375rem;
     min-height: 3rem;
     padding: 0.3rem 0.35rem 0.3rem 0.9rem;
-    border: 1px solid var(--input);
+    border: 1px solid color-mix(in oklab, var(--input) 92%, transparent);
     border-radius: 0.75rem;
     background: var(--card);
     box-shadow: var(--shadow-xs);
@@ -463,8 +469,8 @@
         box-shadow var(--duration-fast, 120ms) var(--ease-standard, ease);
 }
 .page-search .search-pill:focus-within {
-    border-color: var(--ring);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 20%, transparent);
+    border-color: color-mix(in oklab, var(--ring) 72%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 18%, transparent);
 }
 .page-search .search-pill input {
     border: 0;
@@ -593,6 +599,8 @@
 .rdp-root .rdp-selected .rdp-day_button {
     border: none;
 }
+.rdp-root .rdp-selected:not(.rdp-range_middle) .rdp-day_button,
+.rdp-root [aria-selected='true']:not(.rdp-range_middle) > .rdp-day_button,
 .rdp-root .rdp-day_button[aria-selected='true'],
 .rdp-root .rdp-range_start .rdp-day_button,
 .rdp-root .rdp-range_end .rdp-day_button {
@@ -672,7 +680,7 @@
         margin-block-start: 6px;
         padding: 0.375rem;
         border-radius: 0.75rem;
-        border: 1px solid color-mix(in oklab, var(--border) 92%, transparent);
+        border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
         background: var(--popover);
         color: var(--popover-foreground);
         box-shadow: var(--shadow-popover);
@@ -776,18 +784,18 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    margin: 1rem 0;
+    margin: 1.25rem 0 2.5rem;
     table-layout: fixed;
     border-radius: 0.625rem;
     overflow: hidden;
     background: color-mix(in oklab, var(--card) 82%, transparent);
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 92%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 82%, transparent);
 }
 .prose-editor th,
 .prose-editor td {
     position: relative;
-    border-right: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
-    border-bottom: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+    border-right: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
     min-width: 0;
     padding: 0.55rem 0.75rem;
     vertical-align: top;
@@ -808,14 +816,14 @@
     color: var(--foreground);
     font-size: 0.86em;
     font-weight: 600;
-    border-bottom: 1.5px solid var(--border);
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 92%, transparent);
 }
 .prose-editor tbody tr:hover td {
     background: color-mix(in oklab, var(--surface-subtle) 42%, transparent);
 }
 .prose-editor .selectedCell {
     background: color-mix(in oklab, var(--primary) 15%, transparent) !important;
-    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--primary) 58%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 42%, transparent);
 }
 
 .prose-editor a.note-contact-mention {
@@ -826,7 +834,7 @@
     padding: 0.08rem 0.52rem 0.08rem 0.4rem;
     color: oklch(0.4 0.17 290);
     background: oklch(0.945 0.038 290);
-    border: 1px solid oklch(0.82 0.095 290);
+    border: 1px solid oklch(0.885 0.048 290);
     font-size: 0.87em;
     font-weight: 600;
     line-height: 1.35;
@@ -853,17 +861,17 @@
 }
 .prose-editor a.note-contact-mention:hover {
     background: oklch(0.915 0.055 290);
-    border-color: oklch(0.72 0.14 290);
+    border-color: oklch(0.83 0.072 290);
 }
 .dark .prose-editor a.note-contact-mention {
     color: oklch(0.87 0.125 292);
     background: oklch(0.275 0.072 292 / 0.78);
-    border-color: oklch(0.55 0.155 292 / 0.56);
+    border-color: oklch(0.52 0.095 292 / 0.32);
     box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06);
 }
 .dark .prose-editor a.note-contact-mention:hover {
     background: oklch(0.32 0.095 292 / 0.9);
-    border-color: oklch(0.66 0.17 292 / 0.75);
+    border-color: oklch(0.58 0.115 292 / 0.48);
 }
 
 .prose-editor .smart-date-pill,
@@ -873,7 +881,7 @@
     gap: 0.34rem;
     border-radius: 0.42rem;
     padding: 0.08rem 0.5rem 0.08rem 0.42rem;
-    border: 1px solid oklch(0.82 0.085 246);
+    border: 1px solid oklch(0.885 0.042 246);
     background: oklch(0.948 0.034 246);
     color: oklch(0.38 0.14 248);
     font-size: 0.87em;
@@ -893,11 +901,11 @@
 }
 .prose-editor .smart-date-pill:hover {
     background: oklch(0.915 0.05 246);
-    border-color: oklch(0.7 0.125 246);
+    border-color: oklch(0.825 0.07 246);
 }
 .dark .prose-editor .smart-date-pill,
 .dark .prose-editor .smart-date-reference {
-    border-color: oklch(0.54 0.135 245 / 0.55);
+    border-color: oklch(0.52 0.085 245 / 0.32);
     background: oklch(0.265 0.058 245 / 0.8);
     color: oklch(0.85 0.115 244);
     box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06);
@@ -907,11 +915,11 @@
 }
 .dark .prose-editor .smart-date-pill:hover {
     background: oklch(0.31 0.078 245 / 0.92);
-    border-color: oklch(0.65 0.155 245 / 0.78);
+    border-color: oklch(0.58 0.105 245 / 0.48);
 }
 
 .prose-editor .smart-date-pill.is-reminder {
-    border-color: oklch(0.8 0.125 75);
+    border-color: oklch(0.875 0.065 75);
     background: oklch(0.955 0.055 82);
     color: oklch(0.45 0.14 62);
 }
@@ -920,10 +928,10 @@
 }
 .prose-editor .smart-date-pill.is-reminder:hover {
     background: oklch(0.92 0.078 80);
-    border-color: oklch(0.72 0.15 70);
+    border-color: oklch(0.82 0.085 72);
 }
 .dark .prose-editor .smart-date-pill.is-reminder {
-    border-color: oklch(0.68 0.145 75 / 0.62);
+    border-color: oklch(0.62 0.095 75 / 0.34);
     background: oklch(0.285 0.072 72 / 0.84);
     color: oklch(0.88 0.13 78);
 }
@@ -932,14 +940,14 @@
 }
 .dark .prose-editor .smart-date-pill.is-reminder:hover {
     background: oklch(0.335 0.09 72 / 0.94);
-    border-color: oklch(0.76 0.16 76 / 0.82);
+    border-color: oklch(0.68 0.115 76 / 0.48);
 }
 
 .prose-editor .smart-date-pill.is-reminder[data-urgency='today'] {
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--warning) 40%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--warning) 26%, transparent);
 }
 .prose-editor .smart-date-pill.is-reminder[data-urgency='overdue'] {
-    border-color: oklch(0.76 0.14 24);
+    border-color: oklch(0.865 0.072 24);
     background: oklch(0.95 0.048 24);
     color: oklch(0.46 0.18 24);
 }
@@ -947,7 +955,7 @@
     color: oklch(0.54 0.19 24);
 }
 .dark .prose-editor .smart-date-pill.is-reminder[data-urgency='overdue'] {
-    border-color: oklch(0.64 0.17 24 / 0.72);
+    border-color: oklch(0.6 0.105 24 / 0.38);
     background: oklch(0.28 0.088 24 / 0.88);
     color: oklch(0.87 0.135 24);
 }

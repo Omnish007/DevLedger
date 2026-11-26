@@ -27,6 +27,7 @@ import { targetFromRecord } from '@/lib/navigation';
 import { dispatchRendererNotifications } from '@/lib/notifications-client';
 import { friendlyError } from '@/lib/utils';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { QuickCapturePage } from '@/features/capture/QuickCapturePage';
 import '@/styles/globals.css';
 
 const ProjectsPage = lazy(() =>
@@ -42,9 +43,6 @@ const SearchPage = lazy(() =>
 );
 const SettingsPage = lazy(() =>
     import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
-);
-const QuickCapturePage = lazy(() =>
-    import('@/features/capture/QuickCapturePage').then((m) => ({ default: m.QuickCapturePage })),
 );
 const ContactsPage = lazy(() =>
     import('@/features/contacts/ContactsPage').then((m) => ({ default: m.ContactsPage })),

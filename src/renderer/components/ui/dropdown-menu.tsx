@@ -4,7 +4,7 @@ import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const MENU_SURFACE =
-    'z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[12.5rem] overflow-x-hidden overflow-y-auto rounded-xl border border-border/90 bg-popover/98 p-1.5 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95';
+    'z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[12.5rem] overflow-x-hidden overflow-y-auto rounded-xl border border-border/80 bg-popover/98 p-1.5 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95';
 
 function DropdownMenu(props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
     return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;

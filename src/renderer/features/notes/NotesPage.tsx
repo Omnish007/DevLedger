@@ -705,15 +705,15 @@ export function NotesPage({
                             <>
                                 <div className="notes-editor-header flex shrink-0 flex-wrap items-center justify-between gap-2 px-5 py-2.5 sm:px-6">
                                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                                        <Breadcrumb>
-                                            <BreadcrumbList className="gap-1 text-xs">
-                                                <BreadcrumbItem>
-                                                    <BookOpen className="size-3.5" />
+                                        <Breadcrumb className="min-w-0">
+                                            <BreadcrumbList className="flex-nowrap gap-1 text-xs">
+                                                <BreadcrumbItem className="shrink-0">
+                                                    <BookOpen className="size-3.5 shrink-0" />
                                                     <BreadcrumbPage>Notes</BreadcrumbPage>
                                                 </BreadcrumbItem>
-                                                <BreadcrumbSeparator />
-                                                <BreadcrumbItem>
-                                                    <BreadcrumbPage className="max-w-[220px] truncate">
+                                                <BreadcrumbSeparator className="shrink-0" />
+                                                <BreadcrumbItem className="min-w-0">
+                                                    <BreadcrumbPage className="max-w-[160px] truncate sm:max-w-[240px]">
                                                         {selected.title || 'Untitled note'}
                                                     </BreadcrumbPage>
                                                 </BreadcrumbItem>
@@ -834,7 +834,7 @@ export function NotesPage({
                                         <EditorContent
                                             editor={editor}
                                             onClick={handleEditorClick}
-                                            className="min-h-80 flex-1 py-1"
+                                            className="notes-editor-content min-h-80 flex-1 py-1"
                                         />
                                         <NoteTableOverlay editor={editor} canvasRef={writingCanvasRef} />
                                         {error && (

@@ -106,7 +106,7 @@ export function TaskBlockerSection({
             </div>
 
             {openBlocker ? (
-                <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning-subtle p-3">
+                <div className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-subtle p-3">
                     <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning-foreground" />
                     <div className="min-w-0 flex-1 space-y-1">
                         <p className="font-medium text-warning-foreground">{openBlocker.reason}</p>

@@ -61,7 +61,7 @@ export function SettingsVaultTab({
             {error && (
                 <p
                     role="alert"
-                    className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-danger-foreground"
+                    className="rounded-xl border border-danger/20 bg-danger-subtle px-4 py-3 text-danger-foreground"
                 >
                     {error}
                 </p>
@@ -200,7 +200,7 @@ export function SettingsVaultTab({
                     </form>
                 ) : (
                     <div className="space-y-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/25 bg-success-subtle/60 px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success/18 bg-success-subtle/60 px-4 py-3">
                             <span className="font-medium text-success-foreground">
                                 Session key active in memory; lock manually when stepping away.
                             </span>
@@ -296,9 +296,9 @@ export function SettingsVaultTab({
                 )}
 
                 {recoveryVisible && (
-                    <div className="space-y-3 rounded-xl border border-warning/40 bg-warning-subtle p-4 text-warning-foreground">
+                    <div className="space-y-3 rounded-xl border border-warning/22 bg-warning-subtle p-4 text-warning-foreground">
                         <p className="font-semibold">Save offline recovery key (shown once)</p>
-                        <code className="block break-all rounded-lg border border-warning/25 bg-card p-3 font-mono text-foreground">
+                        <code className="block break-all rounded-lg border border-warning/18 bg-card p-3 font-mono text-foreground">
                             {recoveryKey}
                         </code>
                         <div className="flex flex-wrap items-center justify-between gap-3">

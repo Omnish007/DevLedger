@@ -358,6 +358,18 @@ export function TasksPage({
             setBusyId(null);
         }
     }
+    async function requestRemoveTask(item: { id: string; title: string }) {
+        if (
+            await confirm({
+                title: 'Move task to trash?',
+                description: `“${item.title}” will be moved to trash.`,
+                confirmLabel: 'Move to trash',
+                destructive: true,
+            })
+        ) {
+            await run(item.id, () => onRemove(item.id));
+        }
+    }
     async function recoverTimer(action: 'resume' | 'stop' | 'discard') {
         if (!activeTimer) return;
         if (
@@ -410,7 +422,7 @@ export function TasksPage({
             )}
             {activeTimer && (
                 <div
-                    className={`task-timer flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5 ${activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay ? 'border-warning/50 bg-warning/5' : 'border-border'}`}
+                    className={`task-timer flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5 ${activeTimer.recoveryRequired || elapsedHours >= 8 || crossedLocalDay ? 'border-warning/25 bg-warning/5' : 'border-border'}`}
                 >
                     <span className="size-2 shrink-0 rounded-full bg-primary" />
                     <div className="min-w-0 flex-1 text-xs">
@@ -438,7 +450,7 @@ export function TasksPage({
                 </div>
             )}
             {activeTimer?.recoveryRequired && (
-                <Alert className="border-warning/50 bg-warning/5">
+                <Alert className="border-warning/25 bg-warning/5">
                     <AlertDescription className="space-y-3 text-xs">
                         <p className="font-semibold">Confirm interrupted work session</p>
                         <Input
@@ -537,7 +549,7 @@ export function TasksPage({
             </div>
 
             <div className="workspace-surface task-queue @container overflow-hidden rounded-[var(--workspace-radius)]">
-                <div className="hidden grid-cols-[minmax(200px,1.5fr)_128px_138px_86px_106px_104px] gap-3 border-b border-border bg-surface-subtle/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground @[780px]:grid">
+                <div className="hidden grid-cols-[minmax(180px,1.5fr)_116px_132px_78px_98px_98px] gap-2.5 border-b border-border bg-surface-subtle/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground @[680px]:grid">
                     <span>Task</span>
                     <span>Project</span>
                     <span>Status</span>
@@ -596,19 +608,7 @@ export function TasksPage({
                                 onEdit={beginEdit}
                                 onStartTimer={(id) => void run(id, () => onStartTimer(id))}
                                 onStopTimer={(id) => void stopActiveTimer(id)}
-                                onDelete={(item) => {
-                                    void (async () => {
-                                        if (
-                                            await confirm({
-                                                title: 'Move task to trash?',
-                                                description: `“${item.title}” will be moved to trash.`,
-                                                confirmLabel: 'Move to trash',
-                                                destructive: true,
-                                            })
-                                        )
-                                            await run(item.id, () => onRemove(item.id));
-                                    })();
-                                }}
+                                onDelete={(item) => void requestRemoveTask(item)}
                                 onNavigateTarget={onNavigateTarget}
                             />
                         )}
@@ -640,9 +640,10 @@ export function TasksPage({
                 onClose={() => setInspectedTaskId(null)}
                 onEdit={beginEdit}
                 onUpdate={onUpdate}
-                onRemove={async (id) => {
-                    await onRemove(id);
-                    await loadPage();
+                onRemove={(id) => {
+                    const target =
+                        inspectedTask?.id === id ? inspectedTask : pageTasks.find((t) => t.id === id);
+                    return target ? requestRemoveTask(target) : requestRemoveTask({ id, title: 'this task' });
                 }}
                 onStartTimer={onStartTimer}
                 onStopTimer={onStopTimer}

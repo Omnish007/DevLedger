@@ -149,7 +149,7 @@ export function RemoteRecordPicker({
                     disabled={disabled}
                     className={cn(
                         hasMaxOnly ? 'w-auto' : 'w-full',
-                        'justify-between gap-2 rounded-lg border-input bg-card font-medium shadow-[var(--shadow-xs)] transition-[border-color,background-color,box-shadow] hover:border-border hover:bg-surface-subtle/60 data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20',
+                        'justify-between gap-2 rounded-lg border-border/90 bg-card font-medium shadow-[var(--shadow-xs)] transition-[border-color,background-color,box-shadow] hover:border-border hover:bg-surface-subtle/60 data-[state=open]:border-ring/75 data-[state=open]:ring-2 data-[state=open]:ring-ring/20',
                         selected?.id !== value && !selectedLabel && 'font-normal text-muted-foreground',
                         className,
                     )}

@@ -28,17 +28,21 @@ test('creates project context, linked work records, and finds the note from anot
     });
 
     await page.getByRole('button', { name: 'Overview', exact: true }).click();
-    await expect(page.getByText(projectName, { exact: true })).toBeVisible();
+    await expect(page.getByText(projectName, { exact: true }).first()).toBeVisible();
 
     // A complete app restart, not just a renderer refresh, validates durable records.
     await desktop.restart();
-    await page.getByRole('button', { name: 'Projects', exact: true }).click();
-    await expect(page.getByText(projectName, { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Tasks', exact: true }).click();
-    await expect(page.getByText(taskTitle, { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Notes', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Filter notes by title or contents' }).fill(noteTitle);
-    await expect(page.getByText(noteTitle, { exact: true })).toBeVisible();
+    const restartedPage = desktop.page;
+    await restartedPage.getByRole('button', { name: 'Projects', exact: true }).click();
+    await expect(restartedPage.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible();
+    await expect(restartedPage.getByText(projectName, { exact: true })).toBeVisible();
+    await restartedPage.getByRole('button', { name: 'Tasks', exact: true }).click();
+    await expect(restartedPage.getByRole('heading', { name: 'Tasks', level: 1 })).toBeVisible();
+    await expect(restartedPage.getByText(taskTitle, { exact: true })).toBeVisible();
+    await restartedPage.getByRole('button', { name: 'Notes', exact: true }).click();
+    await expect(restartedPage.getByRole('heading', { name: 'Notes', level: 1 })).toBeVisible();
+    await restartedPage.getByRole('textbox', { name: 'Filter notes by title or contents' }).fill(noteTitle);
+    await expect(restartedPage.getByRole('button', { name: noteTitle }).first()).toBeVisible();
 });
 
 test('quick capture creates a note through its own Electron window and persists it in Notes', async ({
@@ -60,6 +64,7 @@ test('quick capture creates a note through its own Electron window and persists 
     await closed;
 
     await page.getByRole('button', { name: 'Notes', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Notes', level: 1 })).toBeVisible();
     await page.getByRole('textbox', { name: 'Filter notes by title or contents' }).fill(title);
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: title }).first()).toBeVisible();
 });

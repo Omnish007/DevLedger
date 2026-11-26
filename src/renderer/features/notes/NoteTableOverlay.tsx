@@ -24,7 +24,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NoteTableDragPreview, type TableDragIndicator } from './NoteTableDragPreview';
 import {
-    applyLiveDomColumnPcts,
     commitColumnWidthsPct,
     commitRowHeight,
     readDomColumnPcts,
@@ -303,8 +302,13 @@ export function NoteTableOverlay({
         const startPcts = readDomColumnPcts(tableEl);
         if (divider.colIndex + 1 >= startPcts.length) return;
         const headerRow = tableEl.rows[0];
+        const canvasRect = canvas.getBoundingClientRect();
+        const leftHeaderRect = headerRow?.cells[divider.colIndex]?.getBoundingClientRect();
+        const leftColLeft = leftHeaderRect
+            ? leftHeaderRect.left - canvasRect.left
+            : divider.left - (startPcts[divider.colIndex]! / 100) * totalWidth;
         const initialLeftCellWidth = Math.round(
-            headerRow?.cells[divider.colIndex]?.getBoundingClientRect().width ?? 0,
+            leftHeaderRect?.width ?? (startPcts[divider.colIndex]! / 100) * totalWidth,
         );
 
         isDraggingRef.current = true;
@@ -315,16 +319,9 @@ export function NoteTableOverlay({
         let latestPcts = [...startPcts];
 
         const publishColPreview = (leftPct: number, rightPct: number) => {
-            const canvasRect = canvas.getBoundingClientRect();
-            const leftCellRect = headerRow?.cells[divider.colIndex]?.getBoundingClientRect();
-            const rightCellRect = headerRow?.cells[divider.colIndex + 1]?.getBoundingClientRect();
-            const deltaX = ((leftPct - startPcts[divider.colIndex]!) / 100) * totalWidth;
-            const splitX = leftCellRect ? leftCellRect.right - canvasRect.left : divider.left + deltaX;
-            const leftColLeft = leftCellRect
-                ? leftCellRect.left - canvasRect.left
-                : splitX - Math.round((leftPct / 100) * totalWidth);
-            const leftColWidth = Math.round(leftCellRect?.width ?? (leftPct / 100) * totalWidth);
-            const rightColWidth = Math.round(rightCellRect?.width ?? (rightPct / 100) * totalWidth);
+            const leftColWidth = Math.round((leftPct / 100) * totalWidth);
+            const rightColWidth = Math.round((rightPct / 100) * totalWidth);
+            const splitX = leftColLeft + leftColWidth;
             const deltaPx = leftColWidth - initialLeftCellWidth;
             const clamped = leftPct <= minPct + 0.05 || rightPct <= minPct + 0.05;
             setDragIndicator({
@@ -356,9 +353,9 @@ export function NoteTableOverlay({
             latestPcts = [...startPcts];
             latestPcts[divider.colIndex] = leftPct;
             latestPcts[divider.colIndex + 1] = rightPct;
-            applyLiveDomColumnPcts(tableEl, latestPcts);
+            // Do not mutate ProseMirror DOM styles mid-drag; ProseMirror's DOMObserver
+            // replaces table/cell elements and tears down the active drag overlay.
             publishColPreview(leftPct, rightPct);
-            window.requestAnimationFrame(measure);
         };
 
         const onUp = () => {
@@ -380,10 +377,26 @@ export function NoteTableOverlay({
         event.preventDefault();
         event.stopPropagation();
         const canvas = canvasRef.current;
+        const canvasRect = canvas.getBoundingClientRect();
         const startY = event.clientY;
         const startHeight = Math.round(divider.height);
+        const rowRect = divider.rowEl.getBoundingClientRect();
+        const rowTop = rowRect.top - canvasRect.top;
         const targetCell = divider.rowEl.cells[0];
         if (!targetCell) return;
+
+        // Measure minimum intrinsic cell content height once so shrinking preview accurately shows content clamping.
+        let minContentHeight = 36;
+        for (let i = 0; i < divider.rowEl.cells.length; i += 1) {
+            const cell = divider.rowEl.cells[i]!;
+            const computed = window.getComputedStyle(cell);
+            const padY = (parseFloat(computed.paddingTop) || 0) + (parseFloat(computed.paddingBottom) || 0);
+            let innerHeight = 0;
+            for (let c = 0; c < cell.children.length; c += 1) {
+                innerHeight += cell.children[c]!.getBoundingClientRect().height;
+            }
+            minContentHeight = Math.max(minContentHeight, Math.ceil(innerHeight + padY + 4));
+        }
 
         isDraggingRef.current = true;
         clearHideTimer();
@@ -391,16 +404,14 @@ export function NoteTableOverlay({
         let latestHeight = startHeight;
 
         const publishRowPreview = (targetHeight: number) => {
-            const canvasRect = canvas.getBoundingClientRect();
-            const rowRect = divider.rowEl.getBoundingClientRect();
-            const actualHeight = Math.round(rowRect.height);
-            const clampedToContent = targetHeight < actualHeight - 1;
+            const actualHeight = Math.max(minContentHeight, targetHeight);
+            const clampedToContent = targetHeight < minContentHeight;
             const deltaPx = actualHeight - startHeight;
             setDragIndicator({
                 kind: 'row',
                 rowIndex: divider.rowIndex,
-                rowTop: rowRect.top - canvasRect.top,
-                top: rowRect.bottom - canvasRect.top,
+                rowTop,
+                top: rowTop + actualHeight,
                 startTop: divider.top,
                 actualHeight,
                 targetHeight,
@@ -419,9 +430,7 @@ export function NoteTableOverlay({
                 420,
                 Math.max(36, Math.round(startHeight + (moveEvent.clientY - startY))),
             );
-            divider.rowEl.style.height = `${latestHeight}px`;
             publishRowPreview(latestHeight);
-            window.requestAnimationFrame(measure);
         };
 
         const onUp = () => {
@@ -430,7 +439,7 @@ export function NoteTableOverlay({
             isDraggingRef.current = false;
             document.body.style.cursor = '';
             setDragIndicator(null);
-            commitRowHeight(editor, targetCell, latestHeight);
+            commitRowHeight(editor, targetCell, Math.max(minContentHeight, latestHeight));
             window.requestAnimationFrame(measure);
         };
 
@@ -543,7 +552,7 @@ export function NoteTableOverlay({
                             left: metrics.colLeft + metrics.colWidth / 2,
                             top: metrics.tableTop - 10,
                         }}
-                        className="pointer-events-auto absolute z-20 grid h-4.5 w-7 -translate-x-1/2 place-items-center rounded-full border border-border/90 bg-popover text-muted-foreground shadow-sm transition-colors hover:border-primary/60 hover:text-foreground"
+                        className="pointer-events-auto absolute z-20 grid h-4.5 w-7 -translate-x-1/2 place-items-center rounded-full border border-border/80 bg-popover text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-foreground"
                     >
                         <MoreHorizontal className="size-3.5" />
                     </button>
@@ -616,7 +625,7 @@ export function NoteTableOverlay({
                                                     );
                                                     setColMenuOpen(false);
                                                 }}
-                                                className="rounded border border-border/80 bg-surface-subtle/60 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10"
+                                                className="rounded border border-border/80 bg-surface-subtle/60 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
                                             >
                                                 {preset.label}
                                             </button>
@@ -656,7 +665,7 @@ export function NoteTableOverlay({
                             left: Math.max(4, metrics.tableLeft - 22),
                             top: metrics.rowTop + metrics.rowHeight / 2,
                         }}
-                        className="pointer-events-auto absolute z-20 grid h-6 w-4.5 -translate-y-1/2 place-items-center rounded-full border border-border/90 bg-popover text-muted-foreground shadow-sm transition-colors hover:border-primary/60 hover:text-foreground"
+                        className="pointer-events-auto absolute z-20 grid h-6 w-4.5 -translate-y-1/2 place-items-center rounded-full border border-border/80 bg-popover text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-foreground"
                     >
                         <GripVertical className="size-3.5" />
                     </button>
@@ -721,7 +730,7 @@ export function NoteTableOverlay({
                                             commitRowHeight(editor, activeTarget.cellEl, preset.px);
                                             setRowMenuOpen(false);
                                         }}
-                                        className="rounded border border-border/80 bg-surface-subtle/60 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10"
+                                        className="rounded border border-border/80 bg-surface-subtle/60 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
                                     >
                                         {preset.label}
                                     </button>
@@ -759,7 +768,7 @@ export function NoteTableOverlay({
                     top: metrics.tableTop,
                     height: metrics.tableHeight,
                 }}
-                className="pointer-events-auto absolute flex w-5 items-center justify-center rounded-md border border-dashed border-border/80 bg-surface-subtle/50 text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                className="pointer-events-auto absolute flex w-5 items-center justify-center rounded-md border border-dashed border-border/80 bg-surface-subtle/50 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
             >
                 <Plus className="size-3.5" />
             </button>
@@ -776,7 +785,7 @@ export function NoteTableOverlay({
                     top: metrics.tableTop + metrics.tableHeight + 6,
                     width: metrics.tableWidth,
                 }}
-                className="pointer-events-auto absolute flex h-6 items-center justify-center gap-1 rounded-md border border-dashed border-border/80 bg-surface-subtle/50 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                className="pointer-events-auto absolute flex h-6 items-center justify-center gap-1 rounded-md border border-dashed border-border/80 bg-surface-subtle/50 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
             >
                 <Plus className="size-3" />
                 <span>Add row</span>
@@ -789,7 +798,7 @@ export function NoteTableOverlay({
                         left: metrics.tableLeft + metrics.tableWidth,
                         top: Math.max(4, metrics.tableTop - 32),
                     }}
-                    className="pointer-events-auto absolute z-30 flex -translate-x-full items-center gap-1 rounded-lg border border-border/90 bg-popover p-1 shadow-md"
+                    className="pointer-events-auto absolute z-30 flex -translate-x-full items-center gap-1 rounded-lg border border-border/80 bg-popover p-1 shadow-md"
                 >
                     {selectionState.canMerge && (
                         <button

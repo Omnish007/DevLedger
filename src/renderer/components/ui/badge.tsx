@@ -4,11 +4,11 @@ import { cn } from '@/lib/utils';
 const variants = {
     default: 'border-transparent bg-primary text-primary-foreground',
     secondary: 'border-border/65 bg-surface-subtle text-foreground/85',
-    outline: 'border-border bg-transparent text-foreground',
-    success: 'border-success/20 bg-success-subtle text-success-foreground',
-    warning: 'border-warning/25 bg-warning-subtle text-warning-foreground',
-    destructive: 'border-danger/20 bg-danger-subtle text-danger-foreground',
-    info: 'border-info/20 bg-info-subtle text-info-foreground',
+    outline: 'border-border/80 bg-transparent text-foreground',
+    success: 'border-success/16 bg-success-subtle text-success-foreground',
+    warning: 'border-warning/18 bg-warning-subtle text-warning-foreground',
+    destructive: 'border-danger/16 bg-danger-subtle text-danger-foreground',
+    info: 'border-info/16 bg-info-subtle text-info-foreground',
 };
 
 export function Badge({

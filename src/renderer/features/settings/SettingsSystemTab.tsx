@@ -88,7 +88,7 @@ export function SettingsSystemTab() {
             {error && (
                 <p
                     role="alert"
-                    className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-danger-foreground"
+                    className="rounded-xl border border-danger/20 bg-danger-subtle px-4 py-3 text-danger-foreground"
                 >
                     {error}
                 </p>

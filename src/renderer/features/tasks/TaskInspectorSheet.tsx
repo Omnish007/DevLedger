@@ -222,10 +222,10 @@ export function TaskInspectorSheet({
                             <div
                                 className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-xs font-medium ${
                                     openBlocker || task.status === 'blocked'
-                                        ? 'border-warning/35 bg-warning-subtle text-warning-foreground'
+                                        ? 'border-warning/22 bg-warning-subtle text-warning-foreground'
                                         : openPrereqCount > 0
                                           ? 'border-border bg-surface-subtle text-muted-foreground'
-                                          : 'border-success/30 bg-success-subtle text-success-foreground'
+                                          : 'border-success/20 bg-success-subtle text-success-foreground'
                                 }`}
                             >
                                 {openBlocker || task.status === 'blocked' ? (
@@ -261,7 +261,7 @@ export function TaskInspectorSheet({
                             {error && (
                                 <p
                                     role="alert"
-                                    className="rounded-xl border border-danger/30 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
+                                    className="rounded-xl border border-danger/20 bg-danger-subtle px-3.5 py-2.5 text-xs text-danger-foreground"
                                 >
                                     {error}
                                 </p>
@@ -269,11 +269,15 @@ export function TaskInspectorSheet({
 
                             <div className="rounded-xl border border-border/80 bg-surface-subtle/30 p-3.5">
                                 <div className="grid grid-cols-2 gap-3 text-xs">
-                                    <label className="block space-y-1.5 font-medium">
-                                        <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    <div className="space-y-1.5 font-medium">
+                                        <label
+                                            htmlFor="task-inspector-status"
+                                            className="block text-[11px] uppercase tracking-wider text-muted-foreground"
+                                        >
                                             Status
-                                        </span>
+                                        </label>
                                         <NativeSelect
+                                            id="task-inspector-status"
                                             value={task.status}
                                             onChange={(e) =>
                                                 void onUpdate(task.id, {
@@ -288,12 +292,16 @@ export function TaskInspectorSheet({
                                                 </NativeSelectOption>
                                             ))}
                                         </NativeSelect>
-                                    </label>
-                                    <label className="block space-y-1.5 font-medium">
-                                        <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    </div>
+                                    <div className="space-y-1.5 font-medium">
+                                        <label
+                                            htmlFor="task-inspector-priority"
+                                            className="block text-[11px] uppercase tracking-wider text-muted-foreground"
+                                        >
                                             Priority
-                                        </span>
+                                        </label>
                                         <NativeSelect
+                                            id="task-inspector-priority"
                                             value={task.priority}
                                             onChange={(e) =>
                                                 void onUpdate(task.id, {
@@ -309,7 +317,7 @@ export function TaskInspectorSheet({
                                                 >{`${level[0]!.toUpperCase()}${level.slice(1)}`}</NativeSelectOption>
                                             ))}
                                         </NativeSelect>
-                                    </label>
+                                    </div>
                                     <div className="flex items-center gap-2 rounded-lg border border-border/65 bg-card px-2.5 py-2">
                                         <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" />
                                         <div className="min-w-0">

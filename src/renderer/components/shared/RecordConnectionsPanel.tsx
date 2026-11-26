@@ -244,7 +244,7 @@ export function RecordConnectionsPanel({
             {error && (
                 <p
                     role="alert"
-                    className="rounded-lg border border-danger/25 bg-danger-subtle px-3 py-2 text-danger-foreground"
+                    className="rounded-lg border border-danger/20 bg-danger-subtle px-3 py-2 text-danger-foreground"
                 >
                     {error}
                 </p>

@@ -176,9 +176,9 @@ export function SmartDateChipView({
                             className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${
                                 isReminder
                                     ? urgency === 'overdue'
-                                        ? 'border-danger/45 bg-danger/10 text-danger'
-                                        : 'border-warning/45 bg-warning/12 text-warning'
-                                    : 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                                        ? 'border-danger/22 bg-danger/10 text-danger'
+                                        : 'border-warning/22 bg-warning/12 text-warning'
+                                    : 'border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300'
                             }`}
                         >
                             <span className="inline-flex min-w-0 items-center gap-1.5 truncate font-medium">

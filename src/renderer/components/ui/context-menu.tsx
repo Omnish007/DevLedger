@@ -4,7 +4,7 @@ import { ContextMenu as ContextMenuPrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const CTX_SURFACE =
-    'z-50 min-w-[12.5rem] overflow-hidden rounded-xl border border-border/90 bg-popover/98 p-1.5 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md outline-none';
+    'z-50 min-w-[12.5rem] overflow-hidden rounded-xl border border-border/80 bg-popover/98 p-1.5 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md outline-none';
 
 function ContextMenu(props: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
     return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />;

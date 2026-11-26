@@ -26,7 +26,7 @@ export function SearchFilterInput({
                 aria-hidden="true"
             />
             <Input
-                type="search"
+                type="text"
                 value={value}
                 onChange={(event) => onValueChange(event.target.value)}
                 className={cn('pl-8.5', value ? 'pr-8.5' : undefined)}

@@ -11,7 +11,7 @@ const buttonVariants = cva(
                 default: 'bg-primary text-primary-foreground shadow-[var(--shadow-xs)] hover:opacity-92',
                 secondary: 'border border-border/60 bg-surface-subtle text-foreground hover:bg-surface-hover',
                 outline:
-                    'border border-input bg-card text-foreground shadow-[var(--shadow-xs)] hover:bg-surface-hover',
+                    'border border-border/90 bg-card text-foreground shadow-[var(--shadow-xs)] hover:border-border hover:bg-surface-hover',
                 ghost: 'text-foreground hover:bg-surface-hover',
                 destructive:
                     'bg-destructive text-destructive-foreground shadow-[var(--shadow-xs)] hover:opacity-92',

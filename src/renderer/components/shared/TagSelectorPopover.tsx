@@ -63,6 +63,7 @@ export function TagSelector({ entityType, entityId, assigned, onChanged, onError
             const created = await window.devLedger.operations.createTag(clean, color);
             await window.devLedger.operations.assignTag(entityType, entityId, created.id);
             setQuery('');
+            setOpen(false);
             onChanged();
         } catch (caught) {
             onError?.(friendlyError(caught, 'Tag could not be created.'));
@@ -161,7 +162,7 @@ export function TagSelector({ entityType, entityId, assigned, onChanged, onError
                                                 type="button"
                                                 aria-label={`Select ${swatch} tag color`}
                                                 onClick={() => setColor(swatch)}
-                                                className={`grid size-6 place-items-center rounded-full border transition-transform hover:scale-105 ${color === swatch ? 'border-foreground ring-2 ring-ring/25' : 'border-transparent'}`}
+                                                className={`grid size-6 place-items-center rounded-full border transition-transform hover:scale-105 ${color === swatch ? 'border-ring/75 ring-2 ring-ring/25' : 'border-transparent'}`}
                                             >
                                                 <span
                                                     className={`size-3 rounded-full ${TAG_DOT_CLASS[swatch]}`}

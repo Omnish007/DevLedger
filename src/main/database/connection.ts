@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { CURRENT_SCHEMA_VERSION, MIGRATIONS } from './schema.js';
+import { CURRENT_SCHEMA_VERSION, MIGRATIONS } from './schema.ts';
 
 export class DatabaseHealthError extends Error {
     constructor(message: string, options?: ErrorOptions) {

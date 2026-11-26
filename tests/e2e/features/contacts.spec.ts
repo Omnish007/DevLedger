@@ -50,5 +50,5 @@ test('creates, searches, edits and moves a contact to trash', async ({ desktop }
     const confirmation = page.getByRole('alertdialog');
     await expect(confirmation.getByRole('heading', { name: 'Move contact to trash?' })).toBeVisible();
     await confirmation.getByRole('button', { name: 'Move to trash' }).click();
-    await expect(page.getByText(contactName, { exact: true })).toBeHidden();
+    await expect(page.getByText(contactName, { exact: true })).toHaveCount(0);
 });

@@ -168,7 +168,10 @@ export function registerWorkspaceHandlers(register: IpcRegistrar, context: IpcHa
     register('capture:save', noteInput, (input, event) => {
         const note = workspace.createNote(input as NoteInput);
         const senderWindow = BrowserWindow.fromWebContents(event.sender);
-        if (senderWindow?.getTitle().startsWith('Quick capture')) senderWindow.close();
+        const isCaptureWindow =
+            Boolean(senderWindow?.getTitle().startsWith('Quick capture')) ||
+            event.sender.getURL().includes('capture=1');
+        if (isCaptureWindow) senderWindow?.close();
         return note;
     });
     register('capture:open', noInput, () => dependencies.openQuickCapture?.());

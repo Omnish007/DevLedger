@@ -51,8 +51,10 @@ export class DesktopWindowManager {
     };
 
     openQuickCapture = (): void => {
-        const existing = BrowserWindow.getAllWindows().find((window) =>
-            window.getTitle().startsWith('Quick capture'),
+        const existing = BrowserWindow.getAllWindows().find(
+            (window) =>
+                window.getTitle().startsWith('Quick capture') ||
+                window.webContents.getURL().includes('capture=1'),
         );
         if (existing) {
             existing.show();
@@ -60,7 +62,10 @@ export class DesktopWindowManager {
             return;
         }
         const captureWindow = this.createWindow(true);
-        captureWindow.center();
+        captureWindow.setSize(620, 460);
+        if (process.platform !== 'linux' || process.env['DISPLAY'] || process.env['WAYLAND_DISPLAY']) {
+            captureWindow.center();
+        }
     };
 
     setQuickCaptureShortcut = (accelerator: string): boolean => {
@@ -139,7 +144,13 @@ export class DesktopWindowManager {
                 query: capture ? { capture: '1' } : {},
             });
         }
-        window.once('ready-to-show', () => window.show());
+        window.once('ready-to-show', () => {
+            if (capture) {
+                const [width = 0, height = 0] = window.getSize();
+                if (width < 480 || height < 360) window.setSize(620, 460);
+            }
+            window.show();
+        });
         window.on('closed', () => {
             if (this.primaryWindow === window) this.primaryWindow = null;
         });

@@ -23,7 +23,7 @@ function SelectTrigger({
             data-slot="select-trigger"
             data-size={size}
             className={cn(
-                'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-[var(--shadow-xs)] transition-[color,background-color,border-color,box-shadow] outline-none hover:border-border hover:bg-surface-subtle/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 data-[state=open]:border-ring data-[state=open]:ring-2 data-[state=open]:ring-ring/20 [&[data-state=open]_svg]:rotate-180 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:text-xs',
+                'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border/90 bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-[var(--shadow-xs)] transition-[color,background-color,border-color,box-shadow] outline-none hover:border-border hover:bg-surface-subtle/60 focus-visible:border-ring/75 focus-visible:ring-2 focus-visible:ring-ring/20 data-[state=open]:border-ring/75 data-[state=open]:ring-2 data-[state=open]:ring-ring/20 [&[data-state=open]_svg]:rotate-180 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground data-[size=sm]:h-8 data-[size=sm]:px-2.5 data-[size=sm]:text-xs',
                 className,
             )}
             {...props}
@@ -50,7 +50,7 @@ function SelectContent({
                 sideOffset={sideOffset}
                 collisionPadding={collisionPadding}
                 className={cn(
-                    'relative z-50 max-h-80 min-w-[max(11rem,var(--radix-select-trigger-width))] overflow-hidden rounded-xl border border-border/90 bg-popover/98 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+                    'relative z-50 max-h-80 min-w-[max(11rem,var(--radix-select-trigger-width))] overflow-hidden rounded-xl border border-border/80 bg-popover/98 text-popover-foreground shadow-[var(--shadow-popover)] backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
                     className,
                 )}
                 {...props}

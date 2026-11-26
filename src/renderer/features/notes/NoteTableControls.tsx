@@ -246,8 +246,8 @@ export function NoteTableToolbarMenu({ editor, inTable }: NoteTableToolbarMenuPr
                                         onClick={() => insertTableSize(r, c)}
                                         className={`aspect-square rounded-[3px] border transition-colors ${
                                             highlighted
-                                                ? 'border-primary/70 bg-primary/25'
-                                                : 'border-border/70 bg-card hover:border-primary/40'
+                                                ? 'border-primary/45 bg-primary/22'
+                                                : 'border-border/70 bg-card hover:border-primary/35'
                                         }`}
                                     />
                                 );

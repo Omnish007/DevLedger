@@ -159,7 +159,7 @@ export function SmartDateField({
                                     setDisplayMonth(today);
                                     commitDateTime(toDateString(today), currentTime);
                                 }}
-                                className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                                className="min-h-6 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/10"
                             >
                                 Today
                             </button>
@@ -192,6 +192,7 @@ export function SmartDateField({
                                         {hasTime && (
                                             <Input
                                                 type="time"
+                                                aria-label="Time"
                                                 value={currentTime ?? '09:00'}
                                                 onChange={(event) =>
                                                     applyTimeSelection(event.target.value || null)
@@ -201,6 +202,7 @@ export function SmartDateField({
                                         )}
                                         <Switch
                                             id={`${id}-time-toggle`}
+                                            aria-label="Include time"
                                             size="sm"
                                             checked={hasTime}
                                             onCheckedChange={(checked) =>

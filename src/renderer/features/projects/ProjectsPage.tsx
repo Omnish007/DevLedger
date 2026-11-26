@@ -205,7 +205,7 @@ export function ProjectsPage({
             {pageError && (
                 <div
                     role="alert"
-                    className="rounded-md border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-xs text-danger"
+                    className="rounded-md border border-danger/20 bg-danger/5 px-3.5 py-2.5 text-xs text-danger"
                 >
                     {pageError}
                 </div>
@@ -252,7 +252,7 @@ export function ProjectsPage({
                             <article
                                 key={project.id}
                                 onClick={() => setSelectedProject(project)}
-                                className="group flex cursor-pointer flex-col justify-between rounded-[var(--workspace-radius)] border border-border bg-card p-4 shadow-[var(--shadow-xs)] transition-colors hover:border-input hover:bg-surface-subtle/40"
+                                className="group flex cursor-pointer flex-col justify-between rounded-[var(--workspace-radius)] border border-border bg-card p-4 shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle/40"
                             >
                                 <div>
                                     <div className="flex items-start justify-between gap-2">

@@ -7,7 +7,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<'div'>) {
             data-slot="input-group"
             role="group"
             className={cn(
-                'group/input-group relative flex min-w-0 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/40 [&>input]:min-w-0 [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:shadow-none [&>input]:focus-visible:ring-0',
+                'group/input-group relative flex min-w-0 items-center rounded-md border border-input/90 bg-background shadow-xs transition-[color,box-shadow] has-[[data-slot=input-group-control]:focus-visible]:border-ring/75 has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/25 [&>input]:min-w-0 [&>input]:flex-1 [&>input]:border-0 [&>input]:bg-transparent [&>input]:shadow-none [&>input]:focus-visible:ring-0',
                 className,
             )}
             {...props}

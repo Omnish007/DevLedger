@@ -238,7 +238,7 @@ export function ContactsPage({
             {pageError && (
                 <div
                     role="alert"
-                    className="rounded-md border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-xs text-danger"
+                    className="rounded-md border border-danger/20 bg-danger/5 px-3.5 py-2.5 text-xs text-danger"
                 >
                     {pageError}
                 </div>
@@ -286,7 +286,7 @@ export function ContactsPage({
                                     const isSelected = activeContact.id === contact.id;
                                     const row = (
                                         <div
-                                            className={`contact-list-item group flex items-center gap-2.5 border-l-2 px-3.5 py-2.5 transition-colors ${isSelected ? 'border-l-primary bg-accent/70' : 'border-l-transparent hover:bg-surface-subtle'}`}
+                                            className={`contact-list-item group flex items-center gap-2.5 border-l-2 px-3.5 py-2.5 transition-colors ${isSelected ? 'border-l-primary/75 bg-accent/70' : 'border-l-transparent hover:bg-surface-subtle'}`}
                                         >
                                             <button
                                                 type="button"

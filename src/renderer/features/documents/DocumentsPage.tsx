@@ -215,7 +215,7 @@ export function DocumentsPage({
             {(pageError || notice) && (
                 <div
                     role={pageError || noticeIsError ? 'alert' : 'status'}
-                    className={`flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-xs ${pageError || noticeIsError ? 'border-danger/25 bg-danger-subtle text-danger-foreground' : 'border-border bg-surface-subtle text-foreground'}`}
+                    className={`flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-xs ${pageError || noticeIsError ? 'border-danger/20 bg-danger-subtle text-danger-foreground' : 'border-border bg-surface-subtle text-foreground'}`}
                 >
                     <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                     <span>{pageError || notice}</span>

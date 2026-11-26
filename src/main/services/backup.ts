@@ -10,7 +10,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import * as unzipper from 'unzipper';
 import type Database from 'better-sqlite3';
-import { CURRENT_SCHEMA_VERSION } from '../database/schema.js';
+import { CURRENT_SCHEMA_VERSION } from '../database/schema.ts';
 import { unwrapBackupDataKey, validateBackupHeaderV2 } from './backup-key-envelope.ts';
 import { createEncryptedBackup } from './backup-create.ts';
 import {
@@ -105,7 +105,7 @@ export class BackupService {
                     try {
                         if (useRecoveryKey) {
                             const salt = Buffer.from(header.recovery.salt, 'base64');
-                            recoveryWrappingKey = await deriveBackupKey(secret, salt);
+                            recoveryWrappingKey = await deriveBackupKey(secret.trim(), salt);
                             dataKey = unwrapBackupDataKey(
                                 header.recovery,
                                 recoveryWrappingKey,

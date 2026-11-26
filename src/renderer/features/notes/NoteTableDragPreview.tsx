@@ -55,11 +55,11 @@ export function NoteTableDragPreview({
                         width: Math.max(24, indicator.leftColWidth + indicator.rightColWidth),
                         height: tableHeight,
                     }}
-                    className="pointer-events-none absolute z-[9] flex overflow-hidden rounded-[0.625rem] border border-primary/35 bg-primary/[0.04]"
+                    className="pointer-events-none absolute z-[9] flex overflow-hidden rounded-[0.625rem] border border-primary/25 bg-primary/[0.04]"
                 >
                     <div
                         style={{ width: indicator.leftColWidth }}
-                        className="flex items-start justify-center border-r border-primary/50 bg-primary/[0.06] pt-1.5"
+                        className="flex items-start justify-center border-r border-primary/35 bg-primary/[0.06] pt-1.5"
                     >
                         <span className="rounded bg-popover/95 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary shadow-xs">
                             {indicator.leftColWidth}px ({indicator.leftPct}%)
@@ -77,7 +77,7 @@ export function NoteTableDragPreview({
                 {Math.abs(indicator.left - indicator.startLeft) > 2 && (
                     <div
                         style={{ left: indicator.startLeft, top: tableTop, height: tableHeight }}
-                        className="pointer-events-none absolute z-[10] w-0 border-l border-dashed border-muted-foreground/55"
+                        className="pointer-events-none absolute z-[10] w-0 border-l border-dashed border-muted-foreground/45"
                     />
                 )}
                 <div
@@ -87,7 +87,7 @@ export function NoteTableDragPreview({
                 <div
                     data-testid="table-resize-preview"
                     style={{ left: indicator.left, top: Math.max(4, tableTop - 30) }}
-                    className="pointer-events-none absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/45 bg-popover px-2 py-1 font-mono text-[11px] font-semibold text-foreground shadow-[var(--shadow-popover)]"
+                    className="pointer-events-none absolute z-30 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-lg border border-primary/30 bg-popover px-2 py-1 font-mono text-[11px] font-semibold text-foreground shadow-[var(--shadow-popover)]"
                 >
                     <span className="text-primary">{indicator.label}</span>
                     {indicator.deltaPx !== 0 && (
@@ -115,12 +115,12 @@ export function NoteTableDragPreview({
                     width: tableWidth,
                     height: Math.max(24, indicator.actualHeight),
                 }}
-                className="pointer-events-none absolute z-[9] border-y border-primary/40 bg-primary/[0.06]"
+                className="pointer-events-none absolute z-[9] border-y border-primary/28 bg-primary/[0.06]"
             />
             {Math.abs(indicator.top - indicator.startTop) > 2 && (
                 <div
                     style={{ left: tableLeft, top: indicator.startTop, width: tableWidth }}
-                    className="pointer-events-none absolute z-[10] h-0 border-t border-dashed border-muted-foreground/55"
+                    className="pointer-events-none absolute z-[10] h-0 border-t border-dashed border-muted-foreground/45"
                 />
             )}
             <div
@@ -130,7 +130,7 @@ export function NoteTableDragPreview({
             <div
                 data-testid="table-resize-preview"
                 style={{ left: tableLeft + tableWidth - 6, top: indicator.top - 14 }}
-                className="pointer-events-none absolute z-30 -translate-x-full whitespace-nowrap rounded-lg border border-primary/45 bg-popover px-2 py-1 font-mono text-[11px] font-semibold text-primary shadow-[var(--shadow-popover)]"
+                className="pointer-events-none absolute z-30 -translate-x-full whitespace-nowrap rounded-lg border border-primary/30 bg-popover px-2 py-1 font-mono text-[11px] font-semibold text-primary shadow-[var(--shadow-popover)]"
             >
                 {indicator.label}
             </div>

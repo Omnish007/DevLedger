@@ -126,7 +126,7 @@ export function SettingsPage(props: Props) {
             <div className="grid gap-6 md:grid-cols-[224px_minmax(0,1fr)]">
                 <nav
                     aria-label="Settings categories"
-                    className="flex h-fit gap-1 overflow-x-auto rounded-xl border border-border/75 bg-card/65 p-1.5 shadow-[var(--shadow-xs)] md:flex-col"
+                    className="flex h-fit flex-wrap gap-1 rounded-xl border border-border/75 bg-card/65 p-1.5 shadow-[var(--shadow-xs)] md:flex-col md:flex-nowrap"
                 >
                     {(
                         [
@@ -154,7 +154,7 @@ export function SettingsPage(props: Props) {
                     {error && (
                         <p
                             role="alert"
-                            className="rounded-xl border border-danger/25 bg-danger-subtle px-4 py-3 text-xs text-danger-foreground"
+                            className="rounded-xl border border-danger/20 bg-danger-subtle px-4 py-3 text-xs text-danger-foreground"
                         >
                             {error}
                         </p>
@@ -211,7 +211,7 @@ export function SettingsPage(props: Props) {
                                                 type="button"
                                                 aria-pressed={active}
                                                 onClick={() => void updateSetting('theme', item.value)}
-                                                className={`flex flex-col gap-2.5 rounded-xl border p-3 text-left font-medium transition-all ${active ? 'border-ring bg-accent/70 text-accent-foreground ring-2 ring-ring/15' : 'border-border/85 bg-card hover:border-border hover:bg-surface-hover/60'}`}
+                                                className={`flex flex-col gap-2.5 rounded-xl border p-3 text-left font-medium transition-all ${active ? 'border-ring/65 bg-accent/70 text-accent-foreground ring-2 ring-ring/15' : 'border-border/80 bg-card hover:border-border hover:bg-surface-hover/60'}`}
                                             >
                                                 <div
                                                     aria-hidden="true"
@@ -546,7 +546,7 @@ export function SettingsPage(props: Props) {
                                                                 key={modelName}
                                                                 type="button"
                                                                 onClick={() => setChatModel(modelName)}
-                                                                className={`inline-flex min-h-7 items-center rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors ${chatModel === modelName ? 'border-primary/50 bg-primary/10 text-primary font-semibold' : 'border-border bg-surface-subtle/50 text-foreground hover:bg-surface-hover'}`}
+                                                                className={`inline-flex min-h-7 items-center rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors ${chatModel === modelName ? 'border-primary/30 bg-primary/10 text-primary font-semibold' : 'border-border bg-surface-subtle/50 text-foreground hover:bg-surface-hover'}`}
                                                             >
                                                                 {modelName}
                                                             </button>
@@ -604,7 +604,7 @@ export function SettingsPage(props: Props) {
                                                                 key={modelName}
                                                                 type="button"
                                                                 onClick={() => setEmbeddingModel(modelName)}
-                                                                className={`inline-flex min-h-7 items-center rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors ${embeddingModel === modelName ? 'border-primary/50 bg-primary/10 text-primary font-semibold' : 'border-border bg-surface-subtle/50 text-foreground hover:bg-surface-hover'}`}
+                                                                className={`inline-flex min-h-7 items-center rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors ${embeddingModel === modelName ? 'border-primary/30 bg-primary/10 text-primary font-semibold' : 'border-border bg-surface-subtle/50 text-foreground hover:bg-surface-hover'}`}
                                                             >
                                                                 {modelName}
                                                             </button>

@@ -72,7 +72,7 @@ function Calendar({
                     ),
                     dropdown_root: cn(
                         defaults.dropdown_root,
-                        'relative inline-flex h-8 items-center rounded-lg border border-input bg-card px-2.5 text-xs font-medium shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle has-[select:focus-visible]:border-ring has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring/25 [&>select>option]:bg-popover [&>select>option]:text-popover-foreground',
+                        'relative inline-flex h-8 items-center rounded-lg border border-border/90 bg-card px-2.5 text-xs font-medium shadow-[var(--shadow-xs)] transition-colors hover:border-border hover:bg-surface-subtle has-[select:focus-visible]:border-ring/75 has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring/20 [&>select>option]:bg-popover [&>select>option]:text-popover-foreground',
                         classNames?.dropdown_root,
                     ),
                     dropdown: cn(

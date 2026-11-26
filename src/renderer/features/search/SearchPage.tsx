@@ -293,7 +293,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                                 key={chip}
                                 type="button"
                                 onClick={() => void runQuery(chip)}
-                                className="inline-flex min-h-7 items-center rounded-full border border-border bg-card px-3 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-input hover:bg-surface-subtle hover:text-foreground"
+                                className="inline-flex min-h-7 items-center rounded-full border border-border/80 bg-card px-3 py-1 font-mono text-xs text-muted-foreground transition-colors hover:border-border hover:bg-surface-subtle hover:text-foreground"
                             >
                                 {chip}
                             </button>
@@ -304,7 +304,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 {error && (
                     <p
                         role="alert"
-                        className="rounded-lg border border-danger/25 bg-danger-subtle px-3 py-2 text-xs text-danger-foreground"
+                        className="rounded-lg border border-danger/20 bg-danger-subtle px-3 py-2 text-xs text-danger-foreground"
                     >
                         {error}
                     </p>
@@ -312,7 +312,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 {semanticError && (
                     <div
                         role="alert"
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning-subtle px-3 py-2 text-xs text-warning-foreground"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/20 bg-warning-subtle px-3 py-2 text-xs text-warning-foreground"
                     >
                         <span>{semanticError}</span>
                         {semanticError.toLowerCase().includes('index') && (
@@ -351,7 +351,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                 {aiError && (
                     <div
                         role="alert"
-                        className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-subtle p-3 text-xs text-warning-foreground"
+                        className="flex items-start gap-2 rounded-xl border border-warning/20 bg-warning-subtle p-3 text-xs text-warning-foreground"
                     >
                         <AlertCircle className="mt-0.5 size-4 shrink-0" />
                         <span>{aiError}</span>
@@ -375,7 +375,7 @@ export function SearchPage({ onSearch, onHybridSearch, onOpenResult, onAiStatus,
                                     key={`${source.type}:${source.id}`}
                                     type="button"
                                     onClick={() => onOpenResult(source)}
-                                    className="inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium transition-colors hover:border-input hover:bg-surface-hover"
+                                    className="inline-flex min-h-7 items-center gap-1.5 rounded-lg border border-border/80 bg-card px-2.5 py-1 text-xs font-medium transition-colors hover:border-border hover:bg-surface-hover"
                                 >
                                     <span className="font-mono text-xs text-primary">[{index + 1}]</span>
                                     <span className="truncate">{source.title}</span>
